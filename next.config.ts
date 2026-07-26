@@ -1,9 +1,11 @@
 import type { NextConfig } from "next";
 
+const isProd = process.env.NODE_ENV === "production";
+const basePath = isProd ? "/cinerank-media-tracker" : "";
+
 const nextConfig: NextConfig = {
   output: "export",
-  // Relative assetPrefix for GitHub Pages ensures CSS/JS load cleanly regardless of trailing slashes or repo subpaths
-  assetPrefix: "./",
+  basePath: basePath,
   images: {
     unoptimized: true,
   },
