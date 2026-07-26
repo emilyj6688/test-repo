@@ -2,6 +2,304 @@ import { MediaItem } from "@/types/media";
 
 export const POPULAR_AMERICAN_CATALOG: MediaItem[] = [
   {
+    "id": 671,
+    "tmdbId": 671,
+    "title": "Harry Potter and the Sorcerer's Stone",
+    "mediaType": "movie",
+    "posterPath": "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=500&q=80",
+    "backdropPath": "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=780&q=80",
+    "releaseDate": "2001-11-16",
+    "overview": "An orphaned boy enrolls in a school of wizardry, where he learns the truth about himself, his family and the terrible evil that haunts the magical world.",
+    "genres": [
+      "Adventure",
+      "Fantasy",
+      "Family"
+    ],
+    "directors": [
+      "Chris Columbus"
+    ],
+    "cast": [
+      {
+        "id": 10980,
+        "name": "Daniel Radcliffe",
+        "character": "Harry Potter",
+        "profilePath": null
+      },
+      {
+        "id": 10981,
+        "name": "Rupert Grint",
+        "character": "Ron Weasley",
+        "profilePath": null
+      },
+      {
+        "id": 10990,
+        "name": "Emma Watson",
+        "character": "Hermione Granger",
+        "profilePath": null
+      }
+    ],
+    "voteAverage": 7.9,
+    "tagline": "Let the Magic Begin.",
+    "runtime": 152
+  },
+  {
+    "id": 672,
+    "tmdbId": 672,
+    "title": "Harry Potter and the Chamber of Secrets",
+    "mediaType": "movie",
+    "posterPath": "https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=500&q=80",
+    "backdropPath": "https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=780&q=80",
+    "releaseDate": "2002-11-13",
+    "overview": "An ancient prophecy seems to be coming true when a mysterious presence begins stalking the corridors of a school of magic and leaving its victims paralyzed.",
+    "genres": [
+      "Adventure",
+      "Fantasy",
+      "Family"
+    ],
+    "directors": [
+      "Chris Columbus"
+    ],
+    "cast": [
+      {
+        "id": 10980,
+        "name": "Daniel Radcliffe",
+        "character": "Harry Potter",
+        "profilePath": null
+      },
+      {
+        "id": 10990,
+        "name": "Emma Watson",
+        "character": "Hermione Granger",
+        "profilePath": null
+      }
+    ],
+    "voteAverage": 7.7,
+    "tagline": "Something evil has returned to Hogwarts.",
+    "runtime": 161
+  },
+  {
+    "id": 673,
+    "tmdbId": 673,
+    "title": "Harry Potter and the Prisoner of Azkaban",
+    "mediaType": "movie",
+    "posterPath": "https://images.unsplash.com/photo-1514539079130-25950c84af65?auto=format&fit=crop&w=500&q=80",
+    "backdropPath": "https://images.unsplash.com/photo-1514539079130-25950c84af65?auto=format&fit=crop&w=780&q=80",
+    "releaseDate": "2004-05-31",
+    "overview": "Harry Potter, Ron and Hermione return to Hogwarts School of Witchcraft and Wizardry for their third year of study, where they delve into the mystery surrounding an escaped prisoner who poses a dangerous threat to the young wizard.",
+    "genres": [
+      "Adventure",
+      "Fantasy",
+      "Family"
+    ],
+    "directors": [
+      "Alfonso Cuarón"
+    ],
+    "cast": [
+      {
+        "id": 10980,
+        "name": "Daniel Radcliffe",
+        "character": "Harry Potter",
+        "profilePath": null
+      },
+      {
+        "id": 64,
+        "name": "Gary Oldman",
+        "character": "Sirius Black",
+        "profilePath": null
+      }
+    ],
+    "voteAverage": 8,
+    "tagline": "Something wicked this way comes.",
+    "runtime": 142
+  },
+  {
+    "id": 674,
+    "tmdbId": 674,
+    "title": "Harry Potter and the Goblet of Fire",
+    "mediaType": "movie",
+    "posterPath": "https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=500&q=80",
+    "backdropPath": "https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=780&q=80",
+    "releaseDate": "2005-11-16",
+    "overview": "Harry Potter finds himself competing in a hazardous tournament between rival schools of magic, but he is distracted by recurring nightmares.",
+    "genres": [
+      "Adventure",
+      "Fantasy",
+      "Family"
+    ],
+    "directors": [
+      "Mike Newell"
+    ],
+    "cast": [
+      {
+        "id": 10980,
+        "name": "Daniel Radcliffe",
+        "character": "Harry Potter",
+        "profilePath": null
+      },
+      {
+        "id": 37153,
+        "name": "Robert Pattinson",
+        "character": "Cedric Diggory",
+        "profilePath": null
+      }
+    ],
+    "voteAverage": 7.8,
+    "tagline": "Dark and difficult times lie ahead.",
+    "runtime": 157
+  },
+  {
+    "id": 675,
+    "tmdbId": 675,
+    "title": "Harry Potter and the Order of the Phoenix",
+    "mediaType": "movie",
+    "posterPath": "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=500&q=80",
+    "backdropPath": "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=780&q=80",
+    "releaseDate": "2007-06-28",
+    "overview": "With their warning about Lord Voldemort's return scoffed at, Harry and Dumbledore are targeted by the Wizard authorities as an authoritarian bureaucrat slowly takes power at Hogwarts.",
+    "genres": [
+      "Adventure",
+      "Fantasy",
+      "Family"
+    ],
+    "directors": [
+      "David Yates"
+    ],
+    "cast": [
+      {
+        "id": 10980,
+        "name": "Daniel Radcliffe",
+        "character": "Harry Potter",
+        "profilePath": null
+      },
+      {
+        "id": 13014,
+        "name": "Imelda Staunton",
+        "character": "Dolores Umbridge",
+        "profilePath": null
+      }
+    ],
+    "voteAverage": 7.7,
+    "tagline": "The Rebellion Begins.",
+    "runtime": 138
+  },
+  {
+    "id": 767,
+    "tmdbId": 767,
+    "title": "Harry Potter and the Half-Blood Prince",
+    "mediaType": "movie",
+    "posterPath": "https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?auto=format&fit=crop&w=500&q=80",
+    "backdropPath": "https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?auto=format&fit=crop&w=780&q=80",
+    "releaseDate": "2009-07-07",
+    "overview": "As Harry Potter begins his sixth year at Hogwarts, he discovers an old book marked as 'the property of the Half-Blood Prince' and begins to learn more about Lord Voldemort's dark past.",
+    "genres": [
+      "Adventure",
+      "Fantasy",
+      "Family"
+    ],
+    "directors": [
+      "David Yates"
+    ],
+    "cast": [
+      {
+        "id": 10980,
+        "name": "Daniel Radcliffe",
+        "character": "Harry Potter",
+        "profilePath": null
+      },
+      {
+        "id": 10990,
+        "name": "Emma Watson",
+        "character": "Hermione Granger",
+        "profilePath": null
+      }
+    ],
+    "voteAverage": 7.7,
+    "tagline": "Once again, dark secrets are uncovered.",
+    "runtime": 153
+  },
+  {
+    "id": 12444,
+    "tmdbId": 12444,
+    "title": "Harry Potter and the Deathly Hallows: Part 1",
+    "mediaType": "movie",
+    "posterPath": "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=500&q=80",
+    "backdropPath": "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=780&q=80",
+    "releaseDate": "2010-11-17",
+    "overview": "As Harry, Ron and Hermione race against time and evil to destroy the Horcruxes, they uncover the existence of the three most powerful objects in the wizarding world: the Deathly Hallows.",
+    "genres": [
+      "Adventure",
+      "Fantasy",
+      "Family"
+    ],
+    "directors": [
+      "David Yates"
+    ],
+    "cast": [
+      {
+        "id": 10980,
+        "name": "Daniel Radcliffe",
+        "character": "Harry Potter",
+        "profilePath": null
+      },
+      {
+        "id": 10981,
+        "name": "Rupert Grint",
+        "character": "Ron Weasley",
+        "profilePath": null
+      },
+      {
+        "id": 10990,
+        "name": "Emma Watson",
+        "character": "Hermione Granger",
+        "profilePath": null
+      }
+    ],
+    "voteAverage": 7.8,
+    "tagline": "The End Begins.",
+    "runtime": 146
+  },
+  {
+    "id": 12445,
+    "tmdbId": 12445,
+    "title": "Harry Potter and the Deathly Hallows: Part 2",
+    "mediaType": "movie",
+    "posterPath": "https://images.unsplash.com/photo-1536440136628-849c177e76a1?auto=format&fit=crop&w=500&q=80",
+    "backdropPath": "https://images.unsplash.com/photo-1536440136628-849c177e76a1?auto=format&fit=crop&w=780&q=80",
+    "releaseDate": "2011-07-07",
+    "overview": "Harry, Ron, and Hermione search for Voldemort's remaining Horcruxes in their effort to destroy the Dark Lord as the final battle rages at Hogwarts.",
+    "genres": [
+      "Adventure",
+      "Fantasy",
+      "Family"
+    ],
+    "directors": [
+      "David Yates"
+    ],
+    "cast": [
+      {
+        "id": 10980,
+        "name": "Daniel Radcliffe",
+        "character": "Harry Potter",
+        "profilePath": null
+      },
+      {
+        "id": 10981,
+        "name": "Rupert Grint",
+        "character": "Ron Weasley",
+        "profilePath": null
+      },
+      {
+        "id": 10990,
+        "name": "Emma Watson",
+        "character": "Hermione Granger",
+        "profilePath": null
+      }
+    ],
+    "voteAverage": 8.1,
+    "tagline": "It All Ends Here.",
+    "runtime": 130
+  },
+  {
     "id": 27205,
     "tmdbId": 27205,
     "title": "Inception",
