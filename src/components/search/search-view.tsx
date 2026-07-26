@@ -44,14 +44,28 @@ export const SearchView: React.FC<Props> = ({ onRecordsChanged }) => {
     setQuery(searchTerm);
     setVisibleCount(PAGE_SIZE);
 
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
+    const lower = searchTerm.toLowerCase().trim();
 
-    if (!searchTerm.trim()) {
+    if (!lower) {
       setResults(MOCK_MEDIA_ITEMS);
       setLoading(false);
       return;
+    }
+
+    // Instant local filter across title, genres, directors, cast
+    const instantLocalMatches = MOCK_MEDIA_ITEMS.filter(
+      (item) =>
+        item.title.toLowerCase().includes(lower) ||
+        item.genres.some((g) => g.toLowerCase().includes(lower)) ||
+        item.directors.some((d) => d.toLowerCase().includes(lower)) ||
+        item.cast.some((c) => c.name.toLowerCase().includes(lower))
+    );
+
+    setResults(instantLocalMatches);
+
+    // Asynchronous TMDB lookup for items outside local list
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
     }
 
     setLoading(true);
@@ -60,7 +74,7 @@ export const SearchView: React.FC<Props> = ({ onRecordsChanged }) => {
       const items = await searchTMDB(searchTerm);
       setResults(items);
       setLoading(false);
-    }, 300);
+    }, 200);
   };
 
   const handleMarkWatched = (item: MediaItem, tier: RatingTier = 1.0) => {
@@ -105,13 +119,13 @@ export const SearchView: React.FC<Props> = ({ onRecordsChanged }) => {
 
         <div className="max-w-2xl space-y-4 relative z-10">
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">
-            <Sparkles className="w-3.5 h-3.5" /> High Performance Catalog
+            <Sparkles className="w-3.5 h-3.5" /> Instant Live Search
           </span>
           <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
             Discover, Track & Rank Your Favorite Cinema
           </h1>
           <p className="text-sm text-slate-400">
-            Search top movies & TV shows instantly, log ratings with smooth continuous sliders, and rank them through pairwise comparisons.
+            Search any movie or TV show instantly, log continuous ratings, and rank them through pairwise comparisons.
           </p>
 
           {/* Search Input Box */}
@@ -227,7 +241,7 @@ export const SearchView: React.FC<Props> = ({ onRecordsChanged }) => {
           <Filter className="w-10 h-10 text-slate-600 mx-auto" />
           <h3 className="text-base font-bold text-slate-300">No media titles found</h3>
           <p className="text-xs text-slate-500 max-w-sm mx-auto">
-            Try adjusting your search keywords or switching filters between Movies and TV Shows.
+            Try searching for another movie or TV show title!
           </p>
         </div>
       )}

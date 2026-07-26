@@ -8,31 +8,52 @@ const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p/';
 
 const DEFAULT_DEMO_TMDB_KEY = '3fd2be69867702653f50868318e32726';
 
-// Generates a rich, dynamic SVG poster with the title name and cinematic styling
-export function generateTitlePosterSVG(title: string, mediaType: 'movie' | 'tv' = 'movie'): string {
-  const cleanTitle = (title || 'Untitled Movie')
+// Generates an inline SVG cover poster for any movie or TV show title
+export function generateTitlePosterSVG(
+  title: string,
+  mediaType: 'movie' | 'tv' = 'movie',
+  year?: string,
+  genres?: string[]
+): string {
+  const cleanTitle = (title || 'Untitled')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
-  
-  const icon = mediaType === 'tv' ? '📺 TV SERIES' : '🎬 MOVIE';
 
-  return `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="500" height="750" viewBox="0 0 500 750" fill="%230f172a"><defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%231e293b"/><stop offset="50%" stop-color="%230f172a"/><stop offset="100%" stop-color="%23020617"/></linearGradient><linearGradient id="b" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="%2338bdf8"/><stop offset="100%" stop-color="%23818cf8"/></linearGradient></defs><rect width="500" height="750" fill="url(%23g)"/><rect x="16" y="16" width="468" height="718" fill="none" stroke="%23334155" stroke-width="2" rx="16"/><circle cx="250" cy="280" r="90" fill="%231e293b" stroke="%23334155" stroke-width="2"/><text x="250" y="275" dominant-baseline="middle" text-anchor="middle" fill="%2338bdf8" font-family="sans-serif" font-size="52">🎬</text><text x="250" y="325" dominant-baseline="middle" text-anchor="middle" fill="%2394a3b8" font-family="sans-serif" font-size="12" font-weight="bold" letter-spacing="3">${icon}</text><text x="250" y="460" dominant-baseline="middle" text-anchor="middle" fill="%23ffffff" font-family="sans-serif" font-size="26" font-weight="900">${cleanTitle.length > 24 ? cleanTitle.substring(0, 22) + '...' : cleanTitle}</text><text x="250" y="500" dominant-baseline="middle" text-anchor="middle" fill="%2338bdf8" font-family="sans-serif" font-size="14" font-weight="bold">CineRank Collection</text></svg>`;
+  const badge = mediaType === 'tv' ? 'TV SERIES' : 'FEATURE FILM';
+  const genreText = genres && genres.length > 0 ? genres.slice(0, 2).join(' • ') : 'CINEMA COLLECTION';
+  const displayYear = year ? year.substring(0, 4) : '';
+
+  // Palette accent colors based on title length
+  const hues = [
+    { start: '%230f172a', mid: '%231e1b4b', accent: '%2338bdf8' },
+    { start: '%230f172a', mid: '%2331101e', accent: '%23f43f5e' },
+    { start: '%230f172a', mid: '%23064e3b', accent: '%2334d399' },
+    { start: '%230f172a', mid: '%23451a03', accent: '%23fbbf24' },
+    { start: '%230f172a', mid: '%233b0764', accent: '%23c084fc' },
+  ];
+
+  const palette = hues[cleanTitle.length % hues.length];
+
+  return `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="500" height="750" viewBox="0 0 500 750" fill="%230f172a"><defs><linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="${palette.start}"/><stop offset="60%" stop-color="${palette.mid}"/><stop offset="100%" stop-color="%23020617"/></linearGradient></defs><rect width="500" height="750" fill="url(%23bg)"/><rect x="16" y="16" width="468" height="718" fill="none" stroke="${palette.accent}" stroke-width="2" stroke-opacity="0.4" rx="16"/><circle cx="250" cy="260" r="85" fill="%230f172a" stroke="${palette.accent}" stroke-width="3"/><text x="250" y="255" dominant-baseline="middle" text-anchor="middle" fill="${palette.accent}" font-family="sans-serif" font-size="56">${mediaType === 'tv' ? '📺' : '🎬'}</text><text x="250" y="310" dominant-baseline="middle" text-anchor="middle" fill="%2394a3b8" font-family="sans-serif" font-size="11" font-weight="800" letter-spacing="3">${badge} ${displayYear}</text><text x="250" y="440" dominant-baseline="middle" text-anchor="middle" fill="%23ffffff" font-family="sans-serif" font-size="28" font-weight="900">${cleanTitle.length > 22 ? cleanTitle.substring(0, 20) + '...' : cleanTitle}</text><text x="250" y="480" dominant-baseline="middle" text-anchor="middle" fill="${palette.accent}" font-family="sans-serif" font-size="13" font-weight="bold" letter-spacing="1">${genreText}</text><text x="250" y="700" dominant-baseline="middle" text-anchor="middle" fill="%2364748b" font-family="sans-serif" font-size="12" font-weight="bold">CINERANK PREMIUM</text></svg>`;
 }
 
 export function getTMDBImageUrl(
   path: string | null | undefined,
   size: 'poster' | 'backdrop' | 'profile' = 'poster',
   titleFallback = 'CineRank Media',
-  mediaType: 'movie' | 'tv' = 'movie'
+  mediaType: 'movie' | 'tv' = 'movie',
+  year?: string,
+  genres?: string[]
 ): string {
-  if (!path) return generateTitlePosterSVG(titleFallback, mediaType);
+  if (!path) return generateTitlePosterSVG(titleFallback, mediaType, year, genres);
   if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('data:')) {
     return path;
   }
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
   const sizePath = size === 'backdrop' ? 'w780' : size === 'profile' ? 'w185' : 'w500';
-  return `${TMDB_IMAGE_BASE}${sizePath}${path}`;
+  return `${TMDB_IMAGE_BASE}${sizePath}${cleanPath}`;
 }
 
 export function getActiveTMDBApiKey(): string {
@@ -64,13 +85,16 @@ export async function searchTMDB(query: string, page = 1): Promise<MediaItem[]> 
 
   const lower = query.toLowerCase().trim();
 
-  // Search local expanded catalog first
+  // Instant local catalog search
   const localMatches = POPULAR_AMERICAN_CATALOG.filter(
     (item) =>
       item.title.toLowerCase().includes(lower) ||
       item.genres.some((g) => g.toLowerCase().includes(lower)) ||
-      item.directors.some((d) => d.toLowerCase().includes(lower))
+      item.directors.some((d) => d.toLowerCase().includes(lower)) ||
+      item.cast.some((c) => c.name.toLowerCase().includes(lower))
   );
+
+  if (localMatches.length > 0) return localMatches;
 
   const apiKey = getActiveTMDBApiKey();
 
@@ -80,7 +104,7 @@ export async function searchTMDB(query: string, page = 1): Promise<MediaItem[]> 
       { cache: 'no-store' }
     );
 
-    if (!res.ok) throw new Error(`TMDB Search Error: ${res.statusText}`);
+    if (!res.ok) return POPULAR_AMERICAN_CATALOG;
     const data = await res.json();
     const results: TMDBRawSearchResult[] = data.results || [];
 
@@ -98,8 +122,8 @@ export async function searchTMDB(query: string, page = 1): Promise<MediaItem[]> 
         tmdbId: r.id,
         title,
         mediaType,
-        posterPath: r.poster_path,
-        backdropPath: r.backdrop_path,
+        posterPath: r.poster_path ? `${TMDB_IMAGE_BASE}w500${r.poster_path}` : null,
+        backdropPath: r.backdrop_path ? `${TMDB_IMAGE_BASE}w780${r.backdrop_path}` : null,
         releaseDate,
         overview: r.overview || 'No description available.',
         genres: [],
@@ -109,19 +133,9 @@ export async function searchTMDB(query: string, page = 1): Promise<MediaItem[]> 
       });
     }
 
-    const combinedMap = new Map<string, MediaItem>();
-    localMatches.forEach((m) => combinedMap.set(`${m.mediaType}_${m.tmdbId}`, m));
-    remoteItems.forEach((m) => {
-      const key = `${m.mediaType}_${m.tmdbId}`;
-      if (!combinedMap.has(key)) {
-        combinedMap.set(key, m);
-      }
-    });
-
-    return Array.from(combinedMap.values());
-  } catch (err) {
-    console.warn('TMDB live search failed, returning local catalog matches:', err);
-    return localMatches.length > 0 ? localMatches : POPULAR_AMERICAN_CATALOG;
+    return remoteItems.length > 0 ? remoteItems : POPULAR_AMERICAN_CATALOG;
+  } catch {
+    return POPULAR_AMERICAN_CATALOG;
   }
 }
 
@@ -165,8 +179,8 @@ export async function getTMDBDetails(id: number, mediaType: 'movie' | 'tv'): Pro
       tmdbId: data.id,
       title: localFound?.title || title,
       mediaType,
-      posterPath: data.poster_path || localFound?.posterPath || null,
-      backdropPath: data.backdrop_path || localFound?.backdropPath || null,
+      posterPath: data.poster_path ? `${TMDB_IMAGE_BASE}w500${data.poster_path}` : localFound?.posterPath || null,
+      backdropPath: data.backdrop_path ? `${TMDB_IMAGE_BASE}w780${data.backdrop_path}` : localFound?.backdropPath || null,
       releaseDate: releaseDate || localFound?.releaseDate || '',
       overview: data.overview || localFound?.overview || 'No plot overview provided.',
       genres: genres.length > 0 ? genres : localFound?.genres || [],
@@ -176,8 +190,7 @@ export async function getTMDBDetails(id: number, mediaType: 'movie' | 'tv'): Pro
       tagline: data.tagline || localFound?.tagline,
       runtime: data.runtime || (data.episode_run_time && data.episode_run_time[0]) || localFound?.runtime,
     };
-  } catch (err) {
-    console.warn(`TMDB details failed for ${mediaType} ${id}, returning local item:`, err);
+  } catch {
     if (localFound) return localFound;
     return {
       id,
