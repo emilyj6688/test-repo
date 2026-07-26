@@ -1,23 +1,27 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { MediaItem, UserMediaRecord, RatingTier, MediaType } from '@/types/media';
 import { searchTMDB, MOCK_MEDIA_ITEMS } from '@/lib/tmdb';
 import { StorageService } from '@/lib/storage';
 import { MediaCard } from '@/components/media/media-card';
 import { MediaDetailModal } from '@/components/media/media-detail-modal';
-import { Search, Loader2, Film, Tv, Sparkles, Filter } from 'lucide-react';
+import { Search, Loader2, Film, Tv, Sparkles, Filter, ChevronDown } from 'lucide-react';
 
 interface Props {
   onRecordsChanged: () => void;
   onNavigateToTab?: (tab: 'watched' | 'watchlist' | 'ranking') => void;
 }
 
+const PAGE_SIZE = 24;
+
 export const SearchView: React.FC<Props> = ({ onRecordsChanged }) => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<MediaItem[]>(MOCK_MEDIA_ITEMS);
   const [loading, setLoading] = useState(false);
   const [filterType, setFilterType] = useState<'all' | MediaType>('all');
+  const [visibleCount, setVisibleCount] = useState<number>(PAGE_SIZE);
+
   const [userRecordsMap, setUserRecordsMap] = useState<Map<string, UserMediaRecord>>(() => {
     if (typeof window === 'undefined') return new Map();
     const records = StorageService.getUserRecords();
@@ -38,6 +42,7 @@ export const SearchView: React.FC<Props> = ({ onRecordsChanged }) => {
 
   const handleSearch = (searchTerm: string) => {
     setQuery(searchTerm);
+    setVisibleCount(PAGE_SIZE);
 
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
@@ -55,17 +60,22 @@ export const SearchView: React.FC<Props> = ({ onRecordsChanged }) => {
       const items = await searchTMDB(searchTerm);
       setResults(items);
       setLoading(false);
-    }, 350);
+    }, 300);
   };
 
-  const handleMarkWatched = (item: MediaItem, tier: RatingTier = 2) => {
+  const handleMarkWatched = (item: MediaItem, tier: RatingTier = 1.0) => {
     StorageService.saveRecord(item, 'watched', tier);
     refreshUserRecords();
     onRecordsChanged();
   };
 
   const handleAddToWatchlist = (item: MediaItem) => {
-    StorageService.saveRecord(item, 'want_to_watch', 2);
+    StorageService.saveRecord(item, 'want_to_watch', 1.0);
+    refreshUserRecords();
+    onRecordsChanged();
+  };
+
+  const handleRemoveRecord = () => {
     refreshUserRecords();
     onRecordsChanged();
   };
@@ -76,10 +86,16 @@ export const SearchView: React.FC<Props> = ({ onRecordsChanged }) => {
     onRecordsChanged();
   };
 
-  const filteredResults = results.filter((item) => {
-    if (filterType === 'all') return true;
-    return item.mediaType === filterType;
-  });
+  const filteredResults = useMemo(() => {
+    return results.filter((item) => {
+      if (filterType === 'all') return true;
+      return item.mediaType === filterType;
+    });
+  }, [results, filterType]);
+
+  const displayedResults = useMemo(() => {
+    return filteredResults.slice(0, visibleCount);
+  }, [filteredResults, visibleCount]);
 
   return (
     <div className="space-y-6">
@@ -89,24 +105,24 @@ export const SearchView: React.FC<Props> = ({ onRecordsChanged }) => {
 
         <div className="max-w-2xl space-y-4 relative z-10">
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">
-            <Sparkles className="w-3.5 h-3.5" /> Real-time TMDB Integration
+            <Sparkles className="w-3.5 h-3.5" /> High Performance Catalog
           </span>
           <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
             Discover, Track & Rank Your Favorite Cinema
           </h1>
           <p className="text-sm text-slate-400">
-            Search movies and TV shows from TMDB, log what you&apos;ve watched with 3-tier ratings, and rank them through pairwise A vs B comparisons.
+            Search top movies & TV shows instantly, log ratings with smooth continuous sliders, and rank them through pairwise comparisons.
           </p>
 
-          {/* Search Bar Input */}
-          <div className="relative pt-2">
+          {/* Search Input Box */}
+          <div className="pt-2">
             <div className="relative flex items-center">
-              <Search className="absolute left-4 w-5 h-5 text-slate-400" />
+              <Search className="absolute left-4 w-5 h-5 text-slate-400 pointer-events-none" />
               <input
                 type="text"
-                placeholder="Search movies, TV shows, actors, directors..."
                 value={query}
                 onChange={(e) => handleSearch(e.target.value)}
+                placeholder="Search movies or TV shows by title, genre, director..."
                 className="w-full pl-12 pr-12 py-3.5 bg-slate-950/90 border border-slate-700/80 focus:border-cyan-500 rounded-2xl text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/30 text-sm shadow-xl transition"
               />
               {loading && (
@@ -121,17 +137,20 @@ export const SearchView: React.FC<Props> = ({ onRecordsChanged }) => {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h2 className="text-lg font-bold text-slate-200">
-            {query.trim() ? `Search Results for "${query}"` : 'Trending & Popular Media'}
+            {query.trim() ? `Search Results for "${query}"` : 'Top Featured Media'}
           </h2>
           <p className="text-xs text-slate-400">
-            Showing {filteredResults.length} title{filteredResults.length === 1 ? '' : 's'}
+            Showing {displayedResults.length} of {filteredResults.length} title{filteredResults.length === 1 ? '' : 's'}
           </p>
         </div>
 
         {/* Media Type Filter Chips */}
         <div className="flex items-center gap-1.5 bg-slate-900 border border-slate-800 p-1 rounded-xl text-xs font-semibold">
           <button
-            onClick={() => setFilterType('all')}
+            onClick={() => {
+              setFilterType('all');
+              setVisibleCount(PAGE_SIZE);
+            }}
             className={`px-3 py-1.5 rounded-lg transition ${
               filterType === 'all'
                 ? 'bg-cyan-500 text-slate-950 font-bold'
@@ -141,7 +160,10 @@ export const SearchView: React.FC<Props> = ({ onRecordsChanged }) => {
             All Media
           </button>
           <button
-            onClick={() => setFilterType('movie')}
+            onClick={() => {
+              setFilterType('movie');
+              setVisibleCount(PAGE_SIZE);
+            }}
             className={`flex items-center gap-1 px-3 py-1.5 rounded-lg transition ${
               filterType === 'movie'
                 ? 'bg-cyan-500 text-slate-950 font-bold'
@@ -151,7 +173,10 @@ export const SearchView: React.FC<Props> = ({ onRecordsChanged }) => {
             <Film className="w-3.5 h-3.5" /> Movies
           </button>
           <button
-            onClick={() => setFilterType('tv')}
+            onClick={() => {
+              setFilterType('tv');
+              setVisibleCount(PAGE_SIZE);
+            }}
             className={`flex items-center gap-1 px-3 py-1.5 rounded-lg transition ${
               filterType === 'tv'
                 ? 'bg-cyan-500 text-slate-950 font-bold'
@@ -164,23 +189,38 @@ export const SearchView: React.FC<Props> = ({ onRecordsChanged }) => {
       </div>
 
       {/* Media Results Grid */}
-      {filteredResults.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 sm:gap-6">
-          {filteredResults.map((item) => {
-            const key = `${item.mediaType}_${item.tmdbId}`;
-            const record = userRecordsMap.get(key) || null;
-            return (
-              <MediaCard
-                key={key}
-                item={item}
-                record={record}
-                onSelect={(itm) => setSelectedItem(itm)}
-                onMarkWatched={handleMarkWatched}
-                onAddToWatchlist={handleAddToWatchlist}
-                onRatingChange={handleRatingChange}
-              />
-            );
-          })}
+      {displayedResults.length > 0 ? (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 sm:gap-6">
+            {displayedResults.map((item) => {
+              const key = `${item.mediaType}_${item.tmdbId}`;
+              const record = userRecordsMap.get(key) || null;
+              return (
+                <MediaCard
+                  key={key}
+                  item={item}
+                  record={record}
+                  onSelect={(itm) => setSelectedItem(itm)}
+                  onMarkWatched={handleMarkWatched}
+                  onAddToWatchlist={handleAddToWatchlist}
+                  onRemoveRecord={handleRemoveRecord}
+                  onRatingChange={handleRatingChange}
+                />
+              );
+            })}
+          </div>
+
+          {/* Load More Pagination Button */}
+          {visibleCount < filteredResults.length && (
+            <div className="flex justify-center pt-4">
+              <button
+                onClick={() => setVisibleCount((prev) => prev + PAGE_SIZE)}
+                className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-slate-900 border border-slate-800 hover:border-cyan-500/50 text-slate-200 hover:text-cyan-400 font-bold text-xs shadow-lg transition"
+              >
+                <ChevronDown className="w-4 h-4" /> Load More Titles ({filteredResults.length - visibleCount} remaining)
+              </button>
+            </div>
+          )}
         </div>
       ) : (
         <div className="text-center py-16 bg-slate-900/40 border border-slate-800 rounded-3xl space-y-3">
