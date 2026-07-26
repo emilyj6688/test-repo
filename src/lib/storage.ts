@@ -3,6 +3,7 @@ import { UserMediaRecord, UserProfile, MediaItem, MediaStatus, RatingTier } from
 const USERS_KEY = 'cinetrack_users_v1';
 const CURRENT_USER_KEY = 'cinetrack_current_user_v1';
 const MEDIA_RECORDS_PREFIX = 'cinetrack_records_v1_';
+const COMPARED_PAIRS_PREFIX = 'cinetrack_compared_v1_';
 
 const DEFAULT_USERS: UserProfile[] = [
   { id: 'user_default', name: 'Demo Movie Buff', avatarUrl: '🎬', createdAt: new Date().toISOString() },
@@ -75,7 +76,7 @@ export class StorageService {
       const raw = localStorage.getItem(key);
       if (!raw) return [];
       const records: UserMediaRecord[] = JSON.parse(raw);
-      // Ensure sorted by rankIndex/elo
+      // Sort watched items by rankIndex (1 at top) then Elo
       return records.sort((a, b) => {
         if (a.rankIndex !== b.rankIndex) return a.rankIndex - b.rankIndex;
         return b.eloRating - a.eloRating;
@@ -163,5 +164,36 @@ export class StorageService {
     const key = this.getRecordsKey(userId);
     localStorage.setItem(key, JSON.stringify(records));
     window.dispatchEvent(new CustomEvent('cinetrack_records_updated'));
+  }
+
+  // --- No Repeat Matchup History Tracking ---
+  private static getComparedPairsKey(userId?: string): string {
+    const activeId = userId || this.getCurrentUser().id;
+    return `${COMPARED_PAIRS_PREFIX}${activeId}`;
+  }
+
+  public static getComparedPairs(userId?: string): Set<string> {
+    if (typeof window === 'undefined') return new Set();
+    try {
+      const raw = localStorage.getItem(this.getComparedPairsKey(userId));
+      if (!raw) return new Set();
+      return new Set(JSON.parse(raw));
+    } catch {
+      return new Set();
+    }
+  }
+
+  public static recordComparedPair(idA: string, idB: string, userId?: string): void {
+    if (typeof window === 'undefined') return;
+    const key = this.getComparedPairsKey(userId);
+    const set = this.getComparedPairs(userId);
+    const pairKey = [idA, idB].sort().join('::');
+    set.add(pairKey);
+    localStorage.setItem(key, JSON.stringify(Array.from(set)));
+  }
+
+  public static resetComparedPairs(userId?: string): void {
+    if (typeof window === 'undefined') return;
+    localStorage.removeItem(this.getComparedPairsKey(userId));
   }
 }

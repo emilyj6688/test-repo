@@ -17,7 +17,8 @@ import {
   CheckCircle2,
   ListOrdered,
   Shuffle,
-  Info,
+  RotateCcw,
+  Sparkles,
 } from 'lucide-react';
 
 interface Props {
@@ -31,17 +32,26 @@ export const RankingGame: React.FC<Props> = ({ onRecordsChanged, onNavigateToTab
     if (typeof window === 'undefined') return [];
     return reindexRecords(StorageService.getUserRecords());
   });
+  const [comparedPairs, setComparedPairs] = useState<Set<string>>(() => {
+    if (typeof window === 'undefined') return new Set();
+    return StorageService.getComparedPairs();
+  });
   const [matchupOverride, setMatchupOverride] = useState<PairwiseMatchup | null>(null);
   const [comparisonsCount, setComparisonsCount] = useState(0);
 
-  const activeMatchup = matchupOverride || selectNextMatchup(records, selectedTier);
+  const activeMatchup = matchupOverride || selectNextMatchup(records, selectedTier, comparedPairs);
 
   const handleTierSelect = (tier: RatingTier) => {
     setSelectedTier(tier);
-    setMatchupOverride(selectNextMatchup(records, tier));
+    setMatchupOverride(selectNextMatchup(records, tier, comparedPairs));
   };
 
   const handleSelectWinner = (winner: UserMediaRecord, loser: UserMediaRecord) => {
+    // Record pair to prevent any repeat matchup
+    StorageService.recordComparedPair(winner.id, loser.id);
+    const updatedPairs = StorageService.getComparedPairs();
+    setComparedPairs(updatedPairs);
+
     const { winnerNewElo, loserNewElo } = calculateElo(winner.eloRating, loser.eloRating);
 
     const updated = records.map((r) => {
@@ -66,11 +76,18 @@ export const RankingGame: React.FC<Props> = ({ onRecordsChanged, onNavigateToTab
       });
     }
 
-    setMatchupOverride(selectNextMatchup(reindexed, selectedTier));
+    setMatchupOverride(selectNextMatchup(reindexed, selectedTier, updatedPairs));
   };
 
   const handleSkipMatchup = () => {
-    setMatchupOverride(selectNextMatchup(records, selectedTier));
+    setMatchupOverride(selectNextMatchup(records, selectedTier, comparedPairs));
+  };
+
+  const handleResetMatchupHistory = () => {
+    StorageService.resetComparedPairs();
+    const resetSet = new Set<string>();
+    setComparedPairs(resetSet);
+    setMatchupOverride(selectNextMatchup(records, selectedTier, resetSet));
   };
 
   // Manual fine-tuning up/down controls
@@ -111,7 +128,7 @@ export const RankingGame: React.FC<Props> = ({ onRecordsChanged, onNavigateToTab
             Pairwise Ranking Game (&ldquo;A vs B&rdquo;)
           </h1>
           <p className="text-sm text-slate-300">
-            Compare two titles in the same rating tier. Your head-to-head choices generate your definitive master ranked list powered by Elo scoring algorithms.
+            Compare two titles in the same rating tier. Fresh unrepeated head-to-head choices generate your definitive master ranked list powered by Elo scoring.
           </p>
         </div>
       </div>
@@ -165,7 +182,7 @@ export const RankingGame: React.FC<Props> = ({ onRecordsChanged, onNavigateToTab
         <div className="space-y-4">
           <div className="flex items-center justify-between text-xs text-slate-400 font-semibold px-2">
             <span className="flex items-center gap-1">
-              <Swords className="w-4 h-4 text-amber-400" /> Head-to-Head Comparison
+              <Swords className="w-4 h-4 text-amber-400" /> Fresh Head-to-Head Matchup
             </span>
             <span>Comparisons Completed: <strong className="text-amber-400">{comparisonsCount}</strong></span>
           </div>
@@ -249,25 +266,41 @@ export const RankingGame: React.FC<Props> = ({ onRecordsChanged, onNavigateToTab
               onClick={handleSkipMatchup}
               className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 text-xs font-semibold text-slate-400 hover:text-slate-200 transition"
             >
-              <Shuffle className="w-3.5 h-3.5" /> Skip / Get Another Pair
+              <Shuffle className="w-3.5 h-3.5" /> Skip / Get Another Unranked Pair
             </button>
           </div>
         </div>
       ) : (
-        <div className="text-center py-12 bg-slate-900/40 border border-slate-800 rounded-3xl space-y-3">
-          <Info className="w-10 h-10 text-amber-400 mx-auto" />
-          <h3 className="text-base font-bold text-slate-200">
-            Need at least 2 watched items in this tier to compare
+        <div className="text-center py-12 bg-slate-900/40 border border-slate-800 rounded-3xl space-y-4">
+          <Sparkles className="w-10 h-10 text-emerald-400 mx-auto" />
+          <h3 className="text-lg font-bold text-slate-100">
+            {tierEligibleCount < 2
+              ? 'Need at least 2 watched items in this tier to compare'
+              : 'All matchups in this tier have been ranked! 🎉'}
           </h3>
           <p className="text-xs text-slate-400 max-w-md mx-auto">
-            You currently have {tierEligibleCount} title{tierEligibleCount === 1 ? '' : 's'} rated in this tier. Add and rate more watched movies or TV shows to unlock pairwise comparisons!
+            {tierEligibleCount < 2
+              ? `You currently have ${tierEligibleCount} title rated in this tier. Rate more watched items to unlock pairwise comparisons.`
+              : `You've compared every possible pair in this tier without any repeats! Re-shuffle to start a new round or add more titles.`}
           </p>
-          <button
-            onClick={() => onNavigateToTab('search')}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs shadow-lg transition"
-          >
-            Search & Add More Media
-          </button>
+
+          <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+            {tierEligibleCount >= 2 && (
+              <button
+                onClick={handleResetMatchupHistory}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-lg transition"
+              >
+                <RotateCcw className="w-4 h-4" /> Reset Tier Matchups & Re-rank
+              </button>
+            )}
+
+            <button
+              onClick={() => onNavigateToTab('search')}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs shadow-lg transition"
+            >
+              Search & Rate More Titles
+            </button>
+          </div>
         </div>
       )}
 

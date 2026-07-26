@@ -16,38 +16,53 @@ export function calculateElo(winnerElo: number, loserElo: number): { winnerNewEl
 }
 
 /**
- * Selects the optimal next pair of items to compare within a specific rating tier.
- * Prioritizes items with close Elo scores to maximize ranking efficiency.
+ * Selects the optimal UNCOMPARED pair of items within a specific rating tier.
+ * Skips any pair that has already been compared to guarantee no repeat matchups.
  */
 export function selectNextMatchup(
   records: UserMediaRecord[],
-  tier: RatingTier
+  tier: RatingTier,
+  comparedPairs: Set<string> = new Set()
 ): PairwiseMatchup | null {
-  // Only watched items in the specified rating tier can be ranked against each other
   const eligible = records.filter((r) => r.status === 'watched' && r.ratingTier === tier);
 
   if (eligible.length < 2) return null;
 
-  // Sort by Elo to find closely matched items
-  const sorted = [...eligible].sort((a, b) => b.eloRating - a.eloRating);
+  // Generate all possible pair combinations in this tier
+  const uncomparedPairs: [UserMediaRecord, UserMediaRecord][] = [];
 
-  // Pick a random index and pair with an adjacent neighbor
-  const randomIndex = Math.floor(Math.random() * (sorted.length - 1));
-  const itemA = sorted[randomIndex];
-  const itemB = sorted[randomIndex + 1];
+  for (let i = 0; i < eligible.length; i++) {
+    for (let j = i + 1; j < eligible.length; j++) {
+      const pairKey = [eligible[i].id, eligible[j].id].sort().join('::');
+      if (!comparedPairs.has(pairKey)) {
+        uncomparedPairs.push([eligible[i], eligible[j]]);
+      }
+    }
+  }
 
-  // Randomize left/right presentation
+  if (uncomparedPairs.length === 0) return null;
+
+  // Sort candidate pairs by closest Elo score difference to optimize ranking speed
+  uncomparedPairs.sort((a, b) => {
+    const diffA = Math.abs(a[0].eloRating - a[1].eloRating);
+    const diffB = Math.abs(b[0].eloRating - b[1].eloRating);
+    return diffA - diffB;
+  });
+
+  // Pick one of the closest Elo pairs
+  const chosenPair = uncomparedPairs[Math.floor(Math.random() * Math.min(3, uncomparedPairs.length))];
+
   const swap = Math.random() > 0.5;
   return {
-    itemA: swap ? itemB : itemA,
-    itemB: swap ? itemA : itemB,
+    itemA: swap ? chosenPair[1] : chosenPair[0],
+    itemB: swap ? chosenPair[0] : chosenPair[1],
     tier,
   };
 }
 
 /**
  * Re-indexes rankIndex across all records based on Elo rating and ratingTier.
- * Tier 3 (Liked) > Tier 2 (Neutral) > Tier 1 (Didn't Like).
+ * Highest Elo score gets #1 rank.
  */
 export function reindexRecords(records: UserMediaRecord[]): UserMediaRecord[] {
   const watched = records.filter((r) => r.status === 'watched');

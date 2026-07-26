@@ -62,11 +62,11 @@ export const WatchedWatchlistView: React.FC<Props> = ({
     return true;
   });
 
-  // Apply Sorting
+  // Sort Watched items automatically in descending order based on rank / Elo score
   const sortedRecords = [...filteredRecords].sort((a, b) => {
     if (sortBy === 'title') return a.item.title.localeCompare(b.item.title);
     if (sortBy === 'date') return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
-    // Default by rankIndex / elo
+    // Default Master Rank Order: #1 highest Elo at top
     if (a.rankIndex !== b.rankIndex) return a.rankIndex - b.rankIndex;
     return b.eloRating - a.eloRating;
   });
@@ -81,11 +81,11 @@ export const WatchedWatchlistView: React.FC<Props> = ({
           </div>
           <div>
             <h1 className="text-2xl font-bold text-white">
-              {activeTab === 'watched' ? 'My Watched Media Log' : 'My Watchlist'}
+              {activeTab === 'watched' ? 'My Watched Media Log (Ranked Order)' : 'My Watchlist'}
             </h1>
             <p className="text-xs text-slate-400">
               {activeTab === 'watched'
-                ? 'Your log of watched movies & shows, categorized by rating tier.'
+                ? 'Your watched media automatically sorted from highest ranked (#1) down to lowest.'
                 : 'Titles you plan to watch soon.'}
             </p>
           </div>
@@ -183,13 +183,13 @@ export const WatchedWatchlistView: React.FC<Props> = ({
 
           {/* Sort By */}
           <div className="flex items-center gap-1 text-xs">
-            <ArrowUpDown className="w-3.5 h-3.5 text-slate-400" />
+            <ArrowUpDown className="w-3.5 h-3.5" />
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as 'rank' | 'title' | 'date')}
-              className="bg-slate-950 border border-slate-700 text-slate-200 text-xs rounded-lg px-2 py-1 focus:outline-none focus:border-cyan-500"
+              className="bg-slate-950 border border-slate-700 text-slate-200 text-xs rounded-lg px-2 py-1 focus:outline-none focus:border-cyan-500 font-bold text-cyan-400"
             >
-              <option value="rank">Master Rank Order</option>
+              <option value="rank">⭐ Master Rank Order (#1 Top)</option>
               <option value="title">Title (A-Z)</option>
               <option value="date">Recently Added</option>
             </select>
