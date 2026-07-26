@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { UserMediaRecord, MediaItem, RatingTier, MediaType } from '@/types/media';
+import { UserMediaRecord, MediaItem, RatingTier, MediaType, getTierCategory } from '@/types/media';
 import { StorageService } from '@/lib/storage';
 import { MediaCard } from '@/components/media/media-card';
 import { MediaDetailModal } from '@/components/media/media-detail-modal';
@@ -23,7 +23,7 @@ export const WatchedWatchlistView: React.FC<Props> = ({
     if (typeof window === 'undefined') return [];
     return StorageService.getUserRecords();
   });
-  const [tierFilter, setTierFilter] = useState<'all' | RatingTier>('all');
+  const [tierFilter, setTierFilter] = useState<'all' | 1 | 2 | 3>('all');
   const [typeFilter, setTypeFilter] = useState<'all' | MediaType>('all');
   const [sortBy, setSortBy] = useState<'rank' | 'title' | 'date'>('rank');
   const [selectedItem, setSelectedItem] = useState<MediaItem | null>(null);
@@ -32,14 +32,14 @@ export const WatchedWatchlistView: React.FC<Props> = ({
     setRecords(StorageService.getUserRecords());
   };
 
-  const handleMarkWatched = (item: MediaItem, tier: RatingTier = 2) => {
+  const handleMarkWatched = (item: MediaItem, tier: RatingTier = 1.0) => {
     StorageService.saveRecord(item, 'watched', tier);
     refreshRecords();
     onRecordsChanged();
   };
 
   const handleAddToWatchlist = (item: MediaItem) => {
-    StorageService.saveRecord(item, 'want_to_watch', 2);
+    StorageService.saveRecord(item, 'want_to_watch', 1.0);
     refreshRecords();
     onRecordsChanged();
   };
@@ -58,7 +58,7 @@ export const WatchedWatchlistView: React.FC<Props> = ({
   // Apply Tier & Type Filters
   const filteredRecords = currentTabRecords.filter((r) => {
     if (typeFilter !== 'all' && r.item.mediaType !== typeFilter) return false;
-    if (activeTab === 'watched' && tierFilter !== 'all' && r.ratingTier !== tierFilter) return false;
+    if (activeTab === 'watched' && tierFilter !== 'all' && getTierCategory(r.ratingTier) !== tierFilter) return false;
     return true;
   });
 

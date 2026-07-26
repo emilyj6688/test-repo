@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { UserMediaRecord, RatingTier, PairwiseMatchup } from '@/types/media';
+import { UserMediaRecord, PairwiseMatchup, getTierCategory } from '@/types/media';
 import { StorageService } from '@/lib/storage';
 import { calculateElo, selectNextMatchup, reindexRecords } from '@/lib/elo';
 import { getTMDBImageUrl } from '@/lib/tmdb';
@@ -27,7 +27,7 @@ interface Props {
 }
 
 export const RankingGame: React.FC<Props> = ({ onRecordsChanged, onNavigateToTab }) => {
-  const [selectedTier, setSelectedTier] = useState<RatingTier>(3); // Default to Liked
+  const [selectedTier, setSelectedTier] = useState<1 | 2 | 3>(3); // Default to Liked Tier
   const [records, setRecords] = useState<UserMediaRecord[]>(() => {
     if (typeof window === 'undefined') return [];
     return reindexRecords(StorageService.getUserRecords());
@@ -41,7 +41,7 @@ export const RankingGame: React.FC<Props> = ({ onRecordsChanged, onNavigateToTab
 
   const activeMatchup = matchupOverride || selectNextMatchup(records, selectedTier, comparedPairs);
 
-  const handleTierSelect = (tier: RatingTier) => {
+  const handleTierSelect = (tier: 1 | 2 | 3) => {
     setSelectedTier(tier);
     setMatchupOverride(selectNextMatchup(records, tier, comparedPairs));
   };
@@ -114,7 +114,7 @@ export const RankingGame: React.FC<Props> = ({ onRecordsChanged, onNavigateToTab
   };
 
   const watchedRecords = records.filter((r) => r.status === 'watched');
-  const tierEligibleCount = watchedRecords.filter((r) => r.ratingTier === selectedTier).length;
+  const tierEligibleCount = watchedRecords.filter((r) => getTierCategory(r.ratingTier) === selectedTier).length;
 
   return (
     <div className="space-y-8 max-w-6xl mx-auto">
@@ -346,20 +346,27 @@ export const RankingGame: React.FC<Props> = ({ onRecordsChanged, onNavigateToTab
                       {record.item.title}
                     </h4>
                     <div className="flex items-center gap-2 mt-1">
-                      <span
-                        className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
-                          record.ratingTier === 3
+                      {(() => {
+                        const cat = getTierCategory(record.ratingTier);
+                        const catLabel = cat === 3 ? 'Liked' : cat === 2 ? 'Neutral' : "Didn't Like";
+                        const catClass =
+                          cat === 3
                             ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
-                            : record.ratingTier === 2
+                            : cat === 2
                             ? 'bg-amber-500/20 border-amber-500/40 text-amber-300'
-                            : 'bg-rose-500/20 border-rose-500/40 text-rose-300'
-                        }`}
-                      >
-                        {record.ratingTier === 3 ? 'Liked' : record.ratingTier === 2 ? 'Neutral' : "Didn't Like"}
-                      </span>
-                      <span className="text-[11px] font-mono text-slate-500">
-                        Elo: {record.eloRating}
-                      </span>
+                            : 'bg-rose-500/20 border-rose-500/40 text-rose-300';
+                        const scoreDisplay = typeof record.ratingTier === 'number' && record.ratingTier <= 2.0 ? record.ratingTier.toFixed(2) : record.ratingTier;
+                        return (
+                          <>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${catClass}`}>
+                              {catLabel} ({scoreDisplay})
+                            </span>
+                            <span className="text-[11px] font-mono text-slate-500">
+                              Elo: {record.eloRating}
+                            </span>
+                          </>
+                        );
+                      })()}
                     </div>
                   </div>
                 </div>

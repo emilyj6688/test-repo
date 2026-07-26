@@ -1,4 +1,4 @@
-import { UserMediaRecord, RatingTier, PairwiseMatchup } from '@/types/media';
+import { UserMediaRecord, PairwiseMatchup, getTierCategory } from '@/types/media';
 
 const K_FACTOR = 32;
 
@@ -16,15 +16,15 @@ export function calculateElo(winnerElo: number, loserElo: number): { winnerNewEl
 }
 
 /**
- * Selects the optimal UNCOMPARED pair of items within a specific rating tier.
+ * Selects the optimal UNCOMPARED pair of items within a specific rating tier category (1: Didn't Like, 2: Neutral, 3: Liked).
  * Skips any pair that has already been compared to guarantee no repeat matchups.
  */
 export function selectNextMatchup(
   records: UserMediaRecord[],
-  tier: RatingTier,
+  tier: 1 | 2 | 3,
   comparedPairs: Set<string> = new Set()
 ): PairwiseMatchup | null {
-  const eligible = records.filter((r) => r.status === 'watched' && r.ratingTier === tier);
+  const eligible = records.filter((r) => r.status === 'watched' && getTierCategory(r.ratingTier) === tier);
 
   if (eligible.length < 2) return null;
 
@@ -61,15 +61,18 @@ export function selectNextMatchup(
 }
 
 /**
- * Re-indexes rankIndex across all records based on Elo rating and ratingTier.
- * Highest Elo score gets #1 rank.
+ * Re-indexes rankIndex across all records based on continuous rating score and Elo rating.
+ * Highest score & Elo gets #1 rank.
  */
 export function reindexRecords(records: UserMediaRecord[]): UserMediaRecord[] {
   const watched = records.filter((r) => r.status === 'watched');
   const wantToWatch = records.filter((r) => r.status !== 'watched');
 
-  // Sort watched by Tier (3 to 1) then by Elo (descending)
+  // Sort watched by continuous rating score (descending), then by Elo (descending)
   watched.sort((a, b) => {
+    const catA = getTierCategory(a.ratingTier);
+    const catB = getTierCategory(b.ratingTier);
+    if (catA !== catB) return catB - catA;
     if (a.ratingTier !== b.ratingTier) return b.ratingTier - a.ratingTier;
     return b.eloRating - a.eloRating;
   });

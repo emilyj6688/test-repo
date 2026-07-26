@@ -1,6 +1,12 @@
 export type MediaType = 'movie' | 'tv';
 
-export type RatingTier = 1 | 2 | 3; // 1: Didn't Like, 2: Neutral, 3: Liked
+export type RatingTier = number; // Continuous 0.0 to 2.0 rating scale (0: Didn't Like, 1: Neutral, 2: Liked)
+
+export function getTierCategory(score: number): 1 | 2 | 3 {
+  if (score < 0.66) return 1; // Didn't Like
+  if (score <= 1.33) return 2; // Neutral
+  return 3; // Liked
+}
 
 export interface CastMember {
   id: number;
@@ -33,7 +39,7 @@ export interface UserMediaRecord {
   userId: string;
   item: MediaItem;
   status: MediaStatus;
-  ratingTier: RatingTier;
+  ratingTier: RatingTier; // Continuous 0.0 - 2.0 score
   eloRating: number; // Elo score used for pairwise sorting (default 1000)
   rankIndex: number; // Manual fine-tuned ordering index
   watchedAt?: string;
@@ -51,7 +57,7 @@ export interface UserProfile {
 export interface PairwiseMatchup {
   itemA: UserMediaRecord;
   itemB: UserMediaRecord;
-  tier: RatingTier;
+  tier: 1 | 2 | 3;
 }
 
 export interface TMDBRawSearchResult {
