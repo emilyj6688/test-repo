@@ -2,9 +2,10 @@
 
 import React, { useState } from 'react';
 import { MediaItem, UserMediaRecord, RatingTier } from '@/types/media';
-import { getTMDBImageUrl, FALLBACK_POSTER_URL } from '@/lib/tmdb';
+import { getTMDBImageUrl, generateTitlePosterSVG } from '@/lib/tmdb';
 import { RatingSlider } from '@/components/media/rating-slider';
-import { CheckCircle, Bookmark, Star, Calendar } from 'lucide-react';
+import { CheckCircle, Bookmark, Star, Calendar, XCircle } from 'lucide-react';
+import { StorageService } from '@/lib/storage';
 
 interface Props {
   item: MediaItem;
@@ -12,6 +13,7 @@ interface Props {
   onSelect: (item: MediaItem) => void;
   onMarkWatched: (item: MediaItem, tier?: RatingTier) => void;
   onAddToWatchlist: (item: MediaItem) => void;
+  onRemoveRecord?: (item: MediaItem) => void;
   onRatingChange?: (item: MediaItem, tier: RatingTier) => void;
   rankIndex?: number;
 }
@@ -22,13 +24,22 @@ export const MediaCard: React.FC<Props> = ({
   onSelect,
   onMarkWatched,
   onAddToWatchlist,
+  onRemoveRecord,
   onRatingChange,
   rankIndex,
 }) => {
-  const [imgSrc, setImgSrc] = useState<string>(() => getTMDBImageUrl(item.posterPath, 'poster'));
+  const [imgSrc, setImgSrc] = useState<string>(() =>
+    getTMDBImageUrl(item.posterPath, 'poster', item.title, item.mediaType)
+  );
   const year = item.releaseDate ? item.releaseDate.substring(0, 4) : '';
   const isWatched = record?.status === 'watched';
   const isWatchlist = record?.status === 'want_to_watch';
+
+  const handleUnwatchToggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    StorageService.removeRecord(item.tmdbId, item.mediaType);
+    if (onRemoveRecord) onRemoveRecord(item);
+  };
 
   return (
     <div
@@ -41,7 +52,7 @@ export const MediaCard: React.FC<Props> = ({
         <img
           src={imgSrc}
           alt={item.title}
-          onError={() => setImgSrc(FALLBACK_POSTER_URL)}
+          onError={() => setImgSrc(generateTitlePosterSVG(item.title, item.mediaType))}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           loading="lazy"
         />
@@ -91,15 +102,24 @@ export const MediaCard: React.FC<Props> = ({
         {/* Tracking Actions / Rating Slider */}
         <div className="space-y-2 pt-1 border-t border-slate-800/80" onClick={(e) => e.stopPropagation()}>
           {isWatched ? (
-            <RatingSlider
-              value={record?.ratingTier || 2}
-              onChange={(tier) => onRatingChange && onRatingChange(item, tier)}
-              compact
-            />
+            <div className="space-y-1.5">
+              <RatingSlider
+                value={record?.ratingTier || 1.0}
+                onChange={(tier) => onRatingChange && onRatingChange(item, tier)}
+                compact
+              />
+              <button
+                onClick={handleUnwatchToggle}
+                className="w-full py-1 rounded-lg text-[10px] font-bold text-rose-400 hover:text-rose-300 bg-rose-950/30 hover:bg-rose-900/50 border border-rose-900/50 flex items-center justify-center gap-1 transition"
+                title="Undo Watched / Remove from Watched list"
+              >
+                <XCircle className="w-3 h-3" /> Undo Watched
+              </button>
+            </div>
           ) : (
             <div className="flex gap-1.5">
               <button
-                onClick={() => onMarkWatched(item, 2)}
+                onClick={() => onMarkWatched(item, 1.0)}
                 className={`flex-1 py-1.5 px-2 rounded-xl text-[11px] font-semibold flex items-center justify-center gap-1 border transition ${
                   isWatched
                     ? 'bg-emerald-500/20 border-emerald-500/60 text-emerald-300'

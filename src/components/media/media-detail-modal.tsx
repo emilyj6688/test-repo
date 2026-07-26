@@ -160,15 +160,16 @@ export const MediaDetailModal: React.FC<Props> = ({ item, isOpen, onClose, onRec
 
                 <div className="flex flex-wrap gap-2">
                   <button
-                    onClick={() => handleMarkWatched(userRecord?.ratingTier || 2)}
+                    onClick={() => (userRecord?.status === 'watched' ? handleRemove() : handleMarkWatched(userRecord?.ratingTier || 1.0))}
                     className={`flex-1 min-w-[140px] py-2.5 px-4 rounded-xl font-semibold text-xs flex items-center justify-center gap-2 border transition ${
                       userRecord?.status === 'watched'
-                        ? 'bg-emerald-500/20 border-emerald-500/60 text-emerald-300'
+                        ? 'bg-emerald-500/20 border-emerald-500/60 text-emerald-300 hover:bg-rose-500/20 hover:border-rose-500/60 hover:text-rose-300'
                         : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-200'
                     }`}
+                    title={userRecord?.status === 'watched' ? 'Click to Undo / Remove from Watched' : 'Mark as Watched'}
                   >
                     <CheckCircle className="w-4 h-4" />
-                    {userRecord?.status === 'watched' ? 'Watched' : 'Mark as Watched'}
+                    {userRecord?.status === 'watched' ? '✓ Watched (Click to Undo)' : 'Mark as Watched'}
                   </button>
 
                   <button

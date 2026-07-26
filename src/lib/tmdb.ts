@@ -6,11 +6,34 @@ export { POPULAR_AMERICAN_CATALOG as MOCK_MEDIA_ITEMS };
 const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p/';
 
-// Standard public TMDB API key fallback for instant out-of-the-box catalog searching
 const DEFAULT_DEMO_TMDB_KEY = '3fd2be69867702653f50868318e32726';
 
-export const FALLBACK_POSTER_URL =
-  'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="500" height="750" viewBox="0 0 500 750" fill="%230f172a"><rect width="500" height="750" fill="%230f172a"/><rect x="2" y="2" width="496" height="746" fill="none" stroke="%23334155" stroke-width="4" rx="16"/><text x="50%" y="45%" dominant-baseline="middle" text-anchor="middle" fill="%2338bdf8" font-family="sans-serif" font-size="28" font-weight="bold">🎬 CineRank</text><text x="50%" y="53%" dominant-baseline="middle" text-anchor="middle" fill="%2394a3b8" font-family="sans-serif" font-size="18">No Poster Available</text></svg>';
+// Generates a rich, dynamic SVG poster with the title name and cinematic styling
+export function generateTitlePosterSVG(title: string, mediaType: 'movie' | 'tv' = 'movie'): string {
+  const cleanTitle = (title || 'Untitled Movie')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+  
+  const icon = mediaType === 'tv' ? '📺 TV SERIES' : '🎬 MOVIE';
+
+  return `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="500" height="750" viewBox="0 0 500 750" fill="%230f172a"><defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%231e293b"/><stop offset="50%" stop-color="%230f172a"/><stop offset="100%" stop-color="%23020617"/></linearGradient><linearGradient id="b" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="%2338bdf8"/><stop offset="100%" stop-color="%23818cf8"/></linearGradient></defs><rect width="500" height="750" fill="url(%23g)"/><rect x="16" y="16" width="468" height="718" fill="none" stroke="%23334155" stroke-width="2" rx="16"/><circle cx="250" cy="280" r="90" fill="%231e293b" stroke="%23334155" stroke-width="2"/><text x="250" y="275" dominant-baseline="middle" text-anchor="middle" fill="%2338bdf8" font-family="sans-serif" font-size="52">🎬</text><text x="250" y="325" dominant-baseline="middle" text-anchor="middle" fill="%2394a3b8" font-family="sans-serif" font-size="12" font-weight="bold" letter-spacing="3">${icon}</text><text x="250" y="460" dominant-baseline="middle" text-anchor="middle" fill="%23ffffff" font-family="sans-serif" font-size="26" font-weight="900">${cleanTitle.length > 24 ? cleanTitle.substring(0, 22) + '...' : cleanTitle}</text><text x="250" y="500" dominant-baseline="middle" text-anchor="middle" fill="%2338bdf8" font-family="sans-serif" font-size="14" font-weight="bold">CineRank Collection</text></svg>`;
+}
+
+export function getTMDBImageUrl(
+  path: string | null | undefined,
+  size: 'poster' | 'backdrop' | 'profile' = 'poster',
+  titleFallback = 'CineRank Media',
+  mediaType: 'movie' | 'tv' = 'movie'
+): string {
+  if (!path) return generateTitlePosterSVG(titleFallback, mediaType);
+  if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('data:')) {
+    return path;
+  }
+  const sizePath = size === 'backdrop' ? 'w780' : size === 'profile' ? 'w185' : 'w500';
+  return `${TMDB_IMAGE_BASE}${sizePath}${path}`;
+}
 
 export function getActiveTMDBApiKey(): string {
   if (typeof window !== 'undefined') {
@@ -30,18 +53,6 @@ export function setActiveTMDBApiKey(key: string): void {
     localStorage.removeItem('cinetrack_custom_tmdb_key');
   }
   window.dispatchEvent(new CustomEvent('cinetrack_tmdb_key_changed'));
-}
-
-export function getTMDBImageUrl(
-  path: string | null | undefined,
-  size: 'poster' | 'backdrop' | 'profile' = 'poster'
-): string {
-  if (!path) return FALLBACK_POSTER_URL;
-  if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('data:')) {
-    return path;
-  }
-  const sizePath = size === 'backdrop' ? 'w780' : size === 'profile' ? 'w185' : 'w500';
-  return `${TMDB_IMAGE_BASE}${sizePath}${path}`;
 }
 
 export function isTMDBConfigured(): boolean {
@@ -98,7 +109,6 @@ export async function searchTMDB(query: string, page = 1): Promise<MediaItem[]> 
       });
     }
 
-    // Merge local matches and remote live TMDB results (avoiding duplicates)
     const combinedMap = new Map<string, MediaItem>();
     localMatches.forEach((m) => combinedMap.set(`${m.mediaType}_${m.tmdbId}`, m));
     remoteItems.forEach((m) => {
