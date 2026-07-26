@@ -1,8 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { MediaItem, UserMediaRecord, RatingTier } from '@/types/media';
-import { getTMDBImageUrl } from '@/lib/tmdb';
+import { getTMDBImageUrl, FALLBACK_POSTER_URL } from '@/lib/tmdb';
 import { RatingSlider } from '@/components/media/rating-slider';
 import { CheckCircle, Bookmark, Star, Calendar } from 'lucide-react';
 
@@ -25,6 +25,7 @@ export const MediaCard: React.FC<Props> = ({
   onRatingChange,
   rankIndex,
 }) => {
+  const [imgSrc, setImgSrc] = useState<string>(() => getTMDBImageUrl(item.posterPath, 'poster'));
   const year = item.releaseDate ? item.releaseDate.substring(0, 4) : '';
   const isWatched = record?.status === 'watched';
   const isWatchlist = record?.status === 'want_to_watch';
@@ -32,14 +33,15 @@ export const MediaCard: React.FC<Props> = ({
   return (
     <div
       onClick={() => onSelect(item)}
-      className="group relative bg-slate-900/80 border border-slate-800 hover:border-slate-700/80 rounded-2xl overflow-hidden shadow-lg hover:shadow-cyan-500/10 transition-all duration-300 flex flex-col cursor-pointer"
+      className="group relative bg-slate-900/90 border border-slate-800 hover:border-cyan-500/60 rounded-2xl overflow-hidden shadow-xl hover:shadow-cyan-500/10 transition-all duration-300 flex flex-col cursor-pointer"
     >
       {/* Poster Image & Badges */}
       <div className="relative aspect-[2/3] w-full overflow-hidden bg-slate-950">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={getTMDBImageUrl(item.posterPath, 'poster')}
+          src={imgSrc}
           alt={item.title}
+          onError={() => setImgSrc(FALLBACK_POSTER_URL)}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           loading="lazy"
         />
