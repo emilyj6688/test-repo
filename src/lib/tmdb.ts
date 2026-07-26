@@ -1,4 +1,7 @@
 import { MediaItem, TMDBRawSearchResult } from '@/types/media';
+import { POPULAR_AMERICAN_CATALOG } from '@/lib/catalog';
+
+export { POPULAR_AMERICAN_CATALOG as MOCK_MEDIA_ITEMS };
 
 const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p/';
@@ -46,7 +49,17 @@ export function isTMDBConfigured(): boolean {
 }
 
 export async function searchTMDB(query: string, page = 1): Promise<MediaItem[]> {
-  if (!query.trim()) return MOCK_MEDIA_ITEMS;
+  if (!query.trim()) return POPULAR_AMERICAN_CATALOG;
+
+  const lower = query.toLowerCase().trim();
+
+  // Search local expanded catalog first
+  const localMatches = POPULAR_AMERICAN_CATALOG.filter(
+    (item) =>
+      item.title.toLowerCase().includes(lower) ||
+      item.genres.some((g) => g.toLowerCase().includes(lower)) ||
+      item.directors.some((d) => d.toLowerCase().includes(lower))
+  );
 
   const apiKey = getActiveTMDBApiKey();
 
@@ -60,7 +73,7 @@ export async function searchTMDB(query: string, page = 1): Promise<MediaItem[]> 
     const data = await res.json();
     const results: TMDBRawSearchResult[] = data.results || [];
 
-    const items: MediaItem[] = [];
+    const remoteItems: MediaItem[] = [];
 
     for (const r of results) {
       if (r.media_type !== 'movie' && r.media_type !== 'tv') continue;
@@ -69,7 +82,7 @@ export async function searchTMDB(query: string, page = 1): Promise<MediaItem[]> 
       const title = r.title || r.name || r.original_title || r.original_name || 'Untitled';
       const releaseDate = r.release_date || r.first_air_date || '';
 
-      items.push({
+      remoteItems.push({
         id: r.id,
         tmdbId: r.id,
         title,
@@ -85,20 +98,26 @@ export async function searchTMDB(query: string, page = 1): Promise<MediaItem[]> 
       });
     }
 
-    return items.length > 0 ? items : MOCK_MEDIA_ITEMS.filter((m) => m.title.toLowerCase().includes(query.toLowerCase()));
+    // Merge local matches and remote live TMDB results (avoiding duplicates)
+    const combinedMap = new Map<string, MediaItem>();
+    localMatches.forEach((m) => combinedMap.set(`${m.mediaType}_${m.tmdbId}`, m));
+    remoteItems.forEach((m) => {
+      const key = `${m.mediaType}_${m.tmdbId}`;
+      if (!combinedMap.has(key)) {
+        combinedMap.set(key, m);
+      }
+    });
+
+    return Array.from(combinedMap.values());
   } catch (err) {
-    console.warn('TMDB live search failed, filtering mock data:', err);
-    const lower = query.toLowerCase();
-    return MOCK_MEDIA_ITEMS.filter(
-      (item) =>
-        item.title.toLowerCase().includes(lower) ||
-        item.genres.some((g) => g.toLowerCase().includes(lower)) ||
-        item.directors.some((d) => d.toLowerCase().includes(lower))
-    );
+    console.warn('TMDB live search failed, returning local catalog matches:', err);
+    return localMatches.length > 0 ? localMatches : POPULAR_AMERICAN_CATALOG;
   }
 }
 
 export async function getTMDBDetails(id: number, mediaType: 'movie' | 'tv'): Promise<MediaItem> {
+  const localFound = POPULAR_AMERICAN_CATALOG.find((m) => m.id === id && m.mediaType === mediaType);
+
   const apiKey = getActiveTMDBApiKey();
 
   try {
@@ -134,23 +153,22 @@ export async function getTMDBDetails(id: number, mediaType: 'movie' | 'tv'): Pro
     return {
       id: data.id,
       tmdbId: data.id,
-      title,
+      title: localFound?.title || title,
       mediaType,
-      posterPath: data.poster_path,
-      backdropPath: data.backdrop_path,
-      releaseDate,
-      overview: data.overview || 'No plot overview provided.',
-      genres,
-      directors,
-      cast,
-      voteAverage: data.vote_average ? Math.round(data.vote_average * 10) / 10 : undefined,
-      tagline: data.tagline,
-      runtime: data.runtime || (data.episode_run_time && data.episode_run_time[0]),
+      posterPath: data.poster_path || localFound?.posterPath || null,
+      backdropPath: data.backdrop_path || localFound?.backdropPath || null,
+      releaseDate: releaseDate || localFound?.releaseDate || '',
+      overview: data.overview || localFound?.overview || 'No plot overview provided.',
+      genres: genres.length > 0 ? genres : localFound?.genres || [],
+      directors: directors.length > 0 ? directors : localFound?.directors || [],
+      cast: cast.length > 0 ? cast : localFound?.cast || [],
+      voteAverage: data.vote_average ? Math.round(data.vote_average * 10) / 10 : localFound?.voteAverage,
+      tagline: data.tagline || localFound?.tagline,
+      runtime: data.runtime || (data.episode_run_time && data.episode_run_time[0]) || localFound?.runtime,
     };
   } catch (err) {
-    console.warn(`TMDB details failed for ${mediaType} ${id}, returning mock item:`, err);
-    const mock = MOCK_MEDIA_ITEMS.find((m) => m.id === id);
-    if (mock) return mock;
+    console.warn(`TMDB details failed for ${mediaType} ${id}, returning local item:`, err);
+    if (localFound) return localFound;
     return {
       id,
       tmdbId: id,
@@ -165,133 +183,3 @@ export async function getTMDBDetails(id: number, mediaType: 'movie' | 'tv'): Pro
     };
   }
 }
-
-// 22 Popular Movies & TV Shows mock dataset
-export const MOCK_MEDIA_ITEMS: MediaItem[] = [
-  {
-    id: 27205,
-    tmdbId: 27205,
-    title: 'Inception',
-    mediaType: 'movie',
-    posterPath: 'https://image.tmdb.org/t/p/w500/9gk7adHYeDvHkCSEqAvQNLV5Uge.jpg',
-    backdropPath: 'https://images.unsplash.com/photo-1518676599625-5d51d8b67123?auto=format&fit=crop&w=780&q=80',
-    releaseDate: '2010-07-15',
-    overview: 'Cobb, a skilled thief who steals corporate secrets through dream-sharing technology, is given the inverse task of planting an idea into the mind of a C.E.O.',
-    genres: ['Action', 'Science Fiction', 'Adventure'],
-    directors: ['Christopher Nolan'],
-    cast: [
-      { id: 6193, name: 'Leonardo DiCaprio', character: 'Dom Cobb', profilePath: null },
-      { id: 24045, name: 'Joseph Gordon-Levitt', character: 'Arthur', profilePath: null },
-    ],
-    voteAverage: 8.4,
-    tagline: 'Your mind is the scene of the crime.',
-    runtime: 148,
-  },
-  {
-    id: 155,
-    tmdbId: 155,
-    title: 'The Dark Knight',
-    mediaType: 'movie',
-    posterPath: 'https://image.tmdb.org/t/p/w500/qJ2tW6WMUDux911r6m7haRef0WH.jpg',
-    backdropPath: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=780&q=80',
-    releaseDate: '2008-07-16',
-    overview: 'Batman raises the stakes in his war on crime. With the help of Lt. Jim Gordon and District Attorney Harvey Dent, Batman sets out to dismantle the remaining criminal organizations that plague the streets.',
-    genres: ['Drama', 'Action', 'Crime', 'Thriller'],
-    directors: ['Christopher Nolan'],
-    cast: [
-      { id: 3894, name: 'Christian Bale', character: 'Bruce Wayne / Batman', profilePath: null },
-      { id: 1810, name: 'Heath Ledger', character: 'Joker', profilePath: null },
-    ],
-    voteAverage: 8.5,
-    tagline: 'Welcome to a world without rules.',
-    runtime: 152,
-  },
-  {
-    id: 1396,
-    tmdbId: 1396,
-    title: 'Breaking Bad',
-    mediaType: 'tv',
-    posterPath: 'https://image.tmdb.org/t/p/w500/ggFHVNu6YYI5L9pCfOacjizRGt.jpg',
-    backdropPath: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=780&q=80',
-    releaseDate: '2008-01-20',
-    overview: 'Walter White, a chemistry teacher diagnosed with inoperable lung cancer, turns to manufacturing and selling methamphetamine with a former student in order to secure his family\'s future.',
-    genres: ['Drama', 'Crime'],
-    directors: ['Vince Gilligan'],
-    cast: [
-      { id: 17419, name: 'Bryan Cranston', character: 'Walter White', profilePath: null },
-      { id: 84497, name: 'Aaron Paul', character: 'Jesse Pinkman', profilePath: null },
-    ],
-    voteAverage: 8.9,
-    tagline: 'Change the equation.',
-  },
-  {
-    id: 95396,
-    tmdbId: 95396,
-    title: 'Severance',
-    mediaType: 'tv',
-    posterPath: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?auto=format&fit=crop&w=500&q=80',
-    backdropPath: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?auto=format&fit=crop&w=780&q=80',
-    releaseDate: '2022-02-17',
-    overview: 'Mark leads a team of office workers whose memories have been surgically divided between their work and personal lives.',
-    genres: ['Sci-Fi & Fantasy', 'Drama'],
-    directors: ['Ben Stiller'],
-    cast: [{ id: 20580, name: 'Adam Scott', character: 'Mark Scout', profilePath: null }],
-    voteAverage: 8.6,
-  },
-  {
-    id: 157336,
-    tmdbId: 157336,
-    title: 'Interstellar',
-    mediaType: 'movie',
-    posterPath: 'https://image.tmdb.org/t/p/w500/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg',
-    backdropPath: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=780&q=80',
-    releaseDate: '2014-11-05',
-    overview: 'The adventures of a group of explorers who make use of a newly discovered wormhole to surpass human space travel.',
-    genres: ['Adventure', 'Science Fiction'],
-    directors: ['Christopher Nolan'],
-    cast: [{ id: 10296, name: 'Matthew McConaughey', character: 'Cooper', profilePath: null }],
-    voteAverage: 8.4,
-  },
-  {
-    id: 693134,
-    tmdbId: 693134,
-    title: 'Dune: Part Two',
-    mediaType: 'movie',
-    posterPath: 'https://image.tmdb.org/t/p/w500/1pdfLvkbY9ohJlCjQH2CZjjYVvJ.jpg',
-    backdropPath: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=780&q=80',
-    releaseDate: '2024-02-27',
-    overview: 'Follow the mythic journey of Paul Atreides as he unites with Chani and the Fremen while on a warpath of revenge.',
-    genres: ['Science Fiction', 'Adventure'],
-    directors: ['Denis Villeneuve'],
-    cast: [{ id: 1190668, name: 'Timothée Chalamet', character: 'Paul Atreides', profilePath: null }],
-    voteAverage: 8.3,
-  },
-  {
-    id: 66732,
-    tmdbId: 66732,
-    title: 'Stranger Things',
-    mediaType: 'tv',
-    posterPath: 'https://image.tmdb.org/t/p/w500/49WJfeN0moxb9IPfGn8AIqMGskD.jpg',
-    backdropPath: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=780&q=80',
-    releaseDate: '2016-07-15',
-    overview: 'When a young boy vanishes, a small town uncovers a mystery involving secret experiments and supernatural forces.',
-    genres: ['Sci-Fi & Fantasy', 'Drama'],
-    directors: ['The Duffer Brothers'],
-    cast: [{ id: 1356210, name: 'Millie Bobby Brown', character: 'Eleven', profilePath: null }],
-    voteAverage: 8.6,
-  },
-  {
-    id: 872585,
-    tmdbId: 872585,
-    title: 'Oppenheimer',
-    mediaType: 'movie',
-    posterPath: 'https://image.tmdb.org/t/p/w500/8Gxv8gSFCU0XGDykEGv7zR1n2ua.jpg',
-    backdropPath: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=780&q=80',
-    releaseDate: '2023-07-19',
-    overview: 'The story of J. Robert Oppenheimer’s role in the development of the atomic bomb during World War II.',
-    genres: ['Drama', 'History'],
-    directors: ['Christopher Nolan'],
-    cast: [{ id: 2038, name: 'Cillian Murphy', character: 'J. Robert Oppenheimer', profilePath: null }],
-    voteAverage: 8.1,
-  },
-];
