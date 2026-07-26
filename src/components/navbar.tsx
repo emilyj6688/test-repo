@@ -126,7 +126,7 @@ export const Navbar: React.FC<Props> = ({ activeTab, onTabChange, watchedCount, 
         </div>
 
         {/* Mobile Navigation Row */}
-        <div className="md:hidden flex items-center justify-around border-t border-slate-800/60 py-2 px-2 bg-slate-950">
+        <div className="md:hidden flex items-center justify-between gap-1 border-t border-slate-800/60 py-2 px-3 bg-slate-950 overflow-x-auto no-scrollbar">
           <button
             onClick={() => onTabChange('search')}
             className={`flex flex-col items-center gap-1 text-[11px] font-medium p-1 ${
