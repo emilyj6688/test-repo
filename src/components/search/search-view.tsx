@@ -175,7 +175,7 @@ export const SearchView: React.FC<Props> = ({ initialSearchQuery = '', onRecords
   return (
     <div className="space-y-8">
       {/* Hero Search Section */}
-      <div className="bg-gradient-to-r from-slate-900 via-cyan-950/40 to-slate-900 border border-slate-800 p-6 sm:p-10 rounded-3xl shadow-2xl relative overflow-hidden">
+      <div className="bg-gradient-to-r from-slate-900 via-cyan-950/40 to-slate-900 border border-slate-800 p-6 sm:p-10 rounded-3xl shadow-2xl relative z-20">
         <div className="max-w-3xl space-y-4 relative z-10">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">
             <Sparkles className="w-3.5 h-3.5" /> Instant Search & Filter Engine
@@ -188,7 +188,7 @@ export const SearchView: React.FC<Props> = ({ initialSearchQuery = '', onRecords
           </p>
 
           {/* Search Input Box with Interactive Autosuggest */}
-          <div className="pt-2" ref={searchContainerRef}>
+          <div className="pt-2 relative z-30" ref={searchContainerRef}>
             <div className="relative flex items-center">
               <Search className="absolute left-4 w-5 h-5 text-slate-400 pointer-events-none" />
               <input
@@ -208,7 +208,7 @@ export const SearchView: React.FC<Props> = ({ initialSearchQuery = '', onRecords
 
             {/* Floating Autosuggest / Autocomplete Dropdown */}
             {showSuggestions && query.trim().length >= 1 && hasSuggestions && (
-              <div className="absolute left-0 right-0 mt-2 z-50 bg-slate-900/95 backdrop-blur-xl border border-slate-700/80 rounded-2xl shadow-2xl overflow-hidden max-h-[420px] overflow-y-auto divide-y divide-slate-800/80 animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="absolute left-0 right-0 mt-2 z-[9999] bg-slate-900/95 backdrop-blur-xl border border-slate-700/80 rounded-2xl shadow-2xl overflow-hidden max-h-[420px] overflow-y-auto divide-y divide-slate-800/80 animate-in fade-in slide-in-from-top-2 duration-200">
                 {/* 1. Title Suggestions */}
                 {suggestions.titles.length > 0 && (
                   <div className="p-2 space-y-1">
