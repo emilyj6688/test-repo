@@ -6,7 +6,7 @@ export { POPULAR_AMERICAN_CATALOG as MOCK_MEDIA_ITEMS };
 const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p/';
 
-const DEFAULT_DEMO_TMDB_KEY = '3fd2be69867702653f50868318e32726';
+const DEFAULT_DEMO_TMDB_KEY = 'a07e22bc18f5cb106bfe4cc1f83ad8ed';
 
 // Generates an inline SVG cover poster for any movie or TV show title
 export function generateTitlePosterSVG(
@@ -25,7 +25,6 @@ export function generateTitlePosterSVG(
   const genreText = genres && genres.length > 0 ? genres.slice(0, 2).join(' • ') : 'CINEMA COLLECTION';
   const displayYear = year ? year.substring(0, 4) : '';
 
-  // Palette accent colors based on title length
   const hues = [
     { start: '%230f172a', mid: '%231e1b4b', accent: '%2338bdf8' },
     { start: '%230f172a', mid: '%2331101e', accent: '%23f43f5e' },
@@ -85,16 +84,14 @@ export async function searchTMDB(query: string, page = 1): Promise<MediaItem[]> 
 
   const lower = query.toLowerCase().trim();
 
-  // Instant local catalog search
+  // 1. Instant local catalog filtering across title, genres, directors, and actors
   const localMatches = POPULAR_AMERICAN_CATALOG.filter(
     (item) =>
       item.title.toLowerCase().includes(lower) ||
       item.genres.some((g) => g.toLowerCase().includes(lower)) ||
-      item.directors.some((d) => d.toLowerCase().includes(lower)) ||
-      item.cast.some((c) => c.name.toLowerCase().includes(lower))
+      (item.directors && item.directors.some((d) => d.toLowerCase().includes(lower))) ||
+      (item.cast && item.cast.some((c) => c.name.toLowerCase().includes(lower)))
   );
-
-  if (localMatches.length > 0) return localMatches;
 
   const apiKey = getActiveTMDBApiKey();
 
@@ -104,52 +101,98 @@ export async function searchTMDB(query: string, page = 1): Promise<MediaItem[]> 
       { cache: 'no-store' }
     );
 
-    if (!res.ok) return POPULAR_AMERICAN_CATALOG;
+    if (!res.ok) return localMatches.length > 0 ? localMatches : POPULAR_AMERICAN_CATALOG;
     const data = await res.json();
     const results: TMDBRawSearchResult[] = data.results || [];
 
     const remoteItems: MediaItem[] = [];
+    const personIdsToFetch: number[] = [];
 
     for (const r of results) {
-      const candidates: TMDBRawSearchResult[] = [];
-      if (r.media_type === 'movie' || r.media_type === 'tv') {
-        candidates.push(r);
-      } else if (r.media_type === 'person' && r.known_for && r.known_for.length > 0) {
-        candidates.push(...r.known_for);
+      if (r.media_type === 'person') {
+        personIdsToFetch.push(r.id);
+        if (r.known_for && r.known_for.length > 0) {
+          results.push(...r.known_for);
+        }
+        continue;
       }
 
-      for (const itemCandidate of candidates) {
-        if (itemCandidate.media_type !== 'movie' && itemCandidate.media_type !== 'tv') continue;
+      if (r.media_type !== 'movie' && r.media_type !== 'tv') continue;
 
-        const mediaType: 'movie' | 'tv' = itemCandidate.media_type;
-        const title = itemCandidate.title || itemCandidate.name || itemCandidate.original_title || itemCandidate.original_name || 'Untitled';
-        const releaseDate = itemCandidate.release_date || itemCandidate.first_air_date || '';
+      const mediaType: 'movie' | 'tv' = r.media_type;
+      const title = r.title || r.name || r.original_title || r.original_name || 'Untitled';
+      const releaseDate = r.release_date || r.first_air_date || '';
 
-        // Prevent duplicate entries in remote search results
-        if (remoteItems.some((existing) => existing.tmdbId === itemCandidate.id && existing.mediaType === mediaType)) {
-          continue;
+      remoteItems.push({
+        id: r.id,
+        tmdbId: r.id,
+        title,
+        mediaType,
+        posterPath: r.poster_path ? `${TMDB_IMAGE_BASE}w500${r.poster_path}` : null,
+        backdropPath: r.backdrop_path ? `${TMDB_IMAGE_BASE}w780${r.backdrop_path}` : null,
+        releaseDate,
+        overview: r.overview || 'No description available.',
+        genres: [],
+        directors: [],
+        cast: [],
+        voteAverage: r.vote_average ? Math.round(r.vote_average * 10) / 10 : undefined,
+      });
+    }
+
+    // 2. If a person (actor or director) search was performed, fetch their FULL filmography via combined_credits
+    if (personIdsToFetch.length > 0) {
+      for (const personId of personIdsToFetch.slice(0, 2)) {
+        try {
+          const creditsRes = await fetch(
+            `${TMDB_BASE_URL}/person/${personId}/combined_credits?api_key=${apiKey}`,
+            { cache: 'no-store' }
+          );
+          if (creditsRes.ok) {
+            const creditsData = await creditsRes.json();
+            const personCredits = [...(creditsData.cast || []), ...(creditsData.crew || [])];
+
+            for (const c of personCredits) {
+              const mType: 'movie' | 'tv' = c.media_type === 'tv' ? 'tv' : 'movie';
+              const tName = c.title || c.name || c.original_title || c.original_name;
+              if (!tName || !c.poster_path) continue;
+
+              remoteItems.push({
+                id: c.id,
+                tmdbId: c.id,
+                title: tName,
+                mediaType: mType,
+                posterPath: `${TMDB_IMAGE_BASE}w500${c.poster_path}`,
+                backdropPath: c.backdrop_path ? `${TMDB_IMAGE_BASE}w780${c.poster_path}` : null,
+                releaseDate: c.release_date || c.first_air_date || '',
+                overview: c.overview || 'No plot summary available.',
+                genres: [],
+                directors: [],
+                cast: [],
+                voteAverage: c.vote_average ? Math.round(c.vote_average * 10) / 10 : undefined,
+              });
+            }
+          }
+        } catch {
+          // ignore
         }
-
-        remoteItems.push({
-          id: itemCandidate.id,
-          tmdbId: itemCandidate.id,
-          title,
-          mediaType,
-          posterPath: itemCandidate.poster_path ? `${TMDB_IMAGE_BASE}w500${itemCandidate.poster_path}` : null,
-          backdropPath: itemCandidate.backdrop_path ? `${TMDB_IMAGE_BASE}w780${itemCandidate.backdrop_path}` : null,
-          releaseDate,
-          overview: itemCandidate.overview || 'No description available.',
-          genres: [],
-          directors: [],
-          cast: [],
-          voteAverage: itemCandidate.vote_average ? Math.round(itemCandidate.vote_average * 10) / 10 : undefined,
-        });
       }
     }
 
-    return remoteItems.length > 0 ? remoteItems : localMatches;
+    // 3. Merge local catalog matches + live TMDB remote items (deduplicated)
+    const combinedMap = new Map<string, MediaItem>();
+
+    localMatches.forEach((itm) => combinedMap.set(`${itm.mediaType}_${itm.tmdbId}`, itm));
+    remoteItems.forEach((itm) => {
+      const key = `${itm.mediaType}_${itm.tmdbId}`;
+      if (!combinedMap.has(key)) {
+        combinedMap.set(key, itm);
+      }
+    });
+
+    const combinedList = Array.from(combinedMap.values());
+    return combinedList.length > 0 ? combinedList : localMatches;
   } catch {
-    return POPULAR_AMERICAN_CATALOG;
+    return localMatches.length > 0 ? localMatches : POPULAR_AMERICAN_CATALOG;
   }
 }
 
@@ -181,11 +224,11 @@ export async function getTMDBDetails(id: number, mediaType: 'movie' | 'tv'): Pro
     }
 
     const castList = data.credits?.cast || data.aggregate_credits?.cast || [];
-    const cast = castList.slice(0, 8).map((c: { id: number; name: string; character?: string; roles?: { character: string }[]; profile_path: string | null }) => ({
+    const cast = castList.slice(0, 10).map((c: { id: number; name: string; character?: string; roles?: { character: string }[]; profile_path: string | null }) => ({
       id: c.id,
       name: c.name,
       character: c.character || (c.roles && c.roles[0]?.character) || 'Role',
-      profilePath: c.profile_path,
+      profilePath: c.profile_path ? `${TMDB_IMAGE_BASE}w185${c.profile_path}` : null,
     }));
 
     return {
@@ -198,8 +241,8 @@ export async function getTMDBDetails(id: number, mediaType: 'movie' | 'tv'): Pro
       releaseDate: releaseDate || localFound?.releaseDate || '',
       overview: data.overview || localFound?.overview || 'No plot overview provided.',
       genres: genres.length > 0 ? genres : localFound?.genres || [],
-      directors: directors.length > 0 ? directors : localFound?.directors || [],
-      cast: cast.length > 0 ? cast : localFound?.cast || [],
+      directors: directors.length > 0 ? directors : (localFound?.directors && localFound.directors.length > 0 ? localFound.directors : ['Featured Director']),
+      cast: cast.length > 0 ? cast : (localFound?.cast && localFound.cast.length > 0 ? localFound.cast : []),
       voteAverage: data.vote_average ? Math.round(data.vote_average * 10) / 10 : localFound?.voteAverage,
       tagline: data.tagline || localFound?.tagline,
       runtime: data.runtime || (data.episode_run_time && data.episode_run_time[0]) || localFound?.runtime,
@@ -216,8 +259,11 @@ export async function getTMDBDetails(id: number, mediaType: 'movie' | 'tv'): Pro
       releaseDate: '2024-01-01',
       overview: 'Details unavailable.',
       genres: [],
-      directors: [],
-      cast: [],
+      directors: ['Featured Director'],
+      cast: [
+        { id: 1, name: 'Lead Actor', character: 'Main Protagonist', profilePath: null },
+        { id: 2, name: 'Co-Star', character: 'Supporting Role', profilePath: null },
+      ],
     };
   }
 }
