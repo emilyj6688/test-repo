@@ -83,8 +83,69 @@ export async function searchTMDB(query: string, page = 1): Promise<MediaItem[]> 
   if (!query.trim()) return POPULAR_AMERICAN_CATALOG;
 
   const lower = query.toLowerCase().trim();
+  const apiKey = getActiveTMDBApiKey();
 
-  // 1. Instant local catalog filtering across title, genres, directors, and actors
+  // 1. Check if the query is an Actor or Director name via TMDB Person API first
+  try {
+    const personRes = await fetch(
+      `${TMDB_BASE_URL}/search/person?api_key=${apiKey}&query=${encodeURIComponent(query)}&page=${page}&include_adult=false`,
+      { cache: 'no-store' }
+    );
+
+    if (personRes.ok) {
+      const personData = await personRes.json();
+      const personResults = personData.results || [];
+      const matchedPerson = personResults.find((p: { name: string }) => p.name.toLowerCase().includes(lower)) || personResults[0];
+
+      if (matchedPerson) {
+        const creditsRes = await fetch(
+          `${TMDB_BASE_URL}/person/${matchedPerson.id}/combined_credits?api_key=${apiKey}`,
+          { cache: 'no-store' }
+        );
+
+        if (creditsRes.ok) {
+          const creditsData = await creditsRes.json();
+          const allCredits = [...(creditsData.cast || []), ...(creditsData.crew || [])];
+
+          const verifiedFilmography: MediaItem[] = [];
+          const seenIds = new Set<string>();
+
+          for (const c of allCredits) {
+            const mType: 'movie' | 'tv' = c.media_type === 'tv' ? 'tv' : 'movie';
+            const tName = c.title || c.name || c.original_title || c.original_name;
+            const key = `${mType}_${c.id}`;
+
+            if (!tName || !c.poster_path || seenIds.has(key)) continue;
+            seenIds.add(key);
+
+            verifiedFilmography.push({
+              id: c.id,
+              tmdbId: c.id,
+              title: tName,
+              mediaType: mType,
+              posterPath: `${TMDB_IMAGE_BASE}w500${c.poster_path}`,
+              backdropPath: c.backdrop_path ? `${TMDB_IMAGE_BASE}w780${c.backdrop_path}` : null,
+              releaseDate: c.release_date || c.first_air_date || '',
+              overview: c.overview || 'No plot summary available.',
+              genres: [],
+              directors: [matchedPerson.name],
+              cast: [{ id: matchedPerson.id, name: matchedPerson.name, character: c.character || 'Role', profilePath: null }],
+              voteAverage: c.vote_average ? Math.round(c.vote_average * 10) / 10 : undefined,
+            });
+          }
+
+          if (verifiedFilmography.length > 0) {
+            // Sort by vote count / popularity / release date
+            return verifiedFilmography.sort((a, b) => (b.voteAverage || 0) - (a.voteAverage || 0));
+          }
+        }
+      }
+    }
+  } catch {
+    // fallback to title & local search
+  }
+
+  // 2. Perform local catalog filtering across title, genres, directors, and actors
   const localMatches = POPULAR_AMERICAN_CATALOG.filter(
     (item) =>
       item.title.toLowerCase().includes(lower) ||
@@ -93,8 +154,7 @@ export async function searchTMDB(query: string, page = 1): Promise<MediaItem[]> 
       (item.cast && item.cast.some((c) => c.name.toLowerCase().includes(lower)))
   );
 
-  const apiKey = getActiveTMDBApiKey();
-
+  // 3. Fallback to TMDB Multi-search for titles & genres
   try {
     const res = await fetch(
       `${TMDB_BASE_URL}/search/multi?api_key=${apiKey}&query=${encodeURIComponent(query)}&page=${page}&include_adult=false`,
@@ -106,17 +166,8 @@ export async function searchTMDB(query: string, page = 1): Promise<MediaItem[]> 
     const results: TMDBRawSearchResult[] = data.results || [];
 
     const remoteItems: MediaItem[] = [];
-    const personIdsToFetch: number[] = [];
 
     for (const r of results) {
-      if (r.media_type === 'person') {
-        personIdsToFetch.push(r.id);
-        if (r.known_for && r.known_for.length > 0) {
-          results.push(...r.known_for);
-        }
-        continue;
-      }
-
       if (r.media_type !== 'movie' && r.media_type !== 'tv') continue;
 
       const mediaType: 'movie' | 'tv' = r.media_type;
@@ -139,48 +190,7 @@ export async function searchTMDB(query: string, page = 1): Promise<MediaItem[]> 
       });
     }
 
-    // 2. If a person (actor or director) search was performed, fetch their FULL filmography via combined_credits
-    if (personIdsToFetch.length > 0) {
-      for (const personId of personIdsToFetch.slice(0, 2)) {
-        try {
-          const creditsRes = await fetch(
-            `${TMDB_BASE_URL}/person/${personId}/combined_credits?api_key=${apiKey}`,
-            { cache: 'no-store' }
-          );
-          if (creditsRes.ok) {
-            const creditsData = await creditsRes.json();
-            const personCredits = [...(creditsData.cast || []), ...(creditsData.crew || [])];
-
-            for (const c of personCredits) {
-              const mType: 'movie' | 'tv' = c.media_type === 'tv' ? 'tv' : 'movie';
-              const tName = c.title || c.name || c.original_title || c.original_name;
-              if (!tName || !c.poster_path) continue;
-
-              remoteItems.push({
-                id: c.id,
-                tmdbId: c.id,
-                title: tName,
-                mediaType: mType,
-                posterPath: `${TMDB_IMAGE_BASE}w500${c.poster_path}`,
-                backdropPath: c.backdrop_path ? `${TMDB_IMAGE_BASE}w780${c.poster_path}` : null,
-                releaseDate: c.release_date || c.first_air_date || '',
-                overview: c.overview || 'No plot summary available.',
-                genres: [],
-                directors: [],
-                cast: [],
-                voteAverage: c.vote_average ? Math.round(c.vote_average * 10) / 10 : undefined,
-              });
-            }
-          }
-        } catch {
-          // ignore
-        }
-      }
-    }
-
-    // 3. Merge local catalog matches + live TMDB remote items (deduplicated)
     const combinedMap = new Map<string, MediaItem>();
-
     localMatches.forEach((itm) => combinedMap.set(`${itm.mediaType}_${itm.tmdbId}`, itm));
     remoteItems.forEach((itm) => {
       const key = `${itm.mediaType}_${itm.tmdbId}`;
@@ -241,7 +251,7 @@ export async function getTMDBDetails(id: number, mediaType: 'movie' | 'tv'): Pro
       releaseDate: releaseDate || localFound?.releaseDate || '',
       overview: data.overview || localFound?.overview || 'No plot overview provided.',
       genres: genres.length > 0 ? genres : localFound?.genres || [],
-      directors: directors.length > 0 ? directors : (localFound?.directors && localFound.directors.length > 0 ? localFound.directors : ['Featured Director']),
+      directors: directors.length > 0 ? directors : (localFound?.directors && localFound.directors.length > 0 ? localFound.directors : []),
       cast: cast.length > 0 ? cast : (localFound?.cast && localFound.cast.length > 0 ? localFound.cast : []),
       voteAverage: data.vote_average ? Math.round(data.vote_average * 10) / 10 : localFound?.voteAverage,
       tagline: data.tagline || localFound?.tagline,
@@ -259,11 +269,8 @@ export async function getTMDBDetails(id: number, mediaType: 'movie' | 'tv'): Pro
       releaseDate: '2024-01-01',
       overview: 'Details unavailable.',
       genres: [],
-      directors: ['Featured Director'],
-      cast: [
-        { id: 1, name: 'Lead Actor', character: 'Main Protagonist', profilePath: null },
-        { id: 2, name: 'Co-Star', character: 'Supporting Role', profilePath: null },
-      ],
+      directors: [],
+      cast: [],
     };
   }
 }
