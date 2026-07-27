@@ -249,6 +249,12 @@ export const SearchView: React.FC<Props> = ({ initialSearchQuery = '', onRecords
                   if (query.trim().length >= 1) setShowSuggestions(true);
                 }}
                 onChange={(e) => handleSearch(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === 'Escape') {
+                    setShowSuggestions(false);
+                    (e.target as HTMLInputElement).blur();
+                  }
+                }}
                 placeholder="Search by title, actor, director, genre, or language (e.g. French, Emily Blunt)..."
                 className="w-full pl-12 pr-12 py-3.5 bg-slate-950/90 border border-slate-700/80 focus:border-cyan-500 rounded-2xl text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/30 text-sm shadow-xl transition"
               />
