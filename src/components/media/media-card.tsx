@@ -152,15 +152,22 @@ export const MediaCard: React.FC<Props> = ({
               </button>
 
               <button
-                onClick={() => onAddToWatchlist(item)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (isWatchlist) {
+                    handleUnwatchToggle(e);
+                  } else {
+                    onAddToWatchlist(item);
+                  }
+                }}
                 className={`py-1.5 px-2.5 rounded-xl text-[11px] font-semibold flex items-center justify-center border transition ${
                   isWatchlist
-                    ? 'bg-cyan-500/20 border-cyan-500/60 text-cyan-300'
+                    ? 'bg-cyan-500/20 border-cyan-500/60 text-cyan-300 hover:bg-rose-500/20 hover:border-rose-500/60 hover:text-rose-300'
                     : 'bg-slate-800/80 hover:bg-cyan-500/20 border-slate-700 hover:border-cyan-500/50 text-slate-400 hover:text-cyan-300'
                 }`}
-                title="Add to Want to Watch List"
+                title={isWatchlist ? 'Click to Remove from Watchlist' : 'Add to Watchlist'}
               >
-                <Bookmark className="w-3.5 h-3.5" />
+                <Bookmark className={`w-3.5 h-3.5 ${isWatchlist ? 'fill-cyan-400' : ''}`} />
               </button>
             </div>
           )}
