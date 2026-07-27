@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { UserMediaRecord, PairwiseMatchup } from '@/types/media';
 import { StorageService } from '@/lib/storage';
 import { calculateElo, selectNextMatchup, reindexRecords } from '@/lib/elo';
@@ -41,6 +41,8 @@ export const RankingGame: React.FC<Props> = ({ onRecordsChanged, onNavigateToTab
   // Drag and Drop state with position indicator (above / below)
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dropTarget, setDropTarget] = useState<{ index: number; position: 'above' | 'below' } | null>(null);
+
+  const draggedIndexRef = useRef<number | null>(null);
 
   const activeMatchup = matchupOverride || selectNextMatchup(records, undefined, comparedPairs);
 
@@ -113,6 +115,7 @@ export const RankingGame: React.FC<Props> = ({ onRecordsChanged, onNavigateToTab
   const handleDragStart = (e: React.DragEvent, index: number) => {
     e.dataTransfer.setData('text/plain', index.toString());
     e.dataTransfer.effectAllowed = 'move';
+    draggedIndexRef.current = index;
     setDraggedIndex(index);
   };
 
@@ -131,20 +134,32 @@ export const RankingGame: React.FC<Props> = ({ onRecordsChanged, onNavigateToTab
   };
 
   const handleDragEnd = () => {
+    draggedIndexRef.current = null;
     setDraggedIndex(null);
     setDropTarget(null);
   };
 
-  const handleDrop = (e: React.DragEvent, targetIndex: number) => {
+  const handleDrop = (e: React.DragEvent, targetIndex: number, forcedPosition?: 'above' | 'below') => {
     e.preventDefault();
-    if (draggedIndex === null || !dropTarget) {
+    e.stopPropagation();
+
+    const rawFrom = e.dataTransfer.getData('text/plain');
+    const fromIndex = rawFrom !== '' ? parseInt(rawFrom, 10) : draggedIndexRef.current;
+
+    if (fromIndex === null || isNaN(fromIndex)) {
       handleDragEnd();
       return;
     }
 
+    // Determine position if not forced
+    let position: 'above' | 'below' = forcedPosition || 'above';
+    if (!forcedPosition) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const midY = rect.top + rect.height / 2;
+      position = e.clientY < midY ? 'above' : 'below';
+    }
+
     const watched = records.filter((r) => r.status === 'watched');
-    const fromIndex = draggedIndex;
-    const position = dropTarget.position;
 
     let insertAt = targetIndex;
     if (position === 'below') {
@@ -372,10 +387,17 @@ export const RankingGame: React.FC<Props> = ({ onRecordsChanged, onNavigateToTab
                 <React.Fragment key={record.id}>
                   {/* Glowing Cyan Insertion Line (ABOVE) */}
                   {isDropAbove && (
-                    <div className="relative py-1 flex items-center gap-3 animate-pulse transition-all">
-                      <div className="w-3 h-3 rounded-full bg-cyan-400 shadow-lg shadow-cyan-400" />
+                    <div
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = 'move';
+                      }}
+                      onDrop={(e) => handleDrop(e, index, 'above')}
+                      className="relative py-2 px-4 flex items-center gap-3 animate-pulse bg-cyan-950/40 border border-cyan-500/60 rounded-xl transition-all cursor-pointer"
+                    >
+                      <div className="w-3.5 h-3.5 rounded-full bg-cyan-400 shadow-lg shadow-cyan-400" />
                       <div className="flex-1 h-1.5 bg-gradient-to-r from-cyan-400 via-cyan-300 to-blue-500 rounded-full shadow-lg shadow-cyan-400/80" />
-                      <span className="inline-flex items-center gap-1 text-[11px] font-black text-cyan-300 uppercase tracking-widest px-3 py-1 rounded-lg bg-slate-900 border border-cyan-400/60 shadow-lg shadow-cyan-500/20">
+                      <span className="inline-flex items-center gap-1.5 text-[11px] font-black text-cyan-300 uppercase tracking-widest px-3 py-1 rounded-lg bg-slate-900 border border-cyan-400/80 shadow-lg shadow-cyan-500/30">
                         <ArrowDownCircle className="w-3.5 h-3.5 text-cyan-400" /> Drop Here (Above Rank #{record.rankIndex})
                       </span>
                     </div>
@@ -454,10 +476,17 @@ export const RankingGame: React.FC<Props> = ({ onRecordsChanged, onNavigateToTab
 
                   {/* Glowing Cyan Insertion Line (BELOW) */}
                   {isDropBelow && (
-                    <div className="relative py-1 flex items-center gap-3 animate-pulse transition-all">
-                      <div className="w-3 h-3 rounded-full bg-cyan-400 shadow-lg shadow-cyan-400" />
+                    <div
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = 'move';
+                      }}
+                      onDrop={(e) => handleDrop(e, index, 'below')}
+                      className="relative py-2 px-4 flex items-center gap-3 animate-pulse bg-cyan-950/40 border border-cyan-500/60 rounded-xl transition-all cursor-pointer"
+                    >
+                      <div className="w-3.5 h-3.5 rounded-full bg-cyan-400 shadow-lg shadow-cyan-400" />
                       <div className="flex-1 h-1.5 bg-gradient-to-r from-cyan-400 via-cyan-300 to-blue-500 rounded-full shadow-lg shadow-cyan-400/80" />
-                      <span className="inline-flex items-center gap-1 text-[11px] font-black text-cyan-300 uppercase tracking-widest px-3 py-1 rounded-lg bg-slate-900 border border-cyan-400/60 shadow-lg shadow-cyan-500/20">
+                      <span className="inline-flex items-center gap-1.5 text-[11px] font-black text-cyan-300 uppercase tracking-widest px-3 py-1 rounded-lg bg-slate-900 border border-cyan-400/80 shadow-lg shadow-cyan-500/30">
                         <ArrowDownCircle className="w-3.5 h-3.5 text-cyan-400" /> Drop Here (Below Rank #{record.rankIndex})
                       </span>
                     </div>
