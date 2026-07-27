@@ -16,6 +16,7 @@ import {
   RotateCcw,
   Sparkles,
   GripVertical,
+  ArrowDownCircle,
 } from 'lucide-react';
 
 interface Props {
@@ -37,9 +38,9 @@ export const RankingGame: React.FC<Props> = ({ onRecordsChanged, onNavigateToTab
   const [matchupOverride, setMatchupOverride] = useState<PairwiseMatchup | null>(null);
   const [comparisonsCount, setComparisonsCount] = useState(0);
 
-  // Drag and Drop state
+  // Drag and Drop state with position indicator (above / below)
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [dropTarget, setDropTarget] = useState<{ index: number; position: 'above' | 'below' } | null>(null);
 
   const activeMatchup = matchupOverride || selectNextMatchup(records, undefined, comparedPairs);
 
@@ -108,7 +109,7 @@ export const RankingGame: React.FC<Props> = ({ onRecordsChanged, onNavigateToTab
     onRecordsChanged();
   };
 
-  // HTML5 Drag and Drop handlers for moving titles multiple spots
+  // HTML5 Drag and Drop handlers for moving titles multiple spots with insertion indicator
   const handleDragStart = (e: React.DragEvent, index: number) => {
     e.dataTransfer.setData('text/plain', index.toString());
     e.dataTransfer.effectAllowed = 'move';
@@ -118,26 +119,48 @@ export const RankingGame: React.FC<Props> = ({ onRecordsChanged, onNavigateToTab
   const handleDragOver = (e: React.DragEvent, index: number) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
-    if (dragOverIndex !== index) {
-      setDragOverIndex(index);
+
+    // Calculate vertical position relative to target item center line
+    const rect = e.currentTarget.getBoundingClientRect();
+    const midY = rect.top + rect.height / 2;
+    const position: 'above' | 'below' = e.clientY < midY ? 'above' : 'below';
+
+    if (!dropTarget || dropTarget.index !== index || dropTarget.position !== position) {
+      setDropTarget({ index, position });
     }
   };
 
   const handleDragEnd = () => {
     setDraggedIndex(null);
-    setDragOverIndex(null);
+    setDropTarget(null);
   };
 
   const handleDrop = (e: React.DragEvent, targetIndex: number) => {
     e.preventDefault();
-    if (draggedIndex === null || draggedIndex === targetIndex) {
+    if (draggedIndex === null || !dropTarget) {
       handleDragEnd();
       return;
     }
 
     const watched = records.filter((r) => r.status === 'watched');
-    const [movedItem] = watched.splice(draggedIndex, 1);
-    watched.splice(targetIndex, 0, movedItem);
+    const fromIndex = draggedIndex;
+    const position = dropTarget.position;
+
+    let insertAt = targetIndex;
+    if (position === 'below') {
+      insertAt = targetIndex + 1;
+    }
+    if (fromIndex < insertAt) {
+      insertAt--;
+    }
+
+    if (fromIndex === insertAt) {
+      handleDragEnd();
+      return;
+    }
+
+    const [movedItem] = watched.splice(fromIndex, 1);
+    watched.splice(insertAt, 0, movedItem);
 
     // Update rank index and continuous rating scores smoothly
     watched.forEach((item, idx) => {
@@ -333,90 +356,113 @@ export const RankingGame: React.FC<Props> = ({ onRecordsChanged, onNavigateToTab
               <ListOrdered className="w-5 h-5 text-cyan-400" /> Master Ordered List & Fine-Tuning
             </h2>
             <p className="text-xs text-slate-400">
-              Drag items using the left handle to move titles up or down multiple spots, or use the Up/Down arrows on the right.
+              Drag items using the left handle to move titles up or down multiple spots. A glowing cyan insertion line shows exact placement above or below any item.
             </p>
           </div>
         </div>
 
         {watchedRecords.length > 0 ? (
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             {watchedRecords.map((record, index) => {
               const isDragging = draggedIndex === index;
-              const isDragOver = dragOverIndex === index;
+              const isDropAbove = dropTarget?.index === index && dropTarget?.position === 'above' && draggedIndex !== index;
+              const isDropBelow = dropTarget?.index === index && dropTarget?.position === 'below' && draggedIndex !== index;
 
               return (
-                <div
-                  key={record.id}
-                  draggable={true}
-                  onDragStart={(e) => handleDragStart(e, index)}
-                  onDragOver={(e) => handleDragOver(e, index)}
-                  onDragEnd={handleDragEnd}
-                  onDrop={(e) => handleDrop(e, index)}
-                  className={`flex items-center justify-between p-3.5 bg-slate-900/80 border rounded-2xl transition gap-4 ${
-                    isDragging
-                      ? 'opacity-30 border-dashed border-cyan-500 scale-[0.98]'
-                      : isDragOver
-                      ? 'border-cyan-400 bg-cyan-950/40 shadow-lg shadow-cyan-500/20 scale-[1.01]'
-                      : 'border-slate-800/90 hover:border-slate-700'
-                  }`}
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    {/* Left Drag Handle */}
-                    <div
-                      className="cursor-grab active:cursor-grabbing p-1.5 rounded-lg text-slate-500 hover:text-cyan-400 hover:bg-slate-800 transition flex-shrink-0"
-                      title="Click and drag to re-order position"
-                    >
-                      <GripVertical className="w-5 h-5" />
+                <React.Fragment key={record.id}>
+                  {/* Glowing Cyan Insertion Line (ABOVE) */}
+                  {isDropAbove && (
+                    <div className="relative py-1 flex items-center gap-3 animate-pulse transition-all">
+                      <div className="w-3 h-3 rounded-full bg-cyan-400 shadow-lg shadow-cyan-400" />
+                      <div className="flex-1 h-1.5 bg-gradient-to-r from-cyan-400 via-cyan-300 to-blue-500 rounded-full shadow-lg shadow-cyan-400/80" />
+                      <span className="inline-flex items-center gap-1 text-[11px] font-black text-cyan-300 uppercase tracking-widest px-3 py-1 rounded-lg bg-slate-900 border border-cyan-400/60 shadow-lg shadow-cyan-500/20">
+                        <ArrowDownCircle className="w-3.5 h-3.5 text-cyan-400" /> Drop Here (Above Rank #{record.rankIndex})
+                      </span>
                     </div>
+                  )}
 
-                    {/* Rank Index Badge */}
-                    <div className="w-9 h-9 rounded-xl bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 font-extrabold text-sm flex items-center justify-center flex-shrink-0">
-                      #{record.rankIndex}
-                    </div>
+                  {/* Main Draggable Item Row */}
+                  <div
+                    draggable={true}
+                    onDragStart={(e) => handleDragStart(e, index)}
+                    onDragOver={(e) => handleDragOver(e, index)}
+                    onDragEnd={handleDragEnd}
+                    onDrop={(e) => handleDrop(e, index)}
+                    className={`flex items-center justify-between p-3.5 bg-slate-900/80 border rounded-2xl transition gap-4 ${
+                      isDragging
+                        ? 'opacity-30 border-dashed border-cyan-500 scale-[0.98]'
+                        : 'border-slate-800/90 hover:border-slate-700'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      {/* Left Drag Handle */}
+                      <div
+                        className="cursor-grab active:cursor-grabbing p-1.5 rounded-lg text-slate-500 hover:text-cyan-400 hover:bg-slate-800 transition flex-shrink-0"
+                        title="Click and drag to re-order position"
+                      >
+                        <GripVertical className="w-5 h-5" />
+                      </div>
 
-                    {/* Thumbnail Poster */}
-                    <div className="w-10 h-14 rounded-lg overflow-hidden bg-slate-950 flex-shrink-0 border border-slate-800">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={getTMDBImageUrl(record.item.posterPath, 'poster', record.item.title, record.item.mediaType)}
-                        alt={record.item.title}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
+                      {/* Rank Index Badge */}
+                      <div className="w-9 h-9 rounded-xl bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 font-extrabold text-sm flex items-center justify-center flex-shrink-0">
+                        #{record.rankIndex}
+                      </div>
 
-                    {/* Title & Media Info */}
-                    <div className="min-w-0">
-                      <h4 className="text-sm font-bold text-white truncate">
-                        {record.item.title}
-                      </h4>
-                      <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-400">
-                        <span className="capitalize">{record.item.mediaType}</span>
-                        <span>•</span>
-                        <span>Score: {record.ratingTier.toFixed(2)}</span>
+                      {/* Thumbnail Poster */}
+                      <div className="w-10 h-14 rounded-lg overflow-hidden bg-slate-950 flex-shrink-0 border border-slate-800">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={getTMDBImageUrl(record.item.posterPath, 'poster', record.item.title, record.item.mediaType)}
+                          alt={record.item.title}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+
+                      {/* Title & Media Info */}
+                      <div className="min-w-0">
+                        <h4 className="text-sm font-bold text-white truncate">
+                          {record.item.title}
+                        </h4>
+                        <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-400">
+                          <span className="capitalize">{record.item.mediaType}</span>
+                          <span>•</span>
+                          <span>Score: {record.ratingTier.toFixed(2)}</span>
+                        </div>
                       </div>
                     </div>
+
+                    {/* Fine-Tuning Controls */}
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <button
+                        disabled={index === 0}
+                        onClick={() => handleMoveRank(index, 'up')}
+                        className="p-2 rounded-xl bg-slate-800 hover:bg-cyan-500/20 hover:text-cyan-300 disabled:opacity-30 text-slate-300 transition"
+                        title="Move Up 1 Spot"
+                      >
+                        <ChevronUp className="w-4 h-4" />
+                      </button>
+                      <button
+                        disabled={index === watchedRecords.length - 1}
+                        onClick={() => handleMoveRank(index, 'down')}
+                        className="p-2 rounded-xl bg-slate-800 hover:bg-cyan-500/20 hover:text-cyan-300 disabled:opacity-30 text-slate-300 transition"
+                        title="Move Down 1 Spot"
+                      >
+                        <ChevronDown className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
 
-                  {/* Fine-Tuning Controls */}
-                  <div className="flex items-center gap-1 flex-shrink-0">
-                    <button
-                      disabled={index === 0}
-                      onClick={() => handleMoveRank(index, 'up')}
-                      className="p-2 rounded-xl bg-slate-800 hover:bg-cyan-500/20 hover:text-cyan-300 disabled:opacity-30 text-slate-300 transition"
-                      title="Move Up 1 Spot"
-                    >
-                      <ChevronUp className="w-4 h-4" />
-                    </button>
-                    <button
-                      disabled={index === watchedRecords.length - 1}
-                      onClick={() => handleMoveRank(index, 'down')}
-                      className="p-2 rounded-xl bg-slate-800 hover:bg-cyan-500/20 hover:text-cyan-300 disabled:opacity-30 text-slate-300 transition"
-                      title="Move Down 1 Spot"
-                    >
-                      <ChevronDown className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
+                  {/* Glowing Cyan Insertion Line (BELOW) */}
+                  {isDropBelow && (
+                    <div className="relative py-1 flex items-center gap-3 animate-pulse transition-all">
+                      <div className="w-3 h-3 rounded-full bg-cyan-400 shadow-lg shadow-cyan-400" />
+                      <div className="flex-1 h-1.5 bg-gradient-to-r from-cyan-400 via-cyan-300 to-blue-500 rounded-full shadow-lg shadow-cyan-400/80" />
+                      <span className="inline-flex items-center gap-1 text-[11px] font-black text-cyan-300 uppercase tracking-widest px-3 py-1 rounded-lg bg-slate-900 border border-cyan-400/60 shadow-lg shadow-cyan-500/20">
+                        <ArrowDownCircle className="w-3.5 h-3.5 text-cyan-400" /> Drop Here (Below Rank #{record.rankIndex})
+                      </span>
+                    </div>
+                  )}
+                </React.Fragment>
               );
             })}
           </div>
