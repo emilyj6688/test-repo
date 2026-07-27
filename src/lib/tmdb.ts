@@ -130,6 +130,7 @@ export async function searchTMDB(query: string, page = 1): Promise<MediaItem[]> 
 
           const verifiedFilmography: MediaItem[] = [];
           const seenIds = new Set<string>();
+          const seenTitles = new Set<string>();
 
           const talkShowRegex = /tonight show|jimmy kimmel|late night|late late show|ellen degeneres|live with kelly|daily show|entertainment tonight|good morning america|today show|the view|watch what happens live|saturday night live/i;
           const awardAndSpecialRegex = /awards|ceremony|grammy|emmy|oscar|golden globe|sag-aftra|actor awards|kids. choice|people.s choice|red carpet|making of|behind the scenes|tribute|hall of fame|in memoriam|live at|live from|concert|press conference|q&a|festival/i;
@@ -138,8 +139,11 @@ export async function searchTMDB(query: string, page = 1): Promise<MediaItem[]> 
             const mType: 'movie' | 'tv' = c.media_type === 'tv' ? 'tv' : 'movie';
             const tName = c.title || c.name || c.original_title || c.original_name;
             const key = `${mType}_${c.id}`;
+            const normTitleKey = `${(tName || '').toLowerCase().trim()}_${mType}`;
 
-            if (!tName || !c.poster_path || seenIds.has(key)) continue;
+            if (!tName || !c.poster_path || seenIds.has(key) || seenTitles.has(normTitleKey)) continue;
+            seenIds.add(key);
+            seenTitles.add(normTitleKey);
 
             const character = (c.character || '').toLowerCase();
             const isHostOrTitleHolder = tName.toLowerCase().includes(matchedPerson.name.toLowerCase());
