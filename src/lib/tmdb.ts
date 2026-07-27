@@ -189,6 +189,7 @@ export async function getTMDBDetails(id: number, mediaType: 'movie' | 'tv'): Pro
       voteAverage: data.vote_average ? Math.round(data.vote_average * 10) / 10 : localFound?.voteAverage,
       tagline: data.tagline || localFound?.tagline,
       runtime: data.runtime || (data.episode_run_time && data.episode_run_time[0]) || localFound?.runtime,
+      contentRating: localFound?.contentRating,
     };
   } catch {
     if (localFound) return localFound;

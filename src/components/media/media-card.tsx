@@ -18,6 +18,21 @@ interface Props {
   rankIndex?: number;
 }
 
+export function getContentRatingStyle(rating?: string): { label: string; style: string } {
+  if (!rating) return { label: '', style: '' };
+  const upper = rating.toUpperCase().trim();
+  if (upper.includes('R') || upper.includes('NC-17') || upper.includes('MA')) {
+    return { label: upper, style: 'bg-rose-500/30 text-rose-300 border-rose-500/50' };
+  }
+  if (upper.includes('13') || upper.includes('14')) {
+    return { label: upper, style: 'bg-amber-500/30 text-amber-300 border-amber-500/50' };
+  }
+  if (upper.includes('PG')) {
+    return { label: upper, style: 'bg-emerald-500/30 text-emerald-300 border-emerald-500/50' };
+  }
+  return { label: upper, style: 'bg-sky-500/30 text-sky-300 border-sky-500/50' };
+}
+
 export const MediaCard: React.FC<Props> = ({
   item,
   record,
@@ -34,6 +49,8 @@ export const MediaCard: React.FC<Props> = ({
   const year = item.releaseDate ? item.releaseDate.substring(0, 4) : '';
   const isWatched = record?.status === 'watched';
   const isWatchlist = record?.status === 'want_to_watch';
+
+  const ratingInfo = getContentRatingStyle(item.contentRating);
 
   const handleUnwatchToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -65,9 +82,16 @@ export const MediaCard: React.FC<Props> = ({
           </div>
         )}
 
-        {/* Media Type Badge */}
-        <div className="absolute top-2 right-2 z-10 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-slate-950/80 backdrop-blur-md border border-slate-700 text-slate-300">
-          {item.mediaType === 'movie' ? 'Movie' : 'TV'}
+        {/* Top-Right Badges: Media Type & Content Rating Tag */}
+        <div className="absolute top-2 right-2 z-10 flex items-center gap-1.5">
+          {ratingInfo.label && (
+            <span className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wider backdrop-blur-md border ${ratingInfo.style}`}>
+              {ratingInfo.label}
+            </span>
+          )}
+          <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-slate-950/80 backdrop-blur-md border border-slate-700 text-slate-300">
+            {item.mediaType === 'movie' ? 'Movie' : 'TV'}
+          </span>
         </div>
 
         {/* Bottom Quick Overlay Info */}

@@ -5,6 +5,7 @@ import { MediaItem, UserMediaRecord, RatingTier } from '@/types/media';
 import { getTMDBDetails, getTMDBImageUrl } from '@/lib/tmdb';
 import { StorageService } from '@/lib/storage';
 import { RatingSlider } from '@/components/media/rating-slider';
+import { getContentRatingStyle } from '@/components/media/media-card';
 import { X, Calendar, Star, CheckCircle, Bookmark, Trash2, User, Clock, Tag } from 'lucide-react';
 
 interface Props {
@@ -114,6 +115,15 @@ export const MediaDetailModal: React.FC<Props> = ({ item, isOpen, onClose, onRec
                   <span className="px-2.5 py-0.5 rounded-md text-[11px] font-bold uppercase tracking-wider bg-cyan-500/20 border border-cyan-500/40 text-cyan-300">
                     {currentDetails.mediaType === 'movie' ? 'Movie' : 'TV Series'}
                   </span>
+                  {(() => {
+                    const ratingInfo = getContentRatingStyle(currentDetails.contentRating);
+                    if (!ratingInfo.label) return null;
+                    return (
+                      <span className={`px-2.5 py-0.5 rounded-md text-[11px] font-extrabold uppercase tracking-wider border ${ratingInfo.style}`}>
+                        {ratingInfo.label}
+                      </span>
+                    );
+                  })()}
                   {year !== 'N/A' && (
                     <span className="flex items-center gap-1 text-xs text-slate-400 font-mono">
                       <Calendar className="w-3.5 h-3.5" /> {year}

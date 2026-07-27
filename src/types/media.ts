@@ -30,6 +30,7 @@ export interface MediaItem {
   voteAverage?: number;
   tagline?: string;
   runtime?: number;
+  contentRating?: string; // MPAA / TV rating e.g. R, PG-13, PG, G, TV-MA, TV-14, TV-PG
 }
 
 export type MediaStatus = 'watched' | 'want_to_watch';
