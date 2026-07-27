@@ -22,7 +22,21 @@ export class StorageService {
         localStorage.setItem(USERS_KEY, JSON.stringify(DEFAULT_USERS));
         return DEFAULT_USERS;
       }
-      return JSON.parse(data);
+      const stored: UserProfile[] = JSON.parse(data);
+      const existingIds = new Set(stored.map((u) => u.id));
+      let updated = false;
+
+      DEFAULT_USERS.forEach((defUser) => {
+        if (!existingIds.has(defUser.id)) {
+          stored.unshift(defUser);
+          updated = true;
+        }
+      });
+
+      if (updated) {
+        localStorage.setItem(USERS_KEY, JSON.stringify(stored));
+      }
+      return stored;
     } catch {
       return DEFAULT_USERS;
     }
