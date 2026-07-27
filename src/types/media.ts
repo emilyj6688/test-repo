@@ -37,6 +37,7 @@ export interface MediaItem {
   contentRating?: string; // MPAA / TV rating e.g. R, PG-13, PG, G, TV-MA, TV-14, TV-PG
   numberOfSeasons?: number;
   numberOfEpisodes?: number;
+  originalLanguage?: string; // Primary language (e.g. English, French, Spanish, Japanese, Korean, Italian, etc.)
 }
 
 export type MediaStatus = 'watched' | 'want_to_watch';
@@ -81,5 +82,6 @@ export interface TMDBRawSearchResult {
   overview?: string;
   genre_ids?: number[];
   vote_average?: number;
+  original_language?: string;
   known_for?: TMDBRawSearchResult[];
 }

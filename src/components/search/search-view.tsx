@@ -59,7 +59,8 @@ export const SearchView: React.FC<Props> = ({ initialSearchQuery = '', onRecords
         item.title.toLowerCase().includes(lower) ||
         (item.genres && item.genres.some((g: string) => g.toLowerCase().includes(lower))) ||
         (item.directors && item.directors.some((d: string) => d.toLowerCase().includes(lower))) ||
-        (item.cast && item.cast.some((c: CastMember) => c.name.toLowerCase().includes(lower)))
+        (item.cast && item.cast.some((c: CastMember) => c.name.toLowerCase().includes(lower))) ||
+        (item.originalLanguage && item.originalLanguage.toLowerCase().includes(lower))
     );
 
     setResults(instantLocalMatches);

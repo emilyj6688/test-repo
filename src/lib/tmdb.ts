@@ -30,6 +30,20 @@ const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p/';
 
 const DEFAULT_DEMO_TMDB_KEY = 'a07e22bc18f5cb106bfe4cc1f83ad8ed';
 
+const ISO_LANGUAGES: Record<string, string> = {
+  en: 'English', fr: 'French', es: 'Spanish', ja: 'Japanese', ko: 'Korean', it: 'Italian', de: 'German',
+  zh: 'Mandarin', cn: 'Cantonese', hi: 'Hindi', ru: 'Russian', pt: 'Portuguese', nl: 'Dutch', sv: 'Swedish',
+  no: 'Norwegian', da: 'Danish', fi: 'Finnish', pl: 'Polish', tr: 'Turkish', ar: 'Arabic', he: 'Hebrew',
+  th: 'Thai', vi: 'Vietnamese', id: 'Indonesian', el: 'Greek', hu: 'Hungarian', cs: 'Czech', fa: 'Persian',
+  uk: 'Ukrainian', ro: 'Romanian', ta: 'Tamil', te: 'Telugu', ml: 'Malayalam',
+};
+
+export function formatLanguageName(code?: string | null): string {
+  if (!code) return 'English';
+  const clean = code.toLowerCase().trim();
+  return ISO_LANGUAGES[clean] || clean.toUpperCase();
+}
+
 // Generates an inline SVG cover poster for any movie or TV show title
 export function generateTitlePosterSVG(
   title: string,
@@ -277,6 +291,7 @@ export async function searchTMDB(query: string, page = 1): Promise<MediaItem[]> 
         directors: [],
         cast: [],
         voteAverage: r.vote_average ? Math.round(r.vote_average * 10) / 10 : undefined,
+        originalLanguage: formatLanguageName(r.original_language),
       });
     }
 
@@ -349,6 +364,7 @@ export async function getTMDBDetails(id: number, mediaType: 'movie' | 'tv'): Pro
       contentRating: localFound?.contentRating,
       numberOfSeasons: data.number_of_seasons || localFound?.numberOfSeasons || (mediaType === 'tv' ? 1 : undefined),
       numberOfEpisodes: data.number_of_episodes || localFound?.numberOfEpisodes || undefined,
+      originalLanguage: formatLanguageName(data.original_language) || localFound?.originalLanguage || 'English',
     };
   } catch {
     if (localFound) return localFound;

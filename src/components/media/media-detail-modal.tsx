@@ -155,6 +155,16 @@ export const MediaDetailModal: React.FC<Props> = ({ item, isOpen, onClose, onRec
                         <Star className="w-3.5 h-3.5 fill-amber-400" /> {currentDetails.voteAverage}/10
                       </span>
                     )}
+                    <span
+                      onClick={() => {
+                        onClose();
+                        if (onTagClick) onTagClick(currentDetails.originalLanguage || 'English');
+                      }}
+                      className="flex items-center gap-1 text-xs text-emerald-300 font-semibold bg-emerald-500/20 px-2.5 py-0.5 rounded-md border border-emerald-500/40 cursor-pointer hover:bg-emerald-500/30 transition"
+                      title="Click to filter search by language"
+                    >
+                      🌐 {currentDetails.originalLanguage || 'English'}
+                    </span>
                   </div>
 
                   <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
