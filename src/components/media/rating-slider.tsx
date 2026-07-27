@@ -11,8 +11,8 @@ interface Props {
 }
 
 export const RatingSlider: React.FC<Props> = ({ value, onChange, compact = false }) => {
-  // Normalize legacy values 1, 2, 3 to 0.0, 1.0, 2.0 continuous scale if needed
-  const normalizedValue = value === 3 ? 2.0 : value === 1 ? 0.0 : value === 2 ? 1.0 : Math.min(2.0, Math.max(0.0, value));
+  // Normalize legacy values 0.0 - 2.0 to 0.0 - 10.0 scale
+  const normalizedValue = value <= 2.0 ? Math.round(value * 5.0 * 10) / 10 : Math.min(10.0, Math.max(0.0, Math.round(value * 10) / 10));
 
   const tierCategory = getTierCategory(normalizedValue);
 
@@ -50,13 +50,13 @@ export const RatingSlider: React.FC<Props> = ({ value, onChange, compact = false
     <div className="w-full space-y-2 select-none" onClick={(e) => e.stopPropagation()}>
       {!compact && (
         <div className="flex justify-between items-center text-xs font-semibold">
-          <span className="text-slate-400 uppercase tracking-wider text-[10px]">Continuous Rating</span>
+          <span className="text-slate-400 uppercase tracking-wider text-[10px]">User Rating</span>
           <div className="flex items-center gap-2">
             <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold border flex items-center gap-1.5 ${info.bgClass} ${info.colorClass}`}>
               {info.icon} {info.label}
             </span>
-            <span className="font-mono text-[11px] text-slate-300 font-bold bg-slate-900 px-2 py-0.5 rounded-md border border-slate-800">
-              {normalizedValue.toFixed(2)} / 2.00
+            <span className="font-mono text-xs text-cyan-300 font-extrabold bg-slate-900 px-2 py-0.5 rounded-md border border-cyan-500/30">
+              {normalizedValue.toFixed(1)} / 10
             </span>
           </div>
         </div>
@@ -68,8 +68,8 @@ export const RatingSlider: React.FC<Props> = ({ value, onChange, compact = false
           <input
             type="range"
             min="0"
-            max="2"
-            step="0.01"
+            max="10"
+            step="0.1"
             value={normalizedValue}
             onChange={(e) => onChange(parseFloat(e.target.value))}
             className={`w-full h-2.5 rounded-lg appearance-none cursor-pointer bg-slate-800 ${info.trackClass} transition-all`}
@@ -85,27 +85,27 @@ export const RatingSlider: React.FC<Props> = ({ value, onChange, compact = false
               tierCategory === 1 ? 'text-rose-400 font-black scale-105' : 'hover:text-slate-200'
             }`}
           >
-            <ThumbsDown className="w-3 h-3" /> 0.00 Didn&apos;t Like
+            <ThumbsDown className="w-3 h-3" /> 0.0 Didn&apos;t Like
           </button>
 
           <button
             type="button"
-            onClick={() => onChange(1.0)}
+            onClick={() => onChange(5.0)}
             className={`flex items-center gap-1 transition ${
               tierCategory === 2 ? 'text-amber-400 font-black scale-105' : 'hover:text-slate-200'
             }`}
           >
-            <Minus className="w-3 h-3" /> 1.00 Neutral
+            <Minus className="w-3 h-3" /> 5.0 Neutral
           </button>
 
           <button
             type="button"
-            onClick={() => onChange(2.0)}
+            onClick={() => onChange(10.0)}
             className={`flex items-center gap-1 transition ${
               tierCategory === 3 ? 'text-emerald-400 font-black scale-105' : 'hover:text-slate-200'
             }`}
           >
-            <ThumbsUp className="w-3 h-3" /> 2.00 Liked
+            <ThumbsUp className="w-3 h-3" /> 10.0 Liked
           </button>
         </div>
       </div>

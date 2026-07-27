@@ -45,14 +45,14 @@ export const MediaDetailModal: React.FC<Props> = ({ item, isOpen, onClose, onRec
   const userRecord = StorageService.getRecord(currentDetails.tmdbId, currentDetails.mediaType);
   const year = currentDetails.releaseDate ? currentDetails.releaseDate.substring(0, 4) : 'N/A';
 
-  const handleMarkWatched = (tier: RatingTier = 1.0) => {
+  const handleMarkWatched = (tier: RatingTier = 5.0) => {
     StorageService.saveRecord(currentDetails, 'watched', tier);
     setRecordRevision((prev) => prev + 1);
     if (onRecordChange) onRecordChange();
   };
 
   const handleAddToWatchlist = () => {
-    StorageService.saveRecord(currentDetails, 'want_to_watch', 1.0);
+    StorageService.saveRecord(currentDetails, 'want_to_watch', 5.0);
     setRecordRevision((prev) => prev + 1);
     if (onRecordChange) onRecordChange();
   };
@@ -114,20 +114,23 @@ export const MediaDetailModal: React.FC<Props> = ({ item, isOpen, onClose, onRec
       }
     }
 
-    const updatedProgress: Record<number, SeasonStatus> = {};
-    for (let s = 1; s <= totalSeasons; s++) {
-      updatedProgress[s] = allWatched ? 'unwatched' : 'watched';
+    if (allWatched) {
+      // Deselect all seasons -> remove record completely instead of putting in watchlist
+      StorageService.removeRecord(currentDetails.tmdbId, currentDetails.mediaType);
+    } else {
+      const updatedProgress: Record<number, SeasonStatus> = {};
+      for (let s = 1; s <= totalSeasons; s++) {
+        updatedProgress[s] = 'watched';
+      }
+
+      StorageService.saveRecord(
+        currentDetails,
+        'watched',
+        userRecord?.ratingTier || 5.0,
+        undefined,
+        updatedProgress
+      );
     }
-
-    const newStatus = allWatched ? 'want_to_watch' : 'watched';
-
-    StorageService.saveRecord(
-      currentDetails,
-      newStatus,
-      userRecord?.ratingTier || 1.0,
-      undefined,
-      updatedProgress
-    );
 
     setRecordRevision((prev) => prev + 1);
     if (onRecordChange) onRecordChange();

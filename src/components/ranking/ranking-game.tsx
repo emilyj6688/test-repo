@@ -102,8 +102,8 @@ export const RankingGame: React.FC<Props> = ({ onRecordsChanged, onNavigateToTab
     watched.forEach((item, idx) => {
       item.rankIndex = idx + 1;
       item.eloRating = 1600 - idx * 5;
-      const normalizedTier = 1.95 - (idx / Math.max(1, total - 1)) * 1.85;
-      item.ratingTier = Math.round(normalizedTier * 100) / 100;
+      const normalizedTier = 9.8 - (idx / Math.max(1, total - 1)) * 9.3;
+      item.ratingTier = Math.round(normalizedTier * 10) / 10;
     });
 
     const nonWatched = records.filter((r) => r.status !== 'watched');
@@ -467,7 +467,7 @@ export const RankingGame: React.FC<Props> = ({ onRecordsChanged, onNavigateToTab
                         <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-400">
                           <span className="capitalize">{record.item.mediaType}</span>
                           <span>•</span>
-                          <span>Score: {record.ratingTier.toFixed(2)}</span>
+                          <span className="font-mono text-cyan-300 font-bold">Score: {(record.ratingTier <= 2.0 ? record.ratingTier * 5 : record.ratingTier).toFixed(1)} / 10</span>
                         </div>
                       </div>
                     </div>
