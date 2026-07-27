@@ -55,6 +55,27 @@ export function getTMDBImageUrl(
   return `${TMDB_IMAGE_BASE}${sizePath}${cleanPath}`;
 }
 
+export function calculateFilmographyScore(item: { releaseDate?: string; castOrder?: number; voteAverage?: number }): number {
+  // 1. Recency Score (Weight ~ 45%): Newer release dates rank higher
+  let recencyScore = 0;
+  if (item.releaseDate) {
+    const yr = parseInt(item.releaseDate.substring(0, 4), 10);
+    if (!isNaN(yr)) {
+      recencyScore = Math.max(0, (yr - 1950) / 76) * 45;
+    }
+  }
+
+  // 2. Billing Presence / Role Importance (Weight ~ 35%): Lead/top cast order ranks higher
+  const billingOrder = typeof item.castOrder === 'number' ? item.castOrder : 5;
+  const presenceScore = Math.max(5, 35 - billingOrder * 5);
+
+  // 3. Popularity / Rating Score (Weight ~ 20%): Smaller factor as requested
+  const rating = item.voteAverage || 6.5;
+  const popularityScore = (rating / 10) * 20;
+
+  return recencyScore + presenceScore + popularityScore;
+}
+
 export function getActiveTMDBApiKey(): string {
   if (typeof window !== 'undefined') {
     const custom = localStorage.getItem('cinetrack_custom_tmdb_key');
@@ -129,7 +150,8 @@ export async function searchTMDB(query: string, page = 1): Promise<MediaItem[]> 
               if (character.startsWith('self') || character.includes('presenter') || character.includes('nominee') || character.includes('audience')) continue;
             }
 
-            seenIds.add(key);
+            const releaseDateStr = c.release_date || c.first_air_date || '';
+            const voteAvg = c.vote_average ? Math.round(c.vote_average * 10) / 10 : undefined;
 
             verifiedFilmography.push({
               id: c.id,
@@ -138,18 +160,22 @@ export async function searchTMDB(query: string, page = 1): Promise<MediaItem[]> 
               mediaType: mType,
               posterPath: `${TMDB_IMAGE_BASE}w500${c.poster_path}`,
               backdropPath: c.backdrop_path ? `${TMDB_IMAGE_BASE}w780${c.backdrop_path}` : null,
-              releaseDate: c.release_date || c.first_air_date || '',
+              releaseDate: releaseDateStr,
               overview: c.overview || 'No plot summary available.',
               genres: [],
               directors: [matchedPerson.name],
               cast: [{ id: matchedPerson.id, name: matchedPerson.name, character: c.character || 'Role', profilePath: null }],
-              voteAverage: c.vote_average ? Math.round(c.vote_average * 10) / 10 : undefined,
+              voteAverage: voteAvg,
             });
           }
 
           if (verifiedFilmography.length > 0) {
-            // Sort by vote count / popularity / release date
-            return verifiedFilmography.sort((a, b) => (b.voteAverage || 0) - (a.voteAverage || 0));
+            // Sort by composite weighted score: Recency (highest), Role Presence (high), Popularity (smaller factor)
+            return verifiedFilmography.sort((a, b) => {
+              const scoreA = calculateFilmographyScore({ releaseDate: a.releaseDate, castOrder: a.cast?.[0]?.id, voteAverage: a.voteAverage });
+              const scoreB = calculateFilmographyScore({ releaseDate: b.releaseDate, castOrder: b.cast?.[0]?.id, voteAverage: b.voteAverage });
+              return scoreB - scoreA;
+            });
           }
         }
       }
