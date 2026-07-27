@@ -259,7 +259,22 @@ export async function searchTMDB(query: string, page = 1): Promise<MediaItem[]> 
 
           const fullFilmography = Array.from(combinedMap.values());
           if (fullFilmography.length > 0) {
-            fullFilmography.sort((a, b) => (b.voteCount || 0) - (a.voteCount || 0));
+            const pNameLower = matchedPerson.name.toLowerCase().trim();
+            const pParts = pNameLower.split(' ');
+            const pLastName = pParts[pParts.length - 1];
+
+            fullFilmography.sort((a, b) => {
+              const aTitle = a.title.toLowerCase();
+              const bTitle = b.title.toLowerCase();
+
+              const isAHeadline = aTitle.includes(pNameLower) || (pLastName.length > 3 && aTitle.includes(pLastName));
+              const isBHeadline = bTitle.includes(pNameLower) || (pLastName.length > 3 && bTitle.includes(pLastName));
+
+              if (isAHeadline && !isBHeadline) return -1;
+              if (!isAHeadline && isBHeadline) return 1;
+
+              return (b.voteCount || 0) - (a.voteCount || 0);
+            });
             return fullFilmography;
           }
         }
