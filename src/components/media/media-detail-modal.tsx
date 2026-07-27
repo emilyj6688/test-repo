@@ -335,14 +335,14 @@ export const MediaDetailModal: React.FC<Props> = ({ item, isOpen, onClose, onRec
                     </div>
 
                     {/* Season Grid / List */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                       {Array.from({ length: Math.min(currentDetails.numberOfSeasons || 1, 30) }, (_, i) => i + 1).map((seasonNum) => {
                         const currentSeasonStatus: SeasonStatus = userRecord?.seasonsProgress?.[seasonNum] || 'unwatched';
 
                         return (
                           <div
                             key={seasonNum}
-                            className={`flex items-center justify-between p-3 rounded-xl border transition ${
+                            className={`flex items-center justify-between p-3 rounded-2xl border transition gap-2 ${
                               currentSeasonStatus === 'watched'
                                 ? 'bg-emerald-950/40 border-emerald-500/60 text-emerald-300'
                                 : currentSeasonStatus === 'in_progress'
@@ -350,42 +350,44 @@ export const MediaDetailModal: React.FC<Props> = ({ item, isOpen, onClose, onRec
                                 : 'bg-slate-900 border-slate-800 text-slate-400'
                             }`}
                           >
-                            <span className="text-xs font-bold flex items-center gap-2">
+                            <div className="flex items-center gap-2 min-w-0">
                               {currentSeasonStatus === 'watched' ? (
-                                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                                <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
                               ) : currentSeasonStatus === 'in_progress' ? (
-                                <PlayCircle className="w-4 h-4 text-amber-400 animate-pulse" />
+                                <PlayCircle className="w-4 h-4 text-amber-400 animate-pulse flex-shrink-0" />
                               ) : (
-                                <Square className="w-4 h-4 text-slate-500" />
+                                <Square className="w-4 h-4 text-slate-500 flex-shrink-0" />
                               )}
-                              Season {seasonNum}
-                            </span>
+                              <span className="text-xs font-bold text-slate-200 truncate">
+                                Season {seasonNum}
+                              </span>
+                            </div>
 
-                            {/* 3-State Action Selector (Watched / In Progress / Unwatched) */}
-                            <div className="flex items-center gap-1 bg-slate-950/80 p-1 rounded-lg border border-slate-800 text-[10px] font-bold">
+                            {/* Compact Non-Overflowing Status Selector */}
+                            <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800 flex-shrink-0">
                               <button
                                 type="button"
                                 onClick={() => handleSeasonStatusChange(seasonNum, currentSeasonStatus === 'watched' ? 'unwatched' : 'watched')}
-                                className={`px-2 py-1 rounded-md transition ${
+                                className={`px-2 py-1 rounded-lg text-[10px] font-extrabold transition ${
                                   currentSeasonStatus === 'watched'
-                                    ? 'bg-emerald-500 text-slate-950 font-extrabold'
-                                    : 'text-slate-400 hover:text-slate-200'
+                                    ? 'bg-emerald-500 text-slate-950 shadow-md'
+                                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
                                 }`}
                                 title="Mark Season as Watched"
                               >
-                                Watched
+                                ✓ Watched
                               </button>
                               <button
                                 type="button"
                                 onClick={() => handleSeasonStatusChange(seasonNum, currentSeasonStatus === 'in_progress' ? 'unwatched' : 'in_progress')}
-                                className={`px-2 py-1 rounded-md transition ${
+                                className={`px-2 py-1 rounded-lg text-[10px] font-extrabold transition ${
                                   currentSeasonStatus === 'in_progress'
-                                    ? 'bg-amber-500 text-slate-950 font-extrabold'
-                                    : 'text-slate-400 hover:text-slate-200'
+                                    ? 'bg-amber-500 text-slate-950 shadow-md'
+                                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
                                 }`}
                                 title="Mark Season as In Progress"
                               >
-                                In Progress
+                                ⏳ In Progress
                               </button>
                             </div>
                           </div>
