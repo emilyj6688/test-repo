@@ -113,11 +113,20 @@ export const SearchView: React.FC<Props> = ({ initialSearchQuery = '', onRecords
 
     const isFranchiseSeries = matchingTitles.length >= 2;
 
+    const obscureRegex = /repackaged|fireplace|unearthing|making of|behind the scenes|fan edit|tribute|short|promo/i;
+
     matchingTitles.sort((a, b) => {
       const aTitle = a.title.toLowerCase();
       const bTitle = b.title.toLowerCase();
       const aStarts = aTitle.startsWith(lower);
       const bStarts = bTitle.startsWith(lower);
+
+      const isObscureA = obscureRegex.test(a.title) || (a.voteCount || 0) < 50;
+      const isObscureB = obscureRegex.test(b.title) || (b.voteCount || 0) < 50;
+
+      // Main feature films and popular entries come BEFORE obscure shorts/fan edits
+      if (!isObscureA && isObscureB) return -1;
+      if (isObscureA && !isObscureB) return 1;
 
       if (isFranchiseSeries) {
         const dateA = a.releaseDate || '9999';

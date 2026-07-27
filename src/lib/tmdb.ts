@@ -211,16 +211,24 @@ export async function searchTMDB(query: string, page = 1): Promise<MediaItem[]> 
 
         const combinedList = Array.from(combinedMap.values());
 
-        // Perform post-merge chronological sorting for movie/TV franchises
         const isFranchiseSeries = combinedList.filter((i) =>
           i.title.toLowerCase().includes(lower)
         ).length >= 2;
+
+        const obscureRegex = /repackaged|fireplace|unearthing|making of|behind the scenes|fan edit|tribute|short|promo/i;
 
         combinedList.sort((a, b) => {
           const aTitle = a.title.toLowerCase();
           const bTitle = b.title.toLowerCase();
           const aStarts = aTitle.startsWith(lower);
           const bStarts = bTitle.startsWith(lower);
+
+          const isObscureA = obscureRegex.test(a.title) || (a.voteCount || 0) < 50;
+          const isObscureB = obscureRegex.test(b.title) || (b.voteCount || 0) < 50;
+
+          // Main feature films and popular entries come BEFORE obscure shorts/fan edits
+          if (!isObscureA && isObscureB) return -1;
+          if (isObscureA && !isObscureB) return 1;
 
           if (isFranchiseSeries) {
             const dateA = a.releaseDate || '9999';
