@@ -6,7 +6,7 @@ import { searchTMDB, MOCK_MEDIA_ITEMS } from '@/lib/tmdb';
 import { StorageService } from '@/lib/storage';
 import { MediaCard } from '@/components/media/media-card';
 import { MediaDetailModal } from '@/components/media/media-detail-modal';
-import { Search, Loader2, Film, Tv, Sparkles, Filter, ChevronDown } from 'lucide-react';
+import { Search, Loader2, Film, Tv, Sparkles, Filter, ChevronDown, Tag, X } from 'lucide-react';
 
 interface Props {
   initialSearchQuery?: string;
@@ -150,10 +150,21 @@ export const SearchView: React.FC<Props> = ({ initialSearchQuery = '', onRecords
 
       {/* Filter Tabs & Section Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h2 className="text-lg font-bold text-slate-200">
-            {query.trim() ? `Search Results for "${query}"` : 'Top Featured Media'}
-          </h2>
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-bold text-slate-200">
+              {query.trim() ? `Filtered by Tag / Search "${query}"` : 'Top Featured Media'}
+            </h2>
+            {query.trim() && (
+              <button
+                onClick={() => handleSearch('')}
+                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 hover:bg-rose-500/20 hover:border-rose-500/40 hover:text-rose-300 transition"
+                title="Click to clear tag filter"
+              >
+                <Tag className="w-3 h-3" /> {query} <X className="w-3 h-3 ml-0.5" />
+              </button>
+            )}
+          </div>
           <p className="text-xs text-slate-400">
             Showing {displayedResults.length} of {filteredResults.length} title{filteredResults.length === 1 ? '' : 's'}
           </p>

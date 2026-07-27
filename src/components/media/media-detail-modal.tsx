@@ -14,9 +14,10 @@ interface Props {
   onClose: () => void;
   onRecordChange?: () => void;
   onPersonClick?: (personName: string) => void;
+  onTagClick?: (tag: string) => void;
 }
 
-export const MediaDetailModal: React.FC<Props> = ({ item, isOpen, onClose, onRecordChange, onPersonClick }) => {
+export const MediaDetailModal: React.FC<Props> = ({ item, isOpen, onClose, onRecordChange, onPersonClick, onTagClick }) => {
   const [fetchedDetails, setFetchedDetails] = useState<MediaItem | null>(null);
   const [, setRecordRevision] = useState(0);
 
@@ -68,9 +69,11 @@ export const MediaDetailModal: React.FC<Props> = ({ item, isOpen, onClose, onRec
     if (onRecordChange) onRecordChange();
   };
 
-  const handlePersonSelect = (personName: string) => {
-    if (onPersonClick) {
-      onPersonClick(personName);
+  const handleTagTrigger = (tagValue: string) => {
+    if (onTagClick) {
+      onTagClick(tagValue);
+    } else if (onPersonClick) {
+      onPersonClick(tagValue);
     }
     onClose();
   };
@@ -220,33 +223,38 @@ export const MediaDetailModal: React.FC<Props> = ({ item, isOpen, onClose, onRec
                   </p>
                 </div>
 
-                {/* Genres */}
+                {/* Clickable Genre Tags */}
                 {currentDetails.genres && currentDetails.genres.length > 0 && (
                   <div>
                     <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1">
-                      <Tag className="w-3.5 h-3.5" /> Genres
+                      <Tag className="w-3.5 h-3.5 text-cyan-400" /> Genre Tags (Click to see all matching titles)
                     </h3>
-                    <div className="flex flex-wrap gap-1.5">
-                      {currentDetails.genres.map((g) => (
-                        <span key={g} className="px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700/60 text-xs font-medium text-slate-300">
-                          {g}
-                        </span>
+                    <div className="flex flex-wrap gap-2">
+                      {currentDetails.genres.map((genre) => (
+                        <button
+                          key={genre}
+                          onClick={() => handleTagTrigger(genre)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/90 hover:bg-cyan-500/20 border border-slate-700/80 hover:border-cyan-500/50 text-xs font-bold text-slate-200 hover:text-cyan-300 transition shadow-sm hover:scale-105"
+                          title={`Click to view all ${genre} movies and TV shows`}
+                        >
+                          <Tag className="w-3 h-3 text-cyan-400" /> {genre}
+                        </button>
                       ))}
                     </div>
                   </div>
                 )}
 
-                {/* Directors & Creators (Clickable) */}
+                {/* Clickable Directors & Creators Tags */}
                 {currentDetails.directors && currentDetails.directors.length > 0 && (
                   <div>
                     <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1">
-                      <Clapperboard className="w-3.5 h-3.5 text-cyan-400" /> {currentDetails.mediaType === 'movie' ? 'Director(s)' : 'Creator(s)'}
+                      <Clapperboard className="w-3.5 h-3.5 text-cyan-400" /> {currentDetails.mediaType === 'movie' ? 'Director Tag(s)' : 'Creator Tag(s)'}
                     </h3>
                     <div className="flex flex-wrap gap-2">
                       {currentDetails.directors.map((director) => (
                         <button
                           key={director}
-                          onClick={() => handlePersonSelect(director)}
+                          onClick={() => handleTagTrigger(director)}
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 font-bold text-xs shadow-sm hover:scale-105 transition"
                           title={`Click to view all movies directed by ${director}`}
                         >
@@ -259,12 +267,12 @@ export const MediaDetailModal: React.FC<Props> = ({ item, isOpen, onClose, onRec
               </div>
             </div>
 
-            {/* Top Cast Section (3-10 Actors - Clickable) */}
+            {/* Clickable Top Cast Member Actor Cards (3-10 Actors) */}
             {currentDetails.cast && currentDetails.cast.length > 0 && (
               <div className="mt-8 pt-6 border-t border-slate-800">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                    <User className="w-4 h-4 text-cyan-400" /> Main Cast (Click an actor to see all their movies)
+                    <User className="w-4 h-4 text-cyan-400" /> Main Actor Tags (Click an actor to see all their movies)
                   </h3>
                   <span className="text-[11px] text-slate-500">
                     Showing top {Math.min(10, currentDetails.cast.length)} actors
@@ -275,7 +283,7 @@ export const MediaDetailModal: React.FC<Props> = ({ item, isOpen, onClose, onRec
                   {currentDetails.cast.slice(0, 10).map((c) => (
                     <div
                       key={c.id}
-                      onClick={() => handlePersonSelect(c.name)}
+                      onClick={() => handleTagTrigger(c.name)}
                       className="group/actor cursor-pointer flex flex-col items-center p-3 rounded-2xl bg-slate-950/70 hover:bg-slate-800 border border-slate-800 hover:border-cyan-500/50 transition-all duration-300 text-center shadow-lg hover:-translate-y-1"
                       title={`Click to search all movies featuring ${c.name}`}
                     >
