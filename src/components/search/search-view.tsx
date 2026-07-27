@@ -9,14 +9,15 @@ import { MediaDetailModal } from '@/components/media/media-detail-modal';
 import { Search, Loader2, Film, Tv, Sparkles, Filter, ChevronDown } from 'lucide-react';
 
 interface Props {
+  initialSearchQuery?: string;
   onRecordsChanged: () => void;
   onNavigateToTab?: (tab: 'watched' | 'watchlist' | 'ranking') => void;
 }
 
 const PAGE_SIZE = 24;
 
-export const SearchView: React.FC<Props> = ({ onRecordsChanged }) => {
-  const [query, setQuery] = useState('');
+export const SearchView: React.FC<Props> = ({ initialSearchQuery = '', onRecordsChanged }) => {
+  const [query, setQuery] = useState(initialSearchQuery);
   const [results, setResults] = useState<MediaItem[]>(MOCK_MEDIA_ITEMS);
   const [loading, setLoading] = useState(false);
   const [filterType, setFilterType] = useState<'all' | MediaType>('all');
@@ -251,6 +252,7 @@ export const SearchView: React.FC<Props> = ({ onRecordsChanged }) => {
         item={selectedItem}
         isOpen={Boolean(selectedItem)}
         onClose={() => setSelectedItem(null)}
+        onPersonClick={(personName) => handleSearch(personName)}
         onRecordChange={() => {
           refreshUserRecords();
           onRecordsChanged();

@@ -111,29 +111,43 @@ export async function searchTMDB(query: string, page = 1): Promise<MediaItem[]> 
     const remoteItems: MediaItem[] = [];
 
     for (const r of results) {
-      if (r.media_type !== 'movie' && r.media_type !== 'tv') continue;
+      const candidates: TMDBRawSearchResult[] = [];
+      if (r.media_type === 'movie' || r.media_type === 'tv') {
+        candidates.push(r);
+      } else if (r.media_type === 'person' && r.known_for && r.known_for.length > 0) {
+        candidates.push(...r.known_for);
+      }
 
-      const mediaType: 'movie' | 'tv' = r.media_type;
-      const title = r.title || r.name || r.original_title || r.original_name || 'Untitled';
-      const releaseDate = r.release_date || r.first_air_date || '';
+      for (const itemCandidate of candidates) {
+        if (itemCandidate.media_type !== 'movie' && itemCandidate.media_type !== 'tv') continue;
 
-      remoteItems.push({
-        id: r.id,
-        tmdbId: r.id,
-        title,
-        mediaType,
-        posterPath: r.poster_path ? `${TMDB_IMAGE_BASE}w500${r.poster_path}` : null,
-        backdropPath: r.backdrop_path ? `${TMDB_IMAGE_BASE}w780${r.backdrop_path}` : null,
-        releaseDate,
-        overview: r.overview || 'No description available.',
-        genres: [],
-        directors: [],
-        cast: [],
-        voteAverage: r.vote_average ? Math.round(r.vote_average * 10) / 10 : undefined,
-      });
+        const mediaType: 'movie' | 'tv' = itemCandidate.media_type;
+        const title = itemCandidate.title || itemCandidate.name || itemCandidate.original_title || itemCandidate.original_name || 'Untitled';
+        const releaseDate = itemCandidate.release_date || itemCandidate.first_air_date || '';
+
+        // Prevent duplicate entries in remote search results
+        if (remoteItems.some((existing) => existing.tmdbId === itemCandidate.id && existing.mediaType === mediaType)) {
+          continue;
+        }
+
+        remoteItems.push({
+          id: itemCandidate.id,
+          tmdbId: itemCandidate.id,
+          title,
+          mediaType,
+          posterPath: itemCandidate.poster_path ? `${TMDB_IMAGE_BASE}w500${itemCandidate.poster_path}` : null,
+          backdropPath: itemCandidate.backdrop_path ? `${TMDB_IMAGE_BASE}w780${itemCandidate.backdrop_path}` : null,
+          releaseDate,
+          overview: itemCandidate.overview || 'No description available.',
+          genres: [],
+          directors: [],
+          cast: [],
+          voteAverage: itemCandidate.vote_average ? Math.round(itemCandidate.vote_average * 10) / 10 : undefined,
+        });
+      }
     }
 
-    return remoteItems.length > 0 ? remoteItems : POPULAR_AMERICAN_CATALOG;
+    return remoteItems.length > 0 ? remoteItems : localMatches;
   } catch {
     return POPULAR_AMERICAN_CATALOG;
   }

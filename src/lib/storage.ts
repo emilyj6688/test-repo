@@ -92,6 +92,10 @@ export class StorageService {
     return records.find((r) => r.id === id) || null;
   }
 
+  public static getRecord(tmdbId: number, mediaType: 'movie' | 'tv', userId?: string): UserMediaRecord | null {
+    return this.getRecordByMediaId(tmdbId, mediaType, userId);
+  }
+
   public static saveRecord(
     item: MediaItem,
     status: MediaStatus,

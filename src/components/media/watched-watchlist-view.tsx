@@ -11,6 +11,7 @@ interface Props {
   initialTab?: 'watched' | 'watchlist';
   onRecordsChanged: () => void;
   onNavigateToTab: (tab: 'search' | 'watched' | 'watchlist' | 'ranking') => void;
+  onPersonSelect?: (personName: string) => void;
 }
 
 const PAGE_SIZE = 24;
@@ -19,6 +20,7 @@ export const WatchedWatchlistView: React.FC<Props> = ({
   initialTab = 'watched',
   onRecordsChanged,
   onNavigateToTab,
+  onPersonSelect,
 }) => {
   const [activeTab, setActiveTab] = useState<'watched' | 'watchlist'>(initialTab);
   const [records, setRecords] = useState<UserMediaRecord[]>(() => {
@@ -293,6 +295,10 @@ export const WatchedWatchlistView: React.FC<Props> = ({
         item={selectedItem}
         isOpen={Boolean(selectedItem)}
         onClose={() => setSelectedItem(null)}
+        onPersonClick={(personName) => {
+          if (onPersonSelect) onPersonSelect(personName);
+          onNavigateToTab('search');
+        }}
         onRecordChange={() => {
           refreshRecords();
           onRecordsChanged();

@@ -75,4 +75,5 @@ export interface TMDBRawSearchResult {
   overview?: string;
   genre_ids?: number[];
   vote_average?: number;
+  known_for?: TMDBRawSearchResult[];
 }

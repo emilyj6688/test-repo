@@ -10,6 +10,7 @@ import { Sparkles } from 'lucide-react';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('search');
+  const [searchQuery, setSearchQuery] = useState('');
   const [watchedCount, setWatchedCount] = useState(() => {
     if (typeof window === 'undefined') return 0;
     return StorageService.getUserRecords().filter((r) => r.status === 'watched').length;
@@ -38,11 +39,19 @@ export default function Home() {
     };
   }, []);
 
+  const handlePersonSelect = (personName: string) => {
+    setSearchQuery(personName);
+    setActiveTab('search');
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-slate-950 text-slate-100">
       <Navbar
         activeTab={activeTab}
-        onTabChange={(tab) => setActiveTab(tab)}
+        onTabChange={(tab) => {
+          setActiveTab(tab);
+          if (tab !== 'search') setSearchQuery('');
+        }}
         watchedCount={watchedCount}
         watchlistCount={watchlistCount}
       />
@@ -50,6 +59,8 @@ export default function Home() {
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {activeTab === 'search' && (
           <SearchView
+            key={searchQuery}
+            initialSearchQuery={searchQuery}
             onRecordsChanged={refreshCounts}
             onNavigateToTab={(tab) => setActiveTab(tab)}
           />
@@ -60,6 +71,7 @@ export default function Home() {
             initialTab="watched"
             onRecordsChanged={refreshCounts}
             onNavigateToTab={(tab) => setActiveTab(tab)}
+            onPersonSelect={handlePersonSelect}
           />
         )}
 
@@ -68,6 +80,7 @@ export default function Home() {
             initialTab="watchlist"
             onRecordsChanged={refreshCounts}
             onNavigateToTab={(tab) => setActiveTab(tab)}
+            onPersonSelect={handlePersonSelect}
           />
         )}
 
@@ -84,7 +97,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-cyan-400" />
-            <span className="font-bold text-slate-300">CineRank Phase 1</span>
+            <span className="font-bold text-slate-300">CineRank Premium</span>
             <span>— Media Tracking & Pairwise Ranking Engine</span>
           </div>
 
