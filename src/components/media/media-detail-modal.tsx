@@ -164,10 +164,11 @@ export const MediaDetailModal: React.FC<Props> = ({ item, isOpen, onClose, onRec
           )}
 
           {/* Details Container */}
-          <div className={`p-6 sm:p-8 ${currentDetails.backdropPath ? '-mt-24 relative z-10' : ''}`}>
-            <div className="flow-root">
-              {/* Floated Poster Card - Text wraps underneath on left */}
-              <div className="w-36 sm:w-44 flex-shrink-0 sm:float-left sm:mr-6 sm:mb-4 mb-4 mx-auto sm:mx-0 shadow-2xl rounded-2xl border border-slate-700/80 bg-slate-950/90 p-1">
+          <div className={`p-6 sm:p-8 space-y-6 ${currentDetails.backdropPath ? '-mt-24 relative z-10' : ''}`}>
+            {/* Top Side-by-Side Section: Poster on Left, Title & Rating Controls on Right */}
+            <div className="flex flex-col sm:flex-row gap-6 items-start">
+              {/* Poster Card */}
+              <div className="w-36 sm:w-48 flex-shrink-0 mx-auto sm:mx-0 shadow-2xl rounded-2xl border border-slate-700/80 bg-slate-950/90 p-1 self-start">
                 <div className="w-full relative aspect-[2/3] rounded-xl overflow-hidden bg-slate-900/90 flex items-center justify-center">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
@@ -178,8 +179,8 @@ export const MediaDetailModal: React.FC<Props> = ({ item, isOpen, onClose, onRec
                 </div>
               </div>
 
-              {/* Content Meta & Details */}
-              <div className="space-y-4">
+              {/* Content Meta & User Rating Controls (Right of Poster) */}
+              <div className="flex-1 space-y-4 w-full">
                 <div>
                   <div className="flex flex-wrap items-center gap-2 mb-2">
                     <span className="px-2.5 py-0.5 rounded-md text-[11px] font-bold uppercase tracking-wider bg-cyan-500/20 border border-cyan-500/40 text-cyan-300">
@@ -237,7 +238,7 @@ export const MediaDetailModal: React.FC<Props> = ({ item, isOpen, onClose, onRec
                   )}
                 </div>
 
-                {/* User Tracking Controls */}
+                {/* User Tracking & Rating Controls */}
                 <div className="bg-slate-950/80 border border-slate-800 p-4 rounded-2xl space-y-3">
                   <div className="flex flex-wrap gap-2 items-center justify-between">
                     <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
@@ -290,14 +291,18 @@ export const MediaDetailModal: React.FC<Props> = ({ item, isOpen, onClose, onRec
                     </div>
                   )}
                 </div>
+              </div>
+            </div>
 
-                {/* Plot Summary Overview */}
-                <div>
-                  <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Plot Summary</h3>
-                  <p className="text-sm text-slate-300 leading-relaxed">
-                    {currentDetails.overview}
-                  </p>
-                </div>
+            {/* Full-Width Bottom Section Below Poster (Plot Summary Downward Spans 100% Width) */}
+            <div className="space-y-6 pt-2 border-t border-slate-800/80">
+              {/* Plot Summary Overview */}
+              <div>
+                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Plot Summary</h3>
+                <p className="text-sm text-slate-300 leading-relaxed">
+                  {currentDetails.overview}
+                </p>
+              </div>
 
                 {/* TV Series Season Progress & Select All Tracker */}
                 {currentDetails.mediaType === 'tv' && (
@@ -463,7 +468,6 @@ export const MediaDetailModal: React.FC<Props> = ({ item, isOpen, onClose, onRec
                   </div>
                 )}
               </div>
-            </div>
 
             {/* Clickable Top Cast Member Actor Cards (3-10 Actors) */}
             {currentDetails.cast && currentDetails.cast.length > 0 && (
