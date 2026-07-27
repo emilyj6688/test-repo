@@ -16,47 +16,73 @@ export function calculateElo(winnerElo: number, loserElo: number): { winnerNewEl
 }
 
 /**
- * Selects the optimal UNCOMPARED pair of items within a specific rating tier category (1: Didn't Like, 2: Neutral, 3: Liked).
- * Skips any pair that has already been compared to guarantee no repeat matchups.
+ * Selects an uncompared pair of watched items that are in close proximity (e.g. 2 to 15 ranks apart),
+ * allowing seamless matchups across rating tier boundaries.
  */
 export function selectNextMatchup(
   records: UserMediaRecord[],
-  tier: 1 | 2 | 3,
+  tierParam?: 1 | 2 | 3,
   comparedPairs: Set<string> = new Set()
 ): PairwiseMatchup | null {
-  const eligible = records.filter((r) => r.status === 'watched' && getTierCategory(r.ratingTier) === tier);
+  const watched = records.filter((r) => r.status === 'watched');
 
-  if (eligible.length < 2) return null;
+  if (watched.length < 2) return null;
 
-  // Generate all possible pair combinations in this tier
-  const uncomparedPairs: [UserMediaRecord, UserMediaRecord][] = [];
+  // Sort watched items by rank index / score (rank 1 at top)
+  const sortedWatched = [...watched].sort((a, b) => {
+    const rankA = typeof a.rankIndex === 'number' ? a.rankIndex : 999;
+    const rankB = typeof b.rankIndex === 'number' ? b.rankIndex : 999;
+    return rankA - rankB;
+  });
 
-  for (let i = 0; i < eligible.length; i++) {
-    for (let j = i + 1; j < eligible.length; j++) {
-      const pairKey = [eligible[i].id, eligible[j].id].sort().join('::');
+  const candidatePairs: { pair: [UserMediaRecord, UserMediaRecord]; rankDiff: number }[] = [];
+
+  // Generate uncompared pairs that are in close proximity (2 to 16 ranks apart)
+  for (let i = 0; i < sortedWatched.length; i++) {
+    const maxOffset = Math.min(sortedWatched.length, i + 18);
+    for (let j = i + 2; j < maxOffset; j++) {
+      const pairKey = [sortedWatched[i].id, sortedWatched[j].id].sort().join('::');
       if (!comparedPairs.has(pairKey)) {
-        uncomparedPairs.push([eligible[i], eligible[j]]);
+        candidatePairs.push({
+          pair: [sortedWatched[i], sortedWatched[j]],
+          rankDiff: j - i,
+        });
       }
     }
   }
 
-  if (uncomparedPairs.length === 0) return null;
+  // Fallback: If no pairs in 2-18 range remain uncompared, search adjacent items (1 offset) or any uncompared pair
+  if (candidatePairs.length === 0) {
+    for (let i = 0; i < sortedWatched.length; i++) {
+      for (let j = i + 1; j < sortedWatched.length; j++) {
+        const pairKey = [sortedWatched[i].id, sortedWatched[j].id].sort().join('::');
+        if (!comparedPairs.has(pairKey)) {
+          candidatePairs.push({
+            pair: [sortedWatched[i], sortedWatched[j]],
+            rankDiff: Math.abs(j - i),
+          });
+        }
+      }
+    }
+  }
 
-  // Sort candidate pairs by closest Elo score difference to optimize ranking speed
-  uncomparedPairs.sort((a, b) => {
-    const diffA = Math.abs(a[0].eloRating - a[1].eloRating);
-    const diffB = Math.abs(b[0].eloRating - b[1].eloRating);
-    return diffA - diffB;
-  });
+  if (candidatePairs.length === 0) return null;
 
-  // Pick one of the closest Elo pairs
-  const chosenPair = uncomparedPairs[Math.floor(Math.random() * Math.min(3, uncomparedPairs.length))];
+  // Prefer pairs with close rank difference (sorted by rankDiff)
+  candidatePairs.sort((a, b) => a.rankDiff - b.rankDiff);
 
+  // Pick a pair from top 5 closest candidate pairs
+  const chosen = candidatePairs[Math.floor(Math.random() * Math.min(5, candidatePairs.length))];
   const swap = Math.random() > 0.5;
+
+  const itemA = swap ? chosen.pair[1] : chosen.pair[0];
+  const itemB = swap ? chosen.pair[0] : chosen.pair[1];
+  const derivedTier = (tierParam || getTierCategory(itemA.ratingTier)) as 1 | 2 | 3;
+
   return {
-    itemA: swap ? chosenPair[1] : chosenPair[0],
-    itemB: swap ? chosenPair[0] : chosenPair[1],
-    tier,
+    itemA,
+    itemB,
+    tier: derivedTier,
   };
 }
 
