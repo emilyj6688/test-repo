@@ -1,4 +1,5 @@
 import { UserMediaRecord, UserProfile, MediaItem, MediaStatus, RatingTier } from '@/types/media';
+import demoTestRecords from '@/lib/demo-test-records.json';
 
 const USERS_KEY = 'cinetrack_users_v1';
 const CURRENT_USER_KEY = 'cinetrack_current_user_v1';
@@ -6,8 +7,9 @@ const MEDIA_RECORDS_PREFIX = 'cinetrack_records_v1_';
 const COMPARED_PAIRS_PREFIX = 'cinetrack_compared_v1_';
 
 const DEFAULT_USERS: UserProfile[] = [
-  { id: 'user_default', name: 'Demo Movie Buff', avatarUrl: '🎬', createdAt: new Date().toISOString() },
-  { id: 'user_alex', name: 'Alex', avatarUrl: '🍿', createdAt: new Date().toISOString() },
+  { id: 'user_test_critic', name: 'Film Critic Pro (200 Watched)', avatarUrl: '🎬', createdAt: new Date().toISOString() },
+  { id: 'user_default', name: 'Demo Movie Buff', avatarUrl: '🍿', createdAt: new Date().toISOString() },
+  { id: 'user_alex', name: 'Alex', avatarUrl: '🎥', createdAt: new Date().toISOString() },
 ];
 
 export class StorageService {
@@ -72,10 +74,22 @@ export class StorageService {
   public static getUserRecords(userId?: string): UserMediaRecord[] {
     if (typeof window === 'undefined') return [];
     try {
-      const key = this.getRecordsKey(userId);
+      const activeId = userId || this.getCurrentUser().id;
+      const key = `${MEDIA_RECORDS_PREFIX}${activeId}`;
       const raw = localStorage.getItem(key);
-      if (!raw) return [];
-      const records: UserMediaRecord[] = JSON.parse(raw);
+      let records: UserMediaRecord[] = [];
+
+      if (!raw) {
+        if (activeId === 'user_test_critic' || activeId === 'user_default') {
+          records = demoTestRecords as unknown as UserMediaRecord[];
+          localStorage.setItem(key, JSON.stringify(records));
+        } else {
+          return [];
+        }
+      } else {
+        records = JSON.parse(raw);
+      }
+
       // Sort watched items safely by rankIndex then Elo
       return records.sort((a, b) => {
         const rankA = typeof a.rankIndex === 'number' ? a.rankIndex : Number.MAX_SAFE_INTEGER;
