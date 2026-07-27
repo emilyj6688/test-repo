@@ -189,8 +189,8 @@ export async function searchTMDB(query: string, page = 1): Promise<MediaItem[]> 
           const combinedMap = new Map<string, MediaItem>();
           localMatches.forEach((itm) => combinedMap.set(`${itm.mediaType}_${itm.tmdbId}`, itm));
 
-          const EXCLUDE_TALK_SHOW_REGEX = /jimmy fallon|tonight show|late night|saturday night live|jimmy kimmel|james corden|conan|seth meyers|graham norton|kelly clarkson|ellen|view|today show|good morning america|talk show|talkshow|awards|red carpet|ceremony|behind the scenes|making of|repackaged|unearthing|fireplace|fan edit|tribute|promo|interview/i;
-          const EXCLUDE_CHARACTER_REGEX = /^himself$|^herself$|^self$|^guest$|^presenter$|^interviewee$|^host$|^co-host$|^cameo$|^musical guest$/i;
+          const EXCLUDE_NON_NARRATIVE_REGEX = /jeopardy|wheel of fortune|family feud|game night|match game|masked singer|dancing with the stars|survivor|big brother|bachelorette|bachelor|daily show|entertainment tonight|e! news|access hollywood|extra!|good morning america|today show|live with kelly|late show|tonight show|jimmy fallon|jimmy kimmel|james corden|conan|seth meyers|graham norton|kelly clarkson|ellen|the view|tamron hall|jerry springer|maury|dr. phil|talk show|talkshow|game show|reality tv|reality-tv|variety show|awards|grammy|oscar|emmy|golden globe|red carpet|behind the scenes|making of|repackaged|unearthing|fireplace|fan edit|tribute|promo|interview/i;
+          const EXCLUDE_CHARACTER_REGEX = /^himself$|^herself$|^self$|^guest$|^presenter$|^interviewee$|^host$|^co-host$|^cameo$|^musical guest$|^contestant$|^judge$|^panelist$/i;
 
           for (const c of allCredits) {
             const mType: 'movie' | 'tv' = c.media_type === 'tv' ? 'tv' : 'movie';
@@ -199,8 +199,8 @@ export async function searchTMDB(query: string, page = 1): Promise<MediaItem[]> 
 
             if (!tName || !c.poster_path) continue;
 
-            // Strict Talk Show & Self Appearance Filter
-            if (EXCLUDE_TALK_SHOW_REGEX.test(tName) || (c.character && EXCLUDE_CHARACTER_REGEX.test(c.character.trim()))) {
+            // Strict Non-Narrative, Game Show, Reality TV & Self Appearance Filter
+            if (EXCLUDE_NON_NARRATIVE_REGEX.test(tName) || (c.character && EXCLUDE_CHARACTER_REGEX.test(c.character.trim()))) {
               continue;
             }
 
@@ -225,7 +225,7 @@ export async function searchTMDB(query: string, page = 1): Promise<MediaItem[]> 
           }
 
           const fullFilmography = Array.from(combinedMap.values()).filter(
-            (item) => !EXCLUDE_TALK_SHOW_REGEX.test(item.title)
+            (item) => !EXCLUDE_NON_NARRATIVE_REGEX.test(item.title)
           );
           if (fullFilmography.length > 0) {
             fullFilmography.sort((a, b) => (b.voteCount || 0) - (a.voteCount || 0));
@@ -286,13 +286,16 @@ export async function searchTMDB(query: string, page = 1): Promise<MediaItem[]> 
           }
         });
 
-        const combinedList = Array.from(combinedMap.values());
+        const EXCLUDE_NON_NARRATIVE_REGEX = /jeopardy|wheel of fortune|family feud|game night|match game|masked singer|dancing with the stars|survivor|big brother|bachelorette|bachelor|daily show|entertainment tonight|e! news|access hollywood|extra!|good morning america|today show|live with kelly|late show|tonight show|jimmy fallon|jimmy kimmel|james corden|conan|seth meyers|graham norton|kelly clarkson|ellen|the view|tamron hall|jerry springer|maury|dr. phil|talk show|talkshow|game show|reality tv|reality-tv|variety show|awards|grammy|oscar|emmy|golden globe|red carpet|behind the scenes|making of|repackaged|unearthing|fireplace|fan edit|tribute|promo|interview/i;
+
+        const combinedList = Array.from(combinedMap.values()).filter((item) => {
+          if (EXCLUDE_NON_NARRATIVE_REGEX.test(query)) return true;
+          return !EXCLUDE_NON_NARRATIVE_REGEX.test(item.title);
+        });
 
         const isFranchiseSeries = combinedList.filter((i) =>
           i.title.toLowerCase().includes(lower)
         ).length >= 2;
-
-        const obscureRegex = /repackaged|fireplace|unearthing|making of|behind the scenes|fan edit|tribute|short|promo/i;
 
         combinedList.sort((a, b) => {
           const aTitle = a.title.toLowerCase();
@@ -300,8 +303,8 @@ export async function searchTMDB(query: string, page = 1): Promise<MediaItem[]> 
           const aStarts = aTitle.startsWith(lower);
           const bStarts = bTitle.startsWith(lower);
 
-          const isObscureA = obscureRegex.test(a.title) || (a.voteCount || 0) < 50;
-          const isObscureB = obscureRegex.test(b.title) || (b.voteCount || 0) < 50;
+          const isObscureA = EXCLUDE_NON_NARRATIVE_REGEX.test(a.title) || (a.voteCount || 0) < 50;
+          const isObscureB = EXCLUDE_NON_NARRATIVE_REGEX.test(b.title) || (b.voteCount || 0) < 50;
 
           // Main feature films and popular entries come BEFORE obscure shorts/fan edits
           if (!isObscureA && isObscureB) return -1;
