@@ -166,14 +166,16 @@ export const MediaDetailModal: React.FC<Props> = ({ item, isOpen, onClose, onRec
           {/* Details Container */}
           <div className={`p-6 sm:p-8 ${currentDetails.backdropPath ? '-mt-24 relative z-10' : ''}`}>
             <div className="flex flex-col sm:flex-row gap-6">
-              {/* Poster Card */}
-              <div className="w-36 sm:w-48 flex-shrink-0 mx-auto sm:mx-0 shadow-2xl rounded-2xl overflow-hidden border border-slate-700/60 bg-slate-950 aspect-[2/3]">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={getTMDBImageUrl(currentDetails.posterPath, 'poster', currentDetails.title, currentDetails.mediaType)}
-                  alt={currentDetails.title}
-                  className="w-full h-full object-cover"
-                />
+              {/* Poster Card with Natural Un-Cropped Fitting */}
+              <div className="w-40 sm:w-52 flex-shrink-0 mx-auto sm:mx-0 shadow-2xl rounded-2xl border border-slate-700/80 bg-slate-950/90 p-1 self-start">
+                <div className="w-full relative aspect-[2/3] rounded-xl overflow-hidden bg-slate-900/90 flex items-center justify-center">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={getTMDBImageUrl(currentDetails.posterPath, 'poster', currentDetails.title, currentDetails.mediaType)}
+                    alt={currentDetails.title}
+                    className="w-full h-full object-contain drop-shadow-xl"
+                  />
+                </div>
               </div>
 
               {/* Content Meta */}
