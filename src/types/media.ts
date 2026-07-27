@@ -28,6 +28,7 @@ export interface MediaItem {
   directors: string[];
   cast: CastMember[];
   voteAverage?: number;
+  voteCount?: number;
   tagline?: string;
   runtime?: number;
   contentRating?: string; // MPAA / TV rating e.g. R, PG-13, PG, G, TV-MA, TV-14, TV-PG

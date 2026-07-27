@@ -55,27 +55,30 @@ export function getTMDBImageUrl(
   return `${TMDB_IMAGE_BASE}${sizePath}${cleanPath}`;
 }
 
-export function calculateFilmographyScore(item: { releaseDate?: string; castOrder?: number; voteAverage?: number }): number {
+export function calculateFilmographyScore(item: { releaseDate?: string; castOrder?: number; voteAverage?: number; voteCount?: number }): number {
   const billingOrder = typeof item.castOrder === 'number' ? item.castOrder : 3;
   const rating = item.voteAverage || 6.5;
+  const voteCount = item.voteCount || 100;
 
-  // 1. Role Qualification: Main/Lead roles (billing <= 6) get a base score boost above cameos
+  // 1. Iconicity & Fame Score (Logarithmic Vote Count Scale ~ 55% Weight)
+  // Widely known blockbusters (10,000+ votes like The Devil Wears Prada, Interstellar) rank at the top
+  const fameScore = Math.min(60, Math.log10(Math.max(1, voteCount)) * 15);
+
+  // 2. Role Billing (Main cast order <= 6 gets up to 25 pts)
   const isMainRole = billingOrder <= 6;
-  const roleScore = isMainRole ? 30 - billingOrder * 2 : Math.max(0, 15 - billingOrder);
+  const roleScore = isMainRole ? 25 - billingOrder * 2 : Math.max(0, 10 - billingOrder);
 
-  // 2. Popularity & Acclaim Score (Elevated Weight ~ 45% for qualified main roles)
-  const popularityScore = (rating / 10) * 45;
-
-  // 3. Recency Score (Balanced Weight ~ 35%)
+  // 3. Rating & Recency (Combined ~ 20% Weight)
+  const ratingScore = (rating / 10) * 10;
   let recencyScore = 0;
   if (item.releaseDate) {
     const yr = parseInt(item.releaseDate.substring(0, 4), 10);
     if (!isNaN(yr)) {
-      recencyScore = Math.max(0, (yr - 1970) / 56) * 35;
+      recencyScore = Math.max(0, (yr - 1980) / 46) * 10;
     }
   }
 
-  return roleScore + popularityScore + recencyScore;
+  return fameScore + roleScore + ratingScore + recencyScore;
 }
 
 export function getActiveTMDBApiKey(): string {
@@ -172,14 +175,15 @@ export async function searchTMDB(query: string, page = 1): Promise<MediaItem[]> 
               directors: [matchedPerson.name],
               cast: [{ id: matchedPerson.id, name: matchedPerson.name, character: c.character || 'Role', profilePath: null }],
               voteAverage: voteAvg,
+              voteCount: c.vote_count || 10,
             });
           }
 
           if (verifiedFilmography.length > 0) {
-            // Sort by composite weighted score: Recency (highest), Role Presence (high), Popularity (smaller factor)
+            // Sort by composite weighted score: Iconicity & Fame (voteCount), Role Presence, Rating, Recency
             return verifiedFilmography.sort((a, b) => {
-              const scoreA = calculateFilmographyScore({ releaseDate: a.releaseDate, castOrder: a.cast?.[0]?.id, voteAverage: a.voteAverage });
-              const scoreB = calculateFilmographyScore({ releaseDate: b.releaseDate, castOrder: b.cast?.[0]?.id, voteAverage: b.voteAverage });
+              const scoreA = calculateFilmographyScore({ releaseDate: a.releaseDate, castOrder: a.cast?.[0]?.id, voteAverage: a.voteAverage, voteCount: a.voteCount });
+              const scoreB = calculateFilmographyScore({ releaseDate: b.releaseDate, castOrder: b.cast?.[0]?.id, voteAverage: b.voteAverage, voteCount: b.voteCount });
               return scoreB - scoreA;
             });
           }
