@@ -15,6 +15,7 @@ import {
   Shuffle,
   RotateCcw,
   Sparkles,
+  GripVertical,
 } from 'lucide-react';
 
 interface Props {
@@ -35,6 +36,10 @@ export const RankingGame: React.FC<Props> = ({ onRecordsChanged, onNavigateToTab
 
   const [matchupOverride, setMatchupOverride] = useState<PairwiseMatchup | null>(null);
   const [comparisonsCount, setComparisonsCount] = useState(0);
+
+  // Drag and Drop state
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   const activeMatchup = matchupOverride || selectNextMatchup(records, undefined, comparedPairs);
 
@@ -101,6 +106,53 @@ export const RankingGame: React.FC<Props> = ({ onRecordsChanged, onNavigateToTab
     StorageService.updateRecordsList(reindexed);
     setRecords(reindexed);
     onRecordsChanged();
+  };
+
+  // HTML5 Drag and Drop handlers for moving titles multiple spots
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    e.dataTransfer.setData('text/plain', index.toString());
+    e.dataTransfer.effectAllowed = 'move';
+    setDraggedIndex(index);
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragOverIndex !== index) {
+      setDragOverIndex(index);
+    }
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, targetIndex: number) => {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === targetIndex) {
+      handleDragEnd();
+      return;
+    }
+
+    const watched = records.filter((r) => r.status === 'watched');
+    const [movedItem] = watched.splice(draggedIndex, 1);
+    watched.splice(targetIndex, 0, movedItem);
+
+    // Update rank index and continuous rating scores smoothly
+    watched.forEach((item, idx) => {
+      item.rankIndex = idx + 1;
+      item.eloRating = 1500 - idx * 5;
+    });
+
+    const nonWatched = records.filter((r) => r.status !== 'watched');
+    const reindexed = [...watched, ...nonWatched];
+
+    StorageService.updateRecordsList(reindexed);
+    setRecords(reindexed);
+    onRecordsChanged();
+
+    handleDragEnd();
   };
 
   const watchedRecords = records.filter((r) => r.status === 'watched');
@@ -273,7 +325,7 @@ export const RankingGame: React.FC<Props> = ({ onRecordsChanged, onNavigateToTab
         </div>
       )}
 
-      {/* Manual Fine-Tuning Ordered Master List */}
+      {/* Manual Fine-Tuning Ordered Master List with Drag & Drop */}
       <div className="space-y-4 pt-8 border-t border-slate-800">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
@@ -281,68 +333,92 @@ export const RankingGame: React.FC<Props> = ({ onRecordsChanged, onNavigateToTab
               <ListOrdered className="w-5 h-5 text-cyan-400" /> Master Ordered List & Fine-Tuning
             </h2>
             <p className="text-xs text-slate-400">
-              Use Up/Down controls to fine-tune your final master ranking order.
+              Drag items using the left handle to move titles up or down multiple spots, or use the Up/Down arrows on the right.
             </p>
           </div>
         </div>
 
         {watchedRecords.length > 0 ? (
           <div className="space-y-2">
-            {watchedRecords.map((record, index) => (
-              <div
-                key={record.id}
-                className="flex items-center justify-between p-3.5 bg-slate-900/80 border border-slate-800/90 rounded-2xl hover:border-slate-700 transition gap-4"
-              >
-                <div className="flex items-center gap-4 min-w-0">
-                  {/* Rank Index Badge */}
-                  <div className="w-9 h-9 rounded-xl bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 font-extrabold text-sm flex items-center justify-center flex-shrink-0">
-                    #{record.rankIndex}
-                  </div>
+            {watchedRecords.map((record, index) => {
+              const isDragging = draggedIndex === index;
+              const isDragOver = dragOverIndex === index;
 
-                  {/* Thumbnail Poster */}
-                  <div className="w-10 h-14 rounded-lg overflow-hidden bg-slate-950 flex-shrink-0 border border-slate-800">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={getTMDBImageUrl(record.item.posterPath, 'poster', record.item.title, record.item.mediaType)}
-                      alt={record.item.title}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
+              return (
+                <div
+                  key={record.id}
+                  draggable={true}
+                  onDragStart={(e) => handleDragStart(e, index)}
+                  onDragOver={(e) => handleDragOver(e, index)}
+                  onDragEnd={handleDragEnd}
+                  onDrop={(e) => handleDrop(e, index)}
+                  className={`flex items-center justify-between p-3.5 bg-slate-900/80 border rounded-2xl transition gap-4 ${
+                    isDragging
+                      ? 'opacity-30 border-dashed border-cyan-500 scale-[0.98]'
+                      : isDragOver
+                      ? 'border-cyan-400 bg-cyan-950/40 shadow-lg shadow-cyan-500/20 scale-[1.01]'
+                      : 'border-slate-800/90 hover:border-slate-700'
+                  }`}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    {/* Left Drag Handle */}
+                    <div
+                      className="cursor-grab active:cursor-grabbing p-1.5 rounded-lg text-slate-500 hover:text-cyan-400 hover:bg-slate-800 transition flex-shrink-0"
+                      title="Click and drag to re-order position"
+                    >
+                      <GripVertical className="w-5 h-5" />
+                    </div>
 
-                  {/* Title & Media Info */}
-                  <div className="min-w-0">
-                    <h4 className="text-sm font-bold text-white truncate">
-                      {record.item.title}
-                    </h4>
-                    <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-400">
-                      <span className="capitalize">{record.item.mediaType}</span>
-                      <span>•</span>
-                      <span>Score: {record.ratingTier.toFixed(2)}</span>
+                    {/* Rank Index Badge */}
+                    <div className="w-9 h-9 rounded-xl bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 font-extrabold text-sm flex items-center justify-center flex-shrink-0">
+                      #{record.rankIndex}
+                    </div>
+
+                    {/* Thumbnail Poster */}
+                    <div className="w-10 h-14 rounded-lg overflow-hidden bg-slate-950 flex-shrink-0 border border-slate-800">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={getTMDBImageUrl(record.item.posterPath, 'poster', record.item.title, record.item.mediaType)}
+                        alt={record.item.title}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+
+                    {/* Title & Media Info */}
+                    <div className="min-w-0">
+                      <h4 className="text-sm font-bold text-white truncate">
+                        {record.item.title}
+                      </h4>
+                      <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-400">
+                        <span className="capitalize">{record.item.mediaType}</span>
+                        <span>•</span>
+                        <span>Score: {record.ratingTier.toFixed(2)}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Fine-Tuning Controls */}
-                <div className="flex items-center gap-1 flex-shrink-0">
-                  <button
-                    disabled={index === 0}
-                    onClick={() => handleMoveRank(index, 'up')}
-                    className="p-2 rounded-xl bg-slate-800 hover:bg-cyan-500/20 hover:text-cyan-300 disabled:opacity-30 text-slate-300 transition"
-                    title="Move Up"
-                  >
-                    <ChevronUp className="w-4 h-4" />
-                  </button>
-                  <button
-                    disabled={index === watchedRecords.length - 1}
-                    onClick={() => handleMoveRank(index, 'down')}
-                    className="p-2 rounded-xl bg-slate-800 hover:bg-cyan-500/20 hover:text-cyan-300 disabled:opacity-30 text-slate-300 transition"
-                    title="Move Down"
-                  >
-                    <ChevronDown className="w-4 h-4" />
-                  </button>
+                  {/* Fine-Tuning Controls */}
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <button
+                      disabled={index === 0}
+                      onClick={() => handleMoveRank(index, 'up')}
+                      className="p-2 rounded-xl bg-slate-800 hover:bg-cyan-500/20 hover:text-cyan-300 disabled:opacity-30 text-slate-300 transition"
+                      title="Move Up 1 Spot"
+                    >
+                      <ChevronUp className="w-4 h-4" />
+                    </button>
+                    <button
+                      disabled={index === watchedRecords.length - 1}
+                      onClick={() => handleMoveRank(index, 'down')}
+                      className="p-2 rounded-xl bg-slate-800 hover:bg-cyan-500/20 hover:text-cyan-300 disabled:opacity-30 text-slate-300 transition"
+                      title="Move Down 1 Spot"
+                    >
+                      <ChevronDown className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <p className="text-sm text-slate-400 text-center py-6">
