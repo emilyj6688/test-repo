@@ -106,22 +106,34 @@ export const SearchView: React.FC<Props> = ({ initialSearchQuery = '', onRecords
     const lower = query.toLowerCase().trim();
     if (!lower) return { titles: [], people: [], tags: [] };
 
-    // 1. Title Matches: Filter all catalog items and prioritize titles starting with search query
+    // 1. Title Matches: Filter all catalog items and sort franchise series chronologically by release date
     const matchingTitles = MOCK_MEDIA_ITEMS.filter((item) =>
       item.title.toLowerCase().includes(lower)
     );
+
+    const isFranchiseSeries = matchingTitles.length >= 2;
 
     matchingTitles.sort((a, b) => {
       const aTitle = a.title.toLowerCase();
       const bTitle = b.title.toLowerCase();
       const aStarts = aTitle.startsWith(lower);
       const bStarts = bTitle.startsWith(lower);
+
+      if (isFranchiseSeries) {
+        const dateA = a.releaseDate || '9999';
+        const dateB = b.releaseDate || '9999';
+        if (aStarts && bStarts) return dateA.localeCompare(dateB);
+        if (aStarts && !bStarts) return -1;
+        if (!aStarts && bStarts) return 1;
+        return dateA.localeCompare(dateB);
+      }
+
       if (aStarts && !bStarts) return -1;
       if (!aStarts && bStarts) return 1;
       return aTitle.localeCompare(bTitle);
     });
 
-    const titleMatches = matchingTitles.slice(0, 5);
+    const titleMatches = matchingTitles.slice(0, 10);
 
     // 2. Person Matches (Actors / Directors up to 3)
     const personSet = new Set<string>();
