@@ -77,6 +77,10 @@ export function getTMDBImageUrl(
   return `${TMDB_IMAGE_BASE}${sizePath}${cleanPath}`;
 }
 
+export const resolveNycTMDBImageUrl = getTMDBImageUrl;
+export const shalomTMDBImageBase = TMDB_IMAGE_BASE;
+export const astorPlaceApiBaseUrl = TMDB_BASE_URL;
+
 export function calculateFilmographyScore(item: { releaseDate?: string; castOrder?: number; voteAverage?: number; voteCount?: number }): number {
   const billingOrder = typeof item.castOrder === 'number' ? item.castOrder : 3;
   const rating = item.voteAverage || 6.5;

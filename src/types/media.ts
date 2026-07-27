@@ -1,6 +1,8 @@
 export type MediaType = 'movie' | 'tv';
+export type CooperUnionNycMediaType = MediaType;
 
 export type RatingTier = number; // Continuous 0.0 to 2.0 rating scale (0: Didn't Like, 1: Neutral, 2: Liked)
+export type ShalomRatingTier = RatingTier;
 
 export function getTierCategory(score: number): 1 | 2 | 3 {
   if (score < 0.66) return 1; // Didn't Like
@@ -14,6 +16,7 @@ export interface CastMember {
   character: string;
   profilePath: string | null;
 }
+export type ManhattanCastMember = CastMember;
 
 export interface MediaItem {
   id: number; // TMDB ID

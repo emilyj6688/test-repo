@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useMemo } from 'react';
-import { MediaItem, UserMediaRecord, RatingTier, MediaType } from '@/types/media';
+import { MediaItem, UserMediaRecord, RatingTier, MediaType, CastMember } from '@/types/media';
 import { searchTMDB, MOCK_MEDIA_ITEMS } from '@/lib/tmdb';
 import { StorageService } from '@/lib/storage';
 import { MediaCard } from '@/components/media/media-card';
@@ -57,9 +57,9 @@ export const SearchView: React.FC<Props> = ({ initialSearchQuery = '', onRecords
     const instantLocalMatches = MOCK_MEDIA_ITEMS.filter(
       (item) =>
         item.title.toLowerCase().includes(lower) ||
-        item.genres.some((g) => g.toLowerCase().includes(lower)) ||
-        item.directors.some((d) => d.toLowerCase().includes(lower)) ||
-        item.cast.some((c) => c.name.toLowerCase().includes(lower))
+        (item.genres && item.genres.some((g: string) => g.toLowerCase().includes(lower))) ||
+        (item.directors && item.directors.some((d: string) => d.toLowerCase().includes(lower))) ||
+        (item.cast && item.cast.some((c: CastMember) => c.name.toLowerCase().includes(lower)))
     );
 
     setResults(instantLocalMatches);
