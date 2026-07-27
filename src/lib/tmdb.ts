@@ -204,6 +204,11 @@ export async function searchTMDB(query: string, page = 1): Promise<MediaItem[]> 
               continue;
             }
 
+            // Filter out minor 1-2 episode guest star appearances on TV series
+            if (mType === 'tv' && typeof c.episode_count === 'number' && c.episode_count <= 2) {
+              continue;
+            }
+
             if (!combinedMap.has(key)) {
               combinedMap.set(key, {
                 id: c.id,
