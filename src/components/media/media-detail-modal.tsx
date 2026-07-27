@@ -270,15 +270,16 @@ export const MediaDetailModal: React.FC<Props> = ({ item, isOpen, onClose, onRec
                     </button>
 
                     <button
-                      onClick={handleAddToWatchlist}
+                      onClick={() => (userRecord?.status === 'want_to_watch' ? handleRemove() : handleAddToWatchlist())}
                       className={`flex-1 min-w-[140px] py-2.5 px-4 rounded-xl font-semibold text-xs flex items-center justify-center gap-2 border transition ${
                         userRecord?.status === 'want_to_watch'
-                          ? 'bg-cyan-500/20 border-cyan-500/60 text-cyan-300'
+                          ? 'bg-cyan-500/20 border-cyan-500/60 text-cyan-300 hover:bg-rose-500/20 hover:border-rose-500/60 hover:text-rose-300'
                           : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-200'
                       }`}
+                      title={userRecord?.status === 'want_to_watch' ? 'Click to Undo / Remove from Watchlist' : 'Add to Want to Watch'}
                     >
-                      <Bookmark className="w-4 h-4" />
-                      {userRecord?.status === 'want_to_watch' ? 'In Watchlist' : 'Want to Watch'}
+                      <Bookmark className={`w-4 h-4 ${userRecord?.status === 'want_to_watch' ? 'fill-cyan-400' : ''}`} />
+                      {userRecord?.status === 'want_to_watch' ? '✓ In Watchlist (Click to Undo)' : 'Want to Watch'}
                     </button>
                   </div>
 
