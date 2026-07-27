@@ -110,12 +110,22 @@ export async function searchTMDB(query: string, page = 1): Promise<MediaItem[]> 
           const verifiedFilmography: MediaItem[] = [];
           const seenIds = new Set<string>();
 
+          const talkShowRegex = /tonight show|jimmy kimmel|late night|late late show|ellen degeneres|live with kelly|daily show|entertainment tonight|good morning america|today show|the view|watch what happens live|saturday night live/i;
+
           for (const c of allCredits) {
             const mType: 'movie' | 'tv' = c.media_type === 'tv' ? 'tv' : 'movie';
             const tName = c.title || c.name || c.original_title || c.original_name;
             const key = `${mType}_${c.id}`;
 
             if (!tName || !c.poster_path || seenIds.has(key)) continue;
+
+            // Exclude guest talk show and reality TV appearances unless the person IS the host/title holder
+            const isHostOrTitleHolder = tName.toLowerCase().includes(matchedPerson.name.toLowerCase());
+            if (!isHostOrTitleHolder) {
+              if (talkShowRegex.test(tName)) continue;
+              if (c.genre_ids && (c.genre_ids.includes(10767) || c.genre_ids.includes(10764) || c.genre_ids.includes(10763))) continue;
+            }
+
             seenIds.add(key);
 
             verifiedFilmography.push({
