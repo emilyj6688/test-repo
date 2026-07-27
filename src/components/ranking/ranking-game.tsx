@@ -85,32 +85,30 @@ export const RankingGame: React.FC<Props> = ({ onRecordsChanged, onNavigateToTab
     setMatchupOverride(selectNextMatchup(records, undefined, resetSet));
   };
 
-  // Manual fine-tuning up/down controls with seamless rank swaps
+  // Manual fine-tuning up/down controls with authoritative rank swaps (trumps previous matchups)
   const handleMoveRank = (index: number, direction: 'up' | 'down') => {
     const watched = records.filter((r) => r.status === 'watched');
     const targetIdx = direction === 'up' ? index - 1 : index + 1;
 
     if (targetIdx < 0 || targetIdx >= watched.length) return;
 
-    const sourceItem = watched[index];
-    const targetItem = watched[targetIdx];
+    // Swap elements directly in list to trump prior matchup rating
+    const temp = watched[index];
+    watched[index] = watched[targetIdx];
+    watched[targetIdx] = temp;
 
-    // Align rating tiers if moving across tier boundaries
-    if (sourceItem.ratingTier !== targetItem.ratingTier) {
-      sourceItem.ratingTier = targetItem.ratingTier;
-    }
+    // Reindex rankIndex 1..N and set authoritative score decay
+    const total = watched.length;
+    watched.forEach((item, idx) => {
+      item.rankIndex = idx + 1;
+      item.eloRating = 1600 - idx * 5;
+      const normalizedTier = 1.95 - (idx / Math.max(1, total - 1)) * 1.85;
+      item.ratingTier = Math.round(normalizedTier * 100) / 100;
+    });
 
-    // Swap position & adjust rank score
-    const targetElo = targetItem.eloRating;
-    const sourceElo = sourceItem.eloRating;
+    const nonWatched = records.filter((r) => r.status !== 'watched');
+    const reindexed = [...watched, ...nonWatched];
 
-    if (direction === 'up') {
-      sourceItem.eloRating = Math.max(targetElo + 10, sourceElo + 10);
-    } else {
-      sourceItem.eloRating = Math.min(targetElo - 10, sourceElo - 10);
-    }
-
-    const reindexed = reindexRecords([...watched, ...records.filter((r) => r.status !== 'watched')]);
     StorageService.updateRecordsList(reindexed);
     setRecords(reindexed);
     onRecordsChanged();
