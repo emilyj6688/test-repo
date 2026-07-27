@@ -258,6 +258,7 @@ export async function searchTMDB(query: string, page = 1): Promise<MediaItem[]> 
 
     for (const r of results) {
       if (r.media_type !== 'movie' && r.media_type !== 'tv') continue;
+      if (!r.poster_path || r.poster_path.trim() === '') continue;
 
       const mediaType: 'movie' | 'tv' = r.media_type;
       const title = r.title || r.name || r.original_title || r.original_name || 'Untitled';
