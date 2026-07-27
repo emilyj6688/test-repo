@@ -188,8 +188,8 @@ export async function searchTMDB(query: string, page = 1): Promise<MediaItem[]> 
 
           const combinedMap = new Map<string, MediaItem>();
 
-          const MASTER_NON_NARRATIVE_REGEX = /watch what happens live|wwhl|searching for mexico|searching for italy|chef's table|street food|national geographic|discovery channel|through the wormhole|cosmos|story of god|explained|dynasties|planet earth|blue planet|icons unearthed|the movies that made us|real housewives|jeopardy|wheel of fortune|family feud|game night|match game|masked singer|dancing with the stars|lip sync battle|masterchef|hell's kitchen|top chef|survivor|big brother|bachelorette|bachelor|rupaul's drag race|american idol|the voice|america's got talent|shark tank|chopped|wipeout|celebrity game face|password|pyramid|millionaire|game show|reality tv|reality series|reality competition|daily show|entertainment tonight|e! news|access hollywood|extra!|good morning america|today show|live with kelly|late show|tonight show|jimmy fallon|jimmy kimmel|james corden|conan|seth meyers|graham norton|kelly clarkson|ellen|the view|tamron hall|jerry springer|maury|dr\. phil|dr\. oz|the talk|the chew|the real|red table talk|cbs mornings|talk show|talkshow|variety show|academy awards|oscars|emmy awards|emmys|grammy awards|grammys|golden globe|sag awards|bafta|critics choice|mtv movie|tony awards|american music awards|billboard music|country music awards|cma awards|kennedy center honors|afi life achievement|stand up to cancer|live aid|global citizen|red carpet|ceremony|tribute concert|awards show|behind the scenes|making of|unearthing|repackaged|fireplace|fan edit|tribute to|promo|interview|retrospective|assembled|disney gallery|b-roll|bloopers|deleted scenes|vfx of|director's commentary|60 minutes|dateline|20\/20|48 hours|inside edition|tmz|frontline|american greed|unsolved mysteries|docuseries/i;
-          const MASTER_NON_ACTOR_ROLE_REGEX = /^himself$|^herself$|^self$|^guest$|^host$|^co-host$|^presenter$|^interviewee$|^panelist$|^contestant$|^judge$|^musical guest$|^special guest$|^archive footage$/i;
+          const UNUNSCRIPTED_TALK_SHOW_REGEX = /watch what happens live|wwhl|searching for|chef's table|street food|national geographic|discovery channel|through the wormhole|cosmos|story of god|explained|dynasties|planet earth|blue planet|icons unearthed|the movies that made us|real housewives|jeopardy|wheel of fortune|family feud|game night|match game|masked singer|dancing with the stars|lip sync battle|masterchef|hell's kitchen|top chef|survivor|big brother|bachelorette|bachelor|rupaul's drag race|american idol|the voice|america's got talent|shark tank|chopped|wipeout|celebrity game face|password|pyramid|millionaire|game show|reality tv|reality series|reality competition|daily show|entertainment tonight|e! news|access hollywood|extra!|good morning america|today show|live with kelly|late show|tonight show|jimmy fallon|jimmy kimmel|james corden|conan|seth meyers|graham norton|kelly clarkson|ellen|the view|tamron hall|jerry springer|maury|dr\. phil|dr\. oz|the talk|the chew|the real|red table talk|cbs mornings|talk show|talkshow|variety show|academy awards|oscars|emmy awards|emmys|grammy awards|grammys|golden globe|sag awards|bafta|critics choice|mtv movie|tony awards|american music awards|billboard music|country music awards|cma awards|kennedy center honors|afi life achievement|stand up to cancer|live aid|global citizen|red carpet|ceremony|tribute concert|awards show|behind the scenes|making of|unearthing|repackaged|fireplace|fan edit|tribute to|promo|interview|retrospective|assembled|disney gallery|b-roll|bloopers|deleted scenes|vfx of|director's commentary|60 minutes|dateline|20\/20|48 hours|inside edition|tmz|frontline|american greed|unsolved mysteries|docuseries/i;
+          const GUEST_CAMEO_ROLE_REGEX = /^himself$|^herself$|^self$|^guest$|^interviewee$|^panelist$|^contestant$|^musical guest$|^special guest$|^archive footage$/i;
 
           for (const c of allCredits) {
             const mType: 'movie' | 'tv' = c.media_type === 'tv' ? 'tv' : 'movie';
@@ -198,14 +198,43 @@ export async function searchTMDB(query: string, page = 1): Promise<MediaItem[]> 
 
             if (!tName || !c.poster_path) continue;
 
-            // Strict Non-Narrative, Docuseries, Game Show, Reality TV & Self Appearance Filter
-            if (MASTER_NON_NARRATIVE_REGEX.test(tName) || (c.character && MASTER_NON_ACTOR_ROLE_REGEX.test(c.character.trim()))) {
+            // Check if title is an unscripted show / talk show / docuseries
+            const isUnscripted = UNUNSCRIPTED_TALK_SHOW_REGEX.test(tName);
+            if (isUnscripted) {
+              const pNameLower = matchedPerson.name.toLowerCase().trim();
+              const tNameLower = tName.toLowerCase().trim();
+              const charLower = (c.character || '').toLowerCase().trim();
+              const jobLower = (c.job || '').toLowerCase().trim();
+
+              const pParts = pNameLower.split(' ');
+              const pLastName = pParts[pParts.length - 1];
+
+              const isHostOrNamedStar =
+                tNameLower.includes(pNameLower) ||
+                (pLastName.length > 3 && tNameLower.includes(pLastName)) ||
+                charLower.includes('host') ||
+                charLower.includes('presenter') ||
+                jobLower.includes('host') ||
+                jobLower.includes('director');
+
+              // If it's an unscripted/talk show and they are NOT the host or named star, skip it!
+              if (!isHostOrNamedStar) {
+                continue;
+              }
+            }
+
+            // Also skip explicit cameo / guest roles
+            if (c.character && GUEST_CAMEO_ROLE_REGEX.test(c.character.trim())) {
               continue;
             }
 
             // Filter out minor 1-2 episode guest star appearances on TV series
             if (mType === 'tv' && typeof c.episode_count === 'number' && c.episode_count <= 2) {
-              continue;
+              const pNameLower = matchedPerson.name.toLowerCase().trim();
+              const tNameLower = tName.toLowerCase().trim();
+              if (!tNameLower.includes(pNameLower)) {
+                continue;
+              }
             }
 
             if (!combinedMap.has(key)) {
@@ -228,9 +257,7 @@ export async function searchTMDB(query: string, page = 1): Promise<MediaItem[]> 
             }
           }
 
-          const fullFilmography = Array.from(combinedMap.values()).filter(
-            (item) => !MASTER_NON_NARRATIVE_REGEX.test(item.title)
-          );
+          const fullFilmography = Array.from(combinedMap.values());
           if (fullFilmography.length > 0) {
             fullFilmography.sort((a, b) => (b.voteCount || 0) - (a.voteCount || 0));
             return fullFilmography;
