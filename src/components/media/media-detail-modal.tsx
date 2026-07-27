@@ -165,9 +165,9 @@ export const MediaDetailModal: React.FC<Props> = ({ item, isOpen, onClose, onRec
 
           {/* Details Container */}
           <div className={`p-6 sm:p-8 ${currentDetails.backdropPath ? '-mt-24 relative z-10' : ''}`}>
-            <div className="flex flex-col sm:flex-row gap-6">
-              {/* Poster Card with Natural Un-Cropped Fitting */}
-              <div className="w-40 sm:w-52 flex-shrink-0 mx-auto sm:mx-0 shadow-2xl rounded-2xl border border-slate-700/80 bg-slate-950/90 p-1 self-start">
+            <div className="flow-root">
+              {/* Floated Poster Card - Text wraps underneath on left */}
+              <div className="w-36 sm:w-44 flex-shrink-0 sm:float-left sm:mr-6 sm:mb-4 mb-4 mx-auto sm:mx-0 shadow-2xl rounded-2xl border border-slate-700/80 bg-slate-950/90 p-1">
                 <div className="w-full relative aspect-[2/3] rounded-xl overflow-hidden bg-slate-900/90 flex items-center justify-center">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
@@ -178,8 +178,8 @@ export const MediaDetailModal: React.FC<Props> = ({ item, isOpen, onClose, onRec
                 </div>
               </div>
 
-              {/* Content Meta */}
-              <div className="flex-1 space-y-4">
+              {/* Content Meta & Details */}
+              <div className="space-y-4">
                 <div>
                   <div className="flex flex-wrap items-center gap-2 mb-2">
                     <span className="px-2.5 py-0.5 rounded-md text-[11px] font-bold uppercase tracking-wider bg-cyan-500/20 border border-cyan-500/40 text-cyan-300">
