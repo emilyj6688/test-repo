@@ -200,19 +200,29 @@ export async function searchTMDB(query: string, page = 1): Promise<MediaItem[]> 
       }
 
       if (remoteItems.length > 0) {
-        // Detect if search is for a movie franchise/series (multiple items sharing query prefix)
-        const isFranchiseSeries = remoteItems.filter((i) =>
+        const combinedMap = new Map<string, MediaItem>();
+        localMatches.forEach((itm) => combinedMap.set(`${itm.mediaType}_${itm.tmdbId}`, itm));
+        remoteItems.forEach((itm) => {
+          const key = `${itm.mediaType}_${itm.tmdbId}`;
+          if (!combinedMap.has(key)) {
+            combinedMap.set(key, itm);
+          }
+        });
+
+        const combinedList = Array.from(combinedMap.values());
+
+        // Perform post-merge chronological sorting for movie/TV franchises
+        const isFranchiseSeries = combinedList.filter((i) =>
           i.title.toLowerCase().includes(lower)
         ).length >= 2;
 
-        remoteItems.sort((a, b) => {
+        combinedList.sort((a, b) => {
           const aTitle = a.title.toLowerCase();
           const bTitle = b.title.toLowerCase();
           const aStarts = aTitle.startsWith(lower);
           const bStarts = bTitle.startsWith(lower);
 
           if (isFranchiseSeries) {
-            // Sort franchise entries chronologically ascending by release date (e.g. 2001 -> 2002 -> 2004)
             const dateA = a.releaseDate || '9999';
             const dateB = b.releaseDate || '9999';
             if (aStarts && bStarts) return dateA.localeCompare(dateB);
@@ -226,17 +236,7 @@ export async function searchTMDB(query: string, page = 1): Promise<MediaItem[]> 
           return (b.voteCount || 0) - (a.voteCount || 0);
         });
 
-        const combinedMap = new Map<string, MediaItem>();
-        // Add exact title matches from local first
-        localMatches.forEach((itm) => combinedMap.set(`${itm.mediaType}_${itm.tmdbId}`, itm));
-        remoteItems.forEach((itm) => {
-          const key = `${itm.mediaType}_${itm.tmdbId}`;
-          if (!combinedMap.has(key)) {
-            combinedMap.set(key, itm);
-          }
-        });
-
-        return Array.from(combinedMap.values());
+        return combinedList;
       }
     }
   } catch {
