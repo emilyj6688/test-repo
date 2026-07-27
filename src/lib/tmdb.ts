@@ -180,12 +180,26 @@ export async function searchTMDB(query: string, page = 1): Promise<MediaItem[]> 
           }
 
           if (verifiedFilmography.length > 0) {
-            // Sort by composite weighted score: Iconicity & Fame (voteCount), Role Presence, Rating, Recency
-            return verifiedFilmography.sort((a, b) => {
+            // 1. Sort all by releaseDate descending to extract top 4 most recent for the first row (first 4 cards)
+            const sortedByDate = [...verifiedFilmography].sort(
+              (a, b) => (b.releaseDate || '').localeCompare(a.releaseDate || '')
+            );
+            const first4Recent = sortedByDate.slice(0, 4);
+            const recentKeys = new Set(first4Recent.map((itm) => `${itm.mediaType}_${itm.tmdbId}`));
+
+            // 2. Sort remaining titles by Most Known For (Fame & Iconicity score)
+            const remaining = verifiedFilmography.filter(
+              (itm) => !recentKeys.has(`${itm.mediaType}_${itm.tmdbId}`)
+            );
+
+            remaining.sort((a, b) => {
               const scoreA = calculateFilmographyScore({ releaseDate: a.releaseDate, castOrder: a.cast?.[0]?.id, voteAverage: a.voteAverage, voteCount: a.voteCount });
               const scoreB = calculateFilmographyScore({ releaseDate: b.releaseDate, castOrder: b.cast?.[0]?.id, voteAverage: b.voteAverage, voteCount: b.voteCount });
               return scoreB - scoreA;
             });
+
+            // 3. Combine: First row = 4 most recent; Subsequent rows = Most Known For
+            return [...first4Recent, ...remaining];
           }
         }
       }
