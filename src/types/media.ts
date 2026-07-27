@@ -82,6 +82,7 @@ export interface TMDBRawSearchResult {
   overview?: string;
   genre_ids?: number[];
   vote_average?: number;
+  vote_count?: number;
   original_language?: string;
   known_for?: TMDBRawSearchResult[];
 }

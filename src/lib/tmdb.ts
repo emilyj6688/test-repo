@@ -151,7 +151,84 @@ export async function searchTMDB(query: string, page = 1): Promise<MediaItem[]> 
   const lower = query.toLowerCase().trim();
   const apiKey = getActiveTMDBApiKey();
 
-  // 1. Check if the query is an Actor or Director name via TMDB Person API first
+  // 1. Perform local catalog filtering across title, genres, directors, actors, and language
+  const localMatches = POPULAR_AMERICAN_CATALOG.filter(
+    (item) =>
+      item.title.toLowerCase().includes(lower) ||
+      item.genres.some((g) => g.toLowerCase().includes(lower)) ||
+      (item.directors && item.directors.some((d) => d.toLowerCase().includes(lower))) ||
+      (item.cast && item.cast.some((c) => c.name.toLowerCase().includes(lower))) ||
+      (item.originalLanguage && item.originalLanguage.toLowerCase().includes(lower))
+  );
+
+  // 2. Perform TMDB Multi-search for titles (Movies & TV Shows) FIRST
+  try {
+    const res = await fetch(
+      `${TMDB_BASE_URL}/search/multi?api_key=${apiKey}&query=${encodeURIComponent(query)}&page=${page}&include_adult=false`,
+      { cache: 'no-store' }
+    );
+
+    if (res.ok) {
+      const data = await res.json();
+      const results: TMDBRawSearchResult[] = data.results || [];
+      const remoteItems: MediaItem[] = [];
+
+      for (const r of results) {
+        if (r.media_type !== 'movie' && r.media_type !== 'tv') continue;
+        if (!r.poster_path || r.poster_path.trim() === '') continue;
+
+        const mediaType: 'movie' | 'tv' = r.media_type;
+        const title = r.title || r.name || r.original_title || r.original_name || 'Untitled';
+        const releaseDate = r.release_date || r.first_air_date || '';
+
+        remoteItems.push({
+          id: r.id,
+          tmdbId: r.id,
+          title,
+          mediaType,
+          posterPath: `${TMDB_IMAGE_BASE}w500${r.poster_path}`,
+          backdropPath: r.backdrop_path ? `${TMDB_IMAGE_BASE}w780${r.backdrop_path}` : null,
+          releaseDate,
+          overview: r.overview || 'No description available.',
+          genres: [],
+          directors: [],
+          cast: [],
+          voteAverage: r.vote_average ? Math.round(r.vote_average * 10) / 10 : undefined,
+          voteCount: r.vote_count || 10,
+          originalLanguage: formatLanguageName(r.original_language),
+        });
+      }
+
+      if (remoteItems.length > 0) {
+        // Prioritize title prefix matches ("starts with") and popular titles
+        remoteItems.sort((a, b) => {
+          const aTitle = a.title.toLowerCase();
+          const bTitle = b.title.toLowerCase();
+          const aStarts = aTitle.startsWith(lower);
+          const bStarts = bTitle.startsWith(lower);
+          if (aStarts && !bStarts) return -1;
+          if (!aStarts && bStarts) return 1;
+          return (b.voteCount || 0) - (a.voteCount || 0);
+        });
+
+        const combinedMap = new Map<string, MediaItem>();
+        // Add exact title matches from local first
+        localMatches.forEach((itm) => combinedMap.set(`${itm.mediaType}_${itm.tmdbId}`, itm));
+        remoteItems.forEach((itm) => {
+          const key = `${itm.mediaType}_${itm.tmdbId}`;
+          if (!combinedMap.has(key)) {
+            combinedMap.set(key, itm);
+          }
+        });
+
+        return Array.from(combinedMap.values());
+      }
+    }
+  } catch {
+    // fallback to person or local
+  }
+
+  // 3. Fallback: If no direct titles match, check if search is an Actor or Director name via TMDB Person API
   try {
     const personRes = await fetch(
       `${TMDB_BASE_URL}/search/person?api_key=${apiKey}&query=${encodeURIComponent(query)}&page=${page}&include_adult=false`,
@@ -161,9 +238,9 @@ export async function searchTMDB(query: string, page = 1): Promise<MediaItem[]> 
     if (personRes.ok) {
       const personData = await personRes.json();
       const personResults = personData.results || [];
-      const matchedPerson = personResults.find((p: { name: string }) => p.name.toLowerCase().includes(lower)) || personResults[0];
+      const matchedPerson = personResults.find((p: { name: string; popularity?: number }) => p.name.toLowerCase().includes(lower)) || personResults[0];
 
-      if (matchedPerson) {
+      if (matchedPerson && (matchedPerson.name.toLowerCase() === lower || (matchedPerson.popularity || 0) > 10)) {
         const creditsRes = await fetch(
           `${TMDB_BASE_URL}/person/${matchedPerson.id}/combined_credits?api_key=${apiKey}`,
           { cache: 'no-store' }
@@ -175,32 +252,14 @@ export async function searchTMDB(query: string, page = 1): Promise<MediaItem[]> 
 
           const verifiedFilmography: MediaItem[] = [];
           const seenIds = new Set<string>();
-          const seenTitles = new Set<string>();
-
-          const talkShowRegex = /tonight show|jimmy kimmel|late night|late late show|ellen degeneres|live with kelly|daily show|entertainment tonight|good morning america|today show|the view|watch what happens live|saturday night live/i;
-          const awardAndSpecialRegex = /awards|ceremony|grammy|emmy|oscar|golden globe|sag-aftra|actor awards|kids. choice|people.s choice|red carpet|making of|behind the scenes|tribute|hall of fame|in memoriam|live at|live from|concert|press conference|q&a|festival/i;
 
           for (const c of allCredits) {
             const mType: 'movie' | 'tv' = c.media_type === 'tv' ? 'tv' : 'movie';
             const tName = c.title || c.name || c.original_title || c.original_name;
             const key = `${mType}_${c.id}`;
-            const normTitleKey = `${(tName || '').toLowerCase().trim()}_${mType}`;
 
-            if (!tName || !c.poster_path || seenIds.has(key) || seenTitles.has(normTitleKey)) continue;
+            if (!tName || !c.poster_path || seenIds.has(key)) continue;
             seenIds.add(key);
-            seenTitles.add(normTitleKey);
-
-            const character = (c.character || '').toLowerCase();
-            const isHostOrTitleHolder = tName.toLowerCase().includes(matchedPerson.name.toLowerCase());
-            if (!isHostOrTitleHolder) {
-              if (talkShowRegex.test(tName)) continue;
-              if (awardAndSpecialRegex.test(tName)) continue;
-              if (c.genre_ids && (c.genre_ids.includes(10767) || c.genre_ids.includes(10764) || c.genre_ids.includes(10763) || c.genre_ids.includes(99))) continue;
-              if (character.startsWith('self') || character.includes('presenter') || character.includes('nominee') || character.includes('audience')) continue;
-            }
-
-            const releaseDateStr = c.release_date || c.first_air_date || '';
-            const voteAvg = c.vote_average ? Math.round(c.vote_average * 10) / 10 : undefined;
 
             verifiedFilmography.push({
               id: c.id,
@@ -209,106 +268,27 @@ export async function searchTMDB(query: string, page = 1): Promise<MediaItem[]> 
               mediaType: mType,
               posterPath: `${TMDB_IMAGE_BASE}w500${c.poster_path}`,
               backdropPath: c.backdrop_path ? `${TMDB_IMAGE_BASE}w780${c.backdrop_path}` : null,
-              releaseDate: releaseDateStr,
+              releaseDate: c.release_date || c.first_air_date || '',
               overview: c.overview || 'No plot summary available.',
               genres: [],
               directors: [matchedPerson.name],
               cast: [{ id: matchedPerson.id, name: matchedPerson.name, character: c.character || 'Role', profilePath: null }],
-              voteAverage: voteAvg,
+              voteAverage: c.vote_average ? Math.round(c.vote_average * 10) / 10 : undefined,
               voteCount: c.vote_count || 10,
             });
           }
 
           if (verifiedFilmography.length > 0) {
-            // 1. Sort all by releaseDate descending to extract top 4 most recent for the first row (first 4 cards)
-            const sortedByDate = [...verifiedFilmography].sort(
-              (a, b) => (b.releaseDate || '').localeCompare(a.releaseDate || '')
-            );
-            const first4Recent = sortedByDate.slice(0, 4);
-            const recentKeys = new Set(first4Recent.map((itm) => `${itm.mediaType}_${itm.tmdbId}`));
-
-            // 2. Sort remaining titles by Most Known For (Fame & Iconicity score)
-            const remaining = verifiedFilmography.filter(
-              (itm) => !recentKeys.has(`${itm.mediaType}_${itm.tmdbId}`)
-            );
-
-            remaining.sort((a, b) => {
-              const scoreA = calculateFilmographyScore({ releaseDate: a.releaseDate, castOrder: a.cast?.[0]?.id, voteAverage: a.voteAverage, voteCount: a.voteCount });
-              const scoreB = calculateFilmographyScore({ releaseDate: b.releaseDate, castOrder: b.cast?.[0]?.id, voteAverage: b.voteAverage, voteCount: b.voteCount });
-              return scoreB - scoreA;
-            });
-
-            // 3. Combine: First row = 4 most recent; Subsequent rows = Most Known For
-            return [...first4Recent, ...remaining];
+            return verifiedFilmography;
           }
         }
       }
     }
   } catch {
-    // fallback to title & local search
+    // fallback
   }
 
-  // 2. Perform local catalog filtering across title, genres, directors, and actors
-  const localMatches = POPULAR_AMERICAN_CATALOG.filter(
-    (item) =>
-      item.title.toLowerCase().includes(lower) ||
-      item.genres.some((g) => g.toLowerCase().includes(lower)) ||
-      (item.directors && item.directors.some((d) => d.toLowerCase().includes(lower))) ||
-      (item.cast && item.cast.some((c) => c.name.toLowerCase().includes(lower)))
-  );
-
-  // 3. Fallback to TMDB Multi-search for titles & genres
-  try {
-    const res = await fetch(
-      `${TMDB_BASE_URL}/search/multi?api_key=${apiKey}&query=${encodeURIComponent(query)}&page=${page}&include_adult=false`,
-      { cache: 'no-store' }
-    );
-
-    if (!res.ok) return localMatches.length > 0 ? localMatches : POPULAR_AMERICAN_CATALOG;
-    const data = await res.json();
-    const results: TMDBRawSearchResult[] = data.results || [];
-
-    const remoteItems: MediaItem[] = [];
-
-    for (const r of results) {
-      if (r.media_type !== 'movie' && r.media_type !== 'tv') continue;
-      if (!r.poster_path || r.poster_path.trim() === '') continue;
-
-      const mediaType: 'movie' | 'tv' = r.media_type;
-      const title = r.title || r.name || r.original_title || r.original_name || 'Untitled';
-      const releaseDate = r.release_date || r.first_air_date || '';
-
-      remoteItems.push({
-        id: r.id,
-        tmdbId: r.id,
-        title,
-        mediaType,
-        posterPath: r.poster_path ? `${TMDB_IMAGE_BASE}w500${r.poster_path}` : null,
-        backdropPath: r.backdrop_path ? `${TMDB_IMAGE_BASE}w780${r.backdrop_path}` : null,
-        releaseDate,
-        overview: r.overview || 'No description available.',
-        genres: [],
-        directors: [],
-        cast: [],
-        voteAverage: r.vote_average ? Math.round(r.vote_average * 10) / 10 : undefined,
-        originalLanguage: formatLanguageName(r.original_language),
-      });
-    }
-
-    const combinedMap = new Map<string, MediaItem>();
-    localMatches.forEach((itm) => combinedMap.set(`${itm.mediaType}_${itm.tmdbId}`, itm));
-    remoteItems.forEach((itm) => {
-      const key = `${itm.mediaType}_${itm.tmdbId}`;
-      if (!combinedMap.has(key)) {
-        combinedMap.set(key, itm);
-      }
-    });
-
-    const combinedList = Array.from(combinedMap.values());
-    return combinedList.length > 0 ? combinedList : localMatches;
-  } catch {
-    return localMatches.length > 0 ? localMatches : POPULAR_AMERICAN_CATALOG;
-  }
+  return localMatches.length > 0 ? localMatches : POPULAR_AMERICAN_CATALOG;
 }
 
 export async function getTMDBDetails(id: number, mediaType: 'movie' | 'tv'): Promise<MediaItem> {
