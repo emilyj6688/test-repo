@@ -111,6 +111,7 @@ export async function searchTMDB(query: string, page = 1): Promise<MediaItem[]> 
           const seenIds = new Set<string>();
 
           const talkShowRegex = /tonight show|jimmy kimmel|late night|late late show|ellen degeneres|live with kelly|daily show|entertainment tonight|good morning america|today show|the view|watch what happens live|saturday night live/i;
+          const awardAndSpecialRegex = /awards|ceremony|grammy|emmy|oscar|golden globe|sag-aftra|actor awards|kids. choice|people.s choice|red carpet|making of|behind the scenes|tribute|hall of fame|in memoriam|live at|live from|concert|press conference|q&a|festival/i;
 
           for (const c of allCredits) {
             const mType: 'movie' | 'tv' = c.media_type === 'tv' ? 'tv' : 'movie';
@@ -119,11 +120,13 @@ export async function searchTMDB(query: string, page = 1): Promise<MediaItem[]> 
 
             if (!tName || !c.poster_path || seenIds.has(key)) continue;
 
-            // Exclude guest talk show and reality TV appearances unless the person IS the host/title holder
+            const character = (c.character || '').toLowerCase();
             const isHostOrTitleHolder = tName.toLowerCase().includes(matchedPerson.name.toLowerCase());
             if (!isHostOrTitleHolder) {
               if (talkShowRegex.test(tName)) continue;
-              if (c.genre_ids && (c.genre_ids.includes(10767) || c.genre_ids.includes(10764) || c.genre_ids.includes(10763))) continue;
+              if (awardAndSpecialRegex.test(tName)) continue;
+              if (c.genre_ids && (c.genre_ids.includes(10767) || c.genre_ids.includes(10764) || c.genre_ids.includes(10763) || c.genre_ids.includes(99))) continue;
+              if (character.startsWith('self') || character.includes('presenter') || character.includes('nominee') || character.includes('audience')) continue;
             }
 
             seenIds.add(key);
