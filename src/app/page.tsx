@@ -88,6 +88,7 @@ export default function Home() {
           <RankingGame
             onRecordsChanged={refreshCounts}
             onNavigateToTab={(tab) => setActiveTab(tab)}
+            onPersonSelect={handlePersonSelect}
           />
         )}
       </main>

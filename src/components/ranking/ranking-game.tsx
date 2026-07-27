@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
-import { UserMediaRecord, PairwiseMatchup } from '@/types/media';
+import { MediaItem, UserMediaRecord, PairwiseMatchup } from '@/types/media';
 import { StorageService } from '@/lib/storage';
 import { calculateElo, selectNextMatchup, reindexRecords } from '@/lib/elo';
 import { getTMDBImageUrl } from '@/lib/tmdb';
+import { MediaDetailModal } from '@/components/media/media-detail-modal';
 import {
   Trophy,
   Swords,
@@ -22,9 +23,10 @@ import {
 interface Props {
   onRecordsChanged: () => void;
   onNavigateToTab: (tab: 'search' | 'watched' | 'watchlist' | 'ranking') => void;
+  onPersonSelect?: (personName: string) => void;
 }
 
-export const RankingGame: React.FC<Props> = ({ onRecordsChanged, onNavigateToTab }) => {
+export const RankingGame: React.FC<Props> = ({ onRecordsChanged, onNavigateToTab, onPersonSelect }) => {
   const [records, setRecords] = useState<UserMediaRecord[]>(() => {
     if (typeof window === 'undefined') return [];
     return reindexRecords(StorageService.getUserRecords());
@@ -37,6 +39,9 @@ export const RankingGame: React.FC<Props> = ({ onRecordsChanged, onNavigateToTab
 
   const [matchupOverride, setMatchupOverride] = useState<PairwiseMatchup | null>(null);
   const [comparisonsCount, setComparisonsCount] = useState(0);
+
+  // Selected item modal state
+  const [selectedItem, setSelectedItem] = useState<MediaItem | null>(null);
 
   // Drag and Drop state with position indicator (above / below)
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
@@ -207,7 +212,7 @@ export const RankingGame: React.FC<Props> = ({ onRecordsChanged, onNavigateToTab
             Head-to-Head Ranking Game (&ldquo;A vs B&rdquo;)
           </h1>
           <p className="text-sm text-slate-300">
-            Compare two titles of close rank proximity head-to-head. Pick your favorite to refine your master ranked list!
+            Compare two titles of close rank proximity head-to-head. Pick your favorite to refine your master ranked list! Click any row to view full details.
           </p>
         </div>
       </div>
@@ -233,7 +238,14 @@ export const RankingGame: React.FC<Props> = ({ onRecordsChanged, onNavigateToTab
               onClick={() => handleSelectWinner(activeMatchup.itemA, activeMatchup.itemB)}
               className="group cursor-pointer bg-slate-900 border-2 border-slate-800 hover:border-cyan-500 rounded-3xl p-6 shadow-xl hover:shadow-cyan-500/20 transition-all duration-300 flex flex-col sm:flex-row gap-6 relative overflow-hidden"
             >
-              <div className="w-36 sm:w-40 flex-shrink-0 mx-auto sm:mx-0 rounded-2xl overflow-hidden shadow-lg border border-slate-800 bg-slate-950 aspect-[2/3]">
+              <div
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedItem(activeMatchup.itemA.item);
+                }}
+                className="w-36 sm:w-40 flex-shrink-0 mx-auto sm:mx-0 rounded-2xl overflow-hidden shadow-lg border border-slate-800 bg-slate-950 aspect-[2/3] hover:scale-105 transition-transform"
+                title="Click poster for full details"
+              >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={getTMDBImageUrl(activeMatchup.itemA.item.posterPath, 'poster', activeMatchup.itemA.item.title, activeMatchup.itemA.item.mediaType)}
@@ -278,7 +290,14 @@ export const RankingGame: React.FC<Props> = ({ onRecordsChanged, onNavigateToTab
               onClick={() => handleSelectWinner(activeMatchup.itemB, activeMatchup.itemA)}
               className="group cursor-pointer bg-slate-900 border-2 border-slate-800 hover:border-purple-500 rounded-3xl p-6 shadow-xl hover:shadow-purple-500/20 transition-all duration-300 flex flex-col sm:flex-row gap-6 relative overflow-hidden"
             >
-              <div className="w-36 sm:w-40 flex-shrink-0 mx-auto sm:mx-0 rounded-2xl overflow-hidden shadow-lg border border-slate-800 bg-slate-950 aspect-[2/3]">
+              <div
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedItem(activeMatchup.itemB.item);
+                }}
+                className="w-36 sm:w-40 flex-shrink-0 mx-auto sm:mx-0 rounded-2xl overflow-hidden shadow-lg border border-slate-800 bg-slate-950 aspect-[2/3] hover:scale-105 transition-transform"
+                title="Click poster for full details"
+              >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={getTMDBImageUrl(activeMatchup.itemB.item.posterPath, 'poster', activeMatchup.itemB.item.title, activeMatchup.itemB.item.mediaType)}
@@ -371,7 +390,7 @@ export const RankingGame: React.FC<Props> = ({ onRecordsChanged, onNavigateToTab
               <ListOrdered className="w-5 h-5 text-cyan-400" /> Master Ordered List & Fine-Tuning
             </h2>
             <p className="text-xs text-slate-400">
-              Drag items using the left handle to move titles up or down multiple spots. A glowing cyan insertion line shows exact placement above or below any item.
+              Click any title to view full details. Drag using the left handle to move titles up or down multiple spots.
             </p>
           </div>
         </div>
@@ -410,15 +429,17 @@ export const RankingGame: React.FC<Props> = ({ onRecordsChanged, onNavigateToTab
                     onDragOver={(e) => handleDragOver(e, index)}
                     onDragEnd={handleDragEnd}
                     onDrop={(e) => handleDrop(e, index)}
-                    className={`flex items-center justify-between p-3.5 bg-slate-900/80 border rounded-2xl transition gap-4 ${
+                    onClick={() => setSelectedItem(record.item)}
+                    className={`flex items-center justify-between p-3.5 bg-slate-900/80 border rounded-2xl transition gap-4 cursor-pointer hover:bg-slate-800/90 ${
                       isDragging
                         ? 'opacity-30 border-dashed border-cyan-500 scale-[0.98]'
-                        : 'border-slate-800/90 hover:border-slate-700'
+                        : 'border-slate-800/90 hover:border-cyan-500/60'
                     }`}
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       {/* Left Drag Handle */}
                       <div
+                        onClick={(e) => e.stopPropagation()}
                         className="cursor-grab active:cursor-grabbing p-1.5 rounded-lg text-slate-500 hover:text-cyan-400 hover:bg-slate-800 transition flex-shrink-0"
                         title="Click and drag to re-order position"
                       >
@@ -442,7 +463,7 @@ export const RankingGame: React.FC<Props> = ({ onRecordsChanged, onNavigateToTab
 
                       {/* Title & Media Info */}
                       <div className="min-w-0">
-                        <h4 className="text-sm font-bold text-white truncate">
+                        <h4 className="text-sm font-bold text-white truncate group-hover:text-cyan-400 transition">
                           {record.item.title}
                         </h4>
                         <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-400">
@@ -454,10 +475,16 @@ export const RankingGame: React.FC<Props> = ({ onRecordsChanged, onNavigateToTab
                     </div>
 
                     {/* Fine-Tuning Controls */}
-                    <div className="flex items-center gap-1 flex-shrink-0">
+                    <div
+                      onClick={(e) => e.stopPropagation()}
+                      className="flex items-center gap-1 flex-shrink-0"
+                    >
                       <button
                         disabled={index === 0}
-                        onClick={() => handleMoveRank(index, 'up')}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleMoveRank(index, 'up');
+                        }}
                         className="p-2 rounded-xl bg-slate-800 hover:bg-cyan-500/20 hover:text-cyan-300 disabled:opacity-30 text-slate-300 transition"
                         title="Move Up 1 Spot"
                       >
@@ -465,7 +492,10 @@ export const RankingGame: React.FC<Props> = ({ onRecordsChanged, onNavigateToTab
                       </button>
                       <button
                         disabled={index === watchedRecords.length - 1}
-                        onClick={() => handleMoveRank(index, 'down')}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleMoveRank(index, 'down');
+                        }}
                         className="p-2 rounded-xl bg-slate-800 hover:bg-cyan-500/20 hover:text-cyan-300 disabled:opacity-30 text-slate-300 transition"
                         title="Move Down 1 Spot"
                       >
@@ -501,6 +531,27 @@ export const RankingGame: React.FC<Props> = ({ onRecordsChanged, onNavigateToTab
           </p>
         )}
       </div>
+
+      {/* Media Detail Modal */}
+      {selectedItem && (
+        <MediaDetailModal
+          item={selectedItem}
+          isOpen={Boolean(selectedItem)}
+          onClose={() => setSelectedItem(null)}
+          onRecordChange={() => {
+            setRecords(reindexRecords(StorageService.getUserRecords()));
+            onRecordsChanged();
+          }}
+          onPersonClick={(personName) => {
+            setSelectedItem(null);
+            if (onPersonSelect) onPersonSelect(personName);
+          }}
+          onTagClick={(tag) => {
+            setSelectedItem(null);
+            if (onPersonSelect) onPersonSelect(tag);
+          }}
+        />
+      )}
     </div>
   );
 };
