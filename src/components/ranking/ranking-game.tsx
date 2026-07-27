@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { UserMediaRecord, PairwiseMatchup, getTierCategory } from '@/types/media';
 import { StorageService } from '@/lib/storage';
 import { calculateElo, selectNextMatchup, reindexRecords } from '@/lib/elo';
@@ -26,18 +26,43 @@ interface Props {
   onNavigateToTab: (tab: 'search' | 'watched' | 'watchlist' | 'ranking') => void;
 }
 
+const findOptimalTier = (recordsList: UserMediaRecord[]): 1 | 2 | 3 => {
+  const watched = recordsList.filter((r) => r.status === 'watched');
+  for (const t of [3, 2, 1] as (1 | 2 | 3)[]) {
+    const eligible = watched.filter((r) => getTierCategory(r.ratingTier) === t);
+    if (eligible.length >= 2) return t;
+  }
+  return 3;
+};
+
 export const RankingGame: React.FC<Props> = ({ onRecordsChanged, onNavigateToTab }) => {
-  const [selectedTier, setSelectedTier] = useState<1 | 2 | 3>(3); // Default to Liked Tier
   const [records, setRecords] = useState<UserMediaRecord[]>(() => {
     if (typeof window === 'undefined') return [];
     return reindexRecords(StorageService.getUserRecords());
   });
+
+  const [selectedTier, setSelectedTier] = useState<1 | 2 | 3>(() => findOptimalTier(records));
+
   const [comparedPairs, setComparedPairs] = useState<Set<string>>(() => {
     if (typeof window === 'undefined') return new Set();
     return StorageService.getComparedPairs();
   });
+
   const [matchupOverride, setMatchupOverride] = useState<PairwiseMatchup | null>(null);
   const [comparisonsCount, setComparisonsCount] = useState(0);
+
+  // Auto-switch to a tier with 2+ watched items if current selected tier is empty
+  useEffect(() => {
+    const watched = records.filter((r) => r.status === 'watched');
+    const countInCurrentTier = watched.filter((r) => getTierCategory(r.ratingTier) === selectedTier).length;
+    if (countInCurrentTier < 2) {
+      const optimal = findOptimalTier(records);
+      if (optimal !== selectedTier) {
+        const timer = setTimeout(() => setSelectedTier(optimal), 0);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [records, selectedTier]);
 
   const activeMatchup = matchupOverride || selectNextMatchup(records, selectedTier, comparedPairs);
 
@@ -90,22 +115,30 @@ export const RankingGame: React.FC<Props> = ({ onRecordsChanged, onNavigateToTab
     setMatchupOverride(selectNextMatchup(records, selectedTier, resetSet));
   };
 
-  // Manual fine-tuning up/down controls
+  // Manual fine-tuning up/down controls with tier alignment
   const handleMoveRank = (index: number, direction: 'up' | 'down') => {
     const watched = records.filter((r) => r.status === 'watched');
     const targetIdx = direction === 'up' ? index - 1 : index + 1;
 
     if (targetIdx < 0 || targetIdx >= watched.length) return;
 
-    // Swap position in list
-    const temp = watched[index];
-    watched[index] = watched[targetIdx];
-    watched[targetIdx] = temp;
+    const sourceItem = watched[index];
+    const targetItem = watched[targetIdx];
 
-    // Adjust Elo slightly to preserve relative ordering
-    const tempElo = watched[index].eloRating;
-    watched[index].eloRating = watched[targetIdx].eloRating + 5;
-    watched[targetIdx].eloRating = tempElo - 5;
+    // Align rating tiers if moving across tier boundaries
+    if (getTierCategory(sourceItem.ratingTier) !== getTierCategory(targetItem.ratingTier)) {
+      sourceItem.ratingTier = targetItem.ratingTier;
+    }
+
+    // Swap position & adjust Elo score to guarantee swap order
+    const targetElo = targetItem.eloRating;
+    const sourceElo = sourceItem.eloRating;
+
+    if (direction === 'up') {
+      sourceItem.eloRating = Math.max(targetElo + 10, sourceElo + 10);
+    } else {
+      sourceItem.eloRating = Math.min(targetElo - 10, sourceElo - 10);
+    }
 
     const reindexed = reindexRecords([...watched, ...records.filter((r) => r.status !== 'watched')]);
     StorageService.updateRecordsList(reindexed);
@@ -128,7 +161,7 @@ export const RankingGame: React.FC<Props> = ({ onRecordsChanged, onNavigateToTab
             Pairwise Ranking Game (&ldquo;A vs B&rdquo;)
           </h1>
           <p className="text-sm text-slate-300">
-            Compare two titles in the same rating tier. Fresh unrepeated head-to-head choices generate your definitive master ranked list powered by Elo scoring.
+            Compare two titles head-to-head. Pick your favorite to build your definitive master ranked list powered by Elo scoring.
           </p>
         </div>
       </div>
@@ -150,7 +183,7 @@ export const RankingGame: React.FC<Props> = ({ onRecordsChanged, onNavigateToTab
                 : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-emerald-400'
             }`}
           >
-            <ThumbsUp className="w-4 h-4" /> Liked Tier
+            <ThumbsUp className="w-4 h-4" /> Liked Tier ({watchedRecords.filter((r) => getTierCategory(r.ratingTier) === 3).length})
           </button>
 
           <button
@@ -161,7 +194,7 @@ export const RankingGame: React.FC<Props> = ({ onRecordsChanged, onNavigateToTab
                 : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-amber-400'
             }`}
           >
-            <Minus className="w-4 h-4" /> Neutral Tier
+            <Minus className="w-4 h-4" /> Neutral Tier ({watchedRecords.filter((r) => getTierCategory(r.ratingTier) === 2).length})
           </button>
 
           <button
@@ -172,7 +205,7 @@ export const RankingGame: React.FC<Props> = ({ onRecordsChanged, onNavigateToTab
                 : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-rose-400'
             }`}
           >
-            <ThumbsDown className="w-4 h-4" /> Didn&apos;t Like Tier
+            <ThumbsDown className="w-4 h-4" /> Didn&apos;t Like Tier ({watchedRecords.filter((r) => getTierCategory(r.ratingTier) === 1).length})
           </button>
         </div>
       </div>
@@ -182,7 +215,7 @@ export const RankingGame: React.FC<Props> = ({ onRecordsChanged, onNavigateToTab
         <div className="space-y-4">
           <div className="flex items-center justify-between text-xs text-slate-400 font-semibold px-2">
             <span className="flex items-center gap-1">
-              <Swords className="w-4 h-4 text-amber-400" /> Fresh Head-to-Head Matchup
+              <Swords className="w-4 h-4 text-amber-400" /> Head-to-Head Matchup
             </span>
             <span>Comparisons Completed: <strong className="text-amber-400">{comparisonsCount}</strong></span>
           </div>
@@ -201,7 +234,7 @@ export const RankingGame: React.FC<Props> = ({ onRecordsChanged, onNavigateToTab
               <div className="w-36 sm:w-40 flex-shrink-0 mx-auto sm:mx-0 rounded-2xl overflow-hidden shadow-lg border border-slate-800 bg-slate-950 aspect-[2/3]">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={getTMDBImageUrl(activeMatchup.itemA.item.posterPath, 'poster')}
+                  src={getTMDBImageUrl(activeMatchup.itemA.item.posterPath, 'poster', activeMatchup.itemA.item.title, activeMatchup.itemA.item.mediaType)}
                   alt={activeMatchup.itemA.item.title}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 />
@@ -220,7 +253,14 @@ export const RankingGame: React.FC<Props> = ({ onRecordsChanged, onNavigateToTab
                   </p>
                 </div>
 
-                <button className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 group-hover:from-cyan-400 group-hover:to-blue-500 text-slate-950 font-black text-sm flex items-center justify-center gap-2 shadow-lg transition">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleSelectWinner(activeMatchup.itemA, activeMatchup.itemB);
+                  }}
+                  className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 group-hover:from-cyan-400 group-hover:to-blue-500 text-slate-950 font-black text-sm flex items-center justify-center gap-2 shadow-lg transition"
+                >
                   <CheckCircle2 className="w-5 h-5" /> I Prefer This Title
                 </button>
               </div>
@@ -234,7 +274,7 @@ export const RankingGame: React.FC<Props> = ({ onRecordsChanged, onNavigateToTab
               <div className="w-36 sm:w-40 flex-shrink-0 mx-auto sm:mx-0 rounded-2xl overflow-hidden shadow-lg border border-slate-800 bg-slate-950 aspect-[2/3]">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={getTMDBImageUrl(activeMatchup.itemB.item.posterPath, 'poster')}
+                  src={getTMDBImageUrl(activeMatchup.itemB.item.posterPath, 'poster', activeMatchup.itemB.item.title, activeMatchup.itemB.item.mediaType)}
                   alt={activeMatchup.itemB.item.title}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 />
@@ -253,7 +293,14 @@ export const RankingGame: React.FC<Props> = ({ onRecordsChanged, onNavigateToTab
                   </p>
                 </div>
 
-                <button className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-purple-500 to-indigo-600 group-hover:from-purple-400 group-hover:to-indigo-500 text-white font-black text-sm flex items-center justify-center gap-2 shadow-lg transition">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleSelectWinner(activeMatchup.itemB, activeMatchup.itemA);
+                  }}
+                  className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-purple-500 to-indigo-600 group-hover:from-purple-400 group-hover:to-indigo-500 text-white font-black text-sm flex items-center justify-center gap-2 shadow-lg transition"
+                >
                   <CheckCircle2 className="w-5 h-5" /> I Prefer This Title
                 </button>
               </div>
@@ -275,13 +322,13 @@ export const RankingGame: React.FC<Props> = ({ onRecordsChanged, onNavigateToTab
           <Sparkles className="w-10 h-10 text-emerald-400 mx-auto" />
           <h3 className="text-lg font-bold text-slate-100">
             {tierEligibleCount < 2
-              ? 'Need at least 2 watched items in this tier to compare'
+              ? `Need at least 2 watched items in Tier ${selectedTier === 3 ? 'Liked' : selectedTier === 2 ? 'Neutral' : "Didn't Like"} to compare`
               : 'All matchups in this tier have been ranked! 🎉'}
           </h3>
           <p className="text-xs text-slate-400 max-w-md mx-auto">
             {tierEligibleCount < 2
-              ? `You currently have ${tierEligibleCount} title rated in this tier. Rate more watched items to unlock pairwise comparisons.`
-              : `You've compared every possible pair in this tier without any repeats! Re-shuffle to start a new round or add more titles.`}
+              ? `You currently have ${tierEligibleCount} title in this rating tier. Mark more titles as watched to unlock head-to-head comparisons.`
+              : `You've compared every pair in this tier! Reset tier matchups below to re-rank or add more titles.`}
           </p>
 
           <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
@@ -312,7 +359,7 @@ export const RankingGame: React.FC<Props> = ({ onRecordsChanged, onNavigateToTab
               <ListOrdered className="w-5 h-5 text-cyan-400" /> Master Ordered List & Manual Fine-Tuning
             </h2>
             <p className="text-xs text-slate-400">
-              Drag or use Up/Down controls to fine-tune your final ranking order manually.
+              Use Up/Down controls to fine-tune your final master ranking order.
             </p>
           </div>
         </div>
@@ -334,7 +381,7 @@ export const RankingGame: React.FC<Props> = ({ onRecordsChanged, onNavigateToTab
                   <div className="w-10 h-14 rounded-lg overflow-hidden bg-slate-950 flex-shrink-0 border border-slate-800">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={getTMDBImageUrl(record.item.posterPath, 'poster')}
+                      src={getTMDBImageUrl(record.item.posterPath, 'poster', record.item.title, record.item.mediaType)}
                       alt={record.item.title}
                       className="w-full h-full object-cover"
                     />
@@ -377,7 +424,7 @@ export const RankingGame: React.FC<Props> = ({ onRecordsChanged, onNavigateToTab
                     disabled={index === 0}
                     onClick={() => handleMoveRank(index, 'up')}
                     className="p-2 rounded-xl bg-slate-950 border border-slate-800 hover:border-cyan-500/50 text-slate-400 hover:text-cyan-400 disabled:opacity-30 disabled:pointer-events-none transition"
-                    title="Move Up"
+                    title="Move Up in Rank"
                   >
                     <ChevronUp className="w-4 h-4" />
                   </button>
@@ -385,7 +432,7 @@ export const RankingGame: React.FC<Props> = ({ onRecordsChanged, onNavigateToTab
                     disabled={index === watchedRecords.length - 1}
                     onClick={() => handleMoveRank(index, 'down')}
                     className="p-2 rounded-xl bg-slate-950 border border-slate-800 hover:border-cyan-500/50 text-slate-400 hover:text-cyan-400 disabled:opacity-30 disabled:pointer-events-none transition"
-                    title="Move Down"
+                    title="Move Down in Rank"
                   >
                     <ChevronDown className="w-4 h-4" />
                   </button>
