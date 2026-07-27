@@ -56,24 +56,26 @@ export function getTMDBImageUrl(
 }
 
 export function calculateFilmographyScore(item: { releaseDate?: string; castOrder?: number; voteAverage?: number }): number {
-  // 1. Recency Score (Weight ~ 45%): Newer release dates rank higher
+  const billingOrder = typeof item.castOrder === 'number' ? item.castOrder : 3;
+  const rating = item.voteAverage || 6.5;
+
+  // 1. Role Qualification: Main/Lead roles (billing <= 6) get a base score boost above cameos
+  const isMainRole = billingOrder <= 6;
+  const roleScore = isMainRole ? 30 - billingOrder * 2 : Math.max(0, 15 - billingOrder);
+
+  // 2. Popularity & Acclaim Score (Elevated Weight ~ 45% for qualified main roles)
+  const popularityScore = (rating / 10) * 45;
+
+  // 3. Recency Score (Balanced Weight ~ 35%)
   let recencyScore = 0;
   if (item.releaseDate) {
     const yr = parseInt(item.releaseDate.substring(0, 4), 10);
     if (!isNaN(yr)) {
-      recencyScore = Math.max(0, (yr - 1950) / 76) * 45;
+      recencyScore = Math.max(0, (yr - 1970) / 56) * 35;
     }
   }
 
-  // 2. Billing Presence / Role Importance (Weight ~ 35%): Lead/top cast order ranks higher
-  const billingOrder = typeof item.castOrder === 'number' ? item.castOrder : 5;
-  const presenceScore = Math.max(5, 35 - billingOrder * 5);
-
-  // 3. Popularity / Rating Score (Weight ~ 20%): Smaller factor as requested
-  const rating = item.voteAverage || 6.5;
-  const popularityScore = (rating / 10) * 20;
-
-  return recencyScore + presenceScore + popularityScore;
+  return roleScore + popularityScore + recencyScore;
 }
 
 export function getActiveTMDBApiKey(): string {
