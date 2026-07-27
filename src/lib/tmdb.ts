@@ -161,7 +161,74 @@ export async function searchTMDB(query: string, page = 1): Promise<MediaItem[]> 
       (item.originalLanguage && item.originalLanguage.toLowerCase().includes(lower))
   );
 
-  // 2. Perform TMDB Multi-search for titles (Movies & TV Shows) FIRST
+  // 2. Check if the search query is an Actor or Director name via TMDB Person API
+  try {
+    const personRes = await fetch(
+      `${TMDB_BASE_URL}/search/person?api_key=${apiKey}&query=${encodeURIComponent(query)}&page=${page}&include_adult=false`,
+      { cache: 'no-store' }
+    );
+
+    if (personRes.ok) {
+      const personData = await personRes.json();
+      const personResults = personData.results || [];
+      const matchedPerson = personResults.find(
+        (p: { name: string; popularity?: number }) =>
+          p.name.toLowerCase().includes(lower) || lower.includes(p.name.toLowerCase())
+      ) || (personResults[0] && (personResults[0].popularity || 0) > 5 ? personResults[0] : null);
+
+      if (matchedPerson && (matchedPerson.name.toLowerCase().includes(lower) || lower.includes(matchedPerson.name.toLowerCase()))) {
+        const creditsRes = await fetch(
+          `${TMDB_BASE_URL}/person/${matchedPerson.id}/combined_credits?api_key=${apiKey}`,
+          { cache: 'no-store' }
+        );
+
+        if (creditsRes.ok) {
+          const creditsData = await creditsRes.json();
+          const allCredits = [...(creditsData.cast || []), ...(creditsData.crew || [])];
+
+          const combinedMap = new Map<string, MediaItem>();
+          localMatches.forEach((itm) => combinedMap.set(`${itm.mediaType}_${itm.tmdbId}`, itm));
+
+          for (const c of allCredits) {
+            const mType: 'movie' | 'tv' = c.media_type === 'tv' ? 'tv' : 'movie';
+            const tName = c.title || c.name || c.original_title || c.original_name;
+            const key = `${mType}_${c.id}`;
+
+            if (!tName || !c.poster_path) continue;
+
+            if (!combinedMap.has(key)) {
+              combinedMap.set(key, {
+                id: c.id,
+                tmdbId: c.id,
+                title: tName,
+                mediaType: mType,
+                posterPath: `${TMDB_IMAGE_BASE}w500${c.poster_path}`,
+                backdropPath: c.backdrop_path ? `${TMDB_IMAGE_BASE}w780${c.backdrop_path}` : null,
+                releaseDate: c.release_date || c.first_air_date || '',
+                overview: c.overview || 'Feature film / TV presentation.',
+                genres: [],
+                directors: c.job === 'Director' ? [matchedPerson.name] : [],
+                cast: [{ id: matchedPerson.id, name: matchedPerson.name, character: c.character || 'Role', profilePath: matchedPerson.profile_path ? `${TMDB_IMAGE_BASE}w185${matchedPerson.profile_path}` : null }],
+                voteAverage: c.vote_average ? Math.round(c.vote_average * 10) / 10 : undefined,
+                voteCount: c.vote_count || 10,
+                originalLanguage: formatLanguageName(c.original_language),
+              });
+            }
+          }
+
+          const fullFilmography = Array.from(combinedMap.values());
+          if (fullFilmography.length > 0) {
+            fullFilmography.sort((a, b) => (b.voteCount || 0) - (a.voteCount || 0));
+            return fullFilmography;
+          }
+        }
+      }
+    }
+  } catch {
+    // continue to title search
+  }
+
+  // 3. Perform TMDB Multi-search for titles (Movies & TV Shows)
   try {
     const res = await fetch(
       `${TMDB_BASE_URL}/search/multi?api_key=${apiKey}&query=${encodeURIComponent(query)}&page=${page}&include_adult=false`,
