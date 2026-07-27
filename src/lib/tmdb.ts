@@ -189,12 +189,20 @@ export async function searchTMDB(query: string, page = 1): Promise<MediaItem[]> 
           const combinedMap = new Map<string, MediaItem>();
           localMatches.forEach((itm) => combinedMap.set(`${itm.mediaType}_${itm.tmdbId}`, itm));
 
+          const EXCLUDE_TALK_SHOW_REGEX = /jimmy fallon|tonight show|late night|saturday night live|jimmy kimmel|james corden|conan|seth meyers|graham norton|kelly clarkson|ellen|view|today show|good morning america|talk show|talkshow|awards|red carpet|ceremony|behind the scenes|making of|repackaged|unearthing|fireplace|fan edit|tribute|promo|interview/i;
+          const EXCLUDE_CHARACTER_REGEX = /^himself$|^herself$|^self$|^guest$|^presenter$|^interviewee$|^host$|^co-host$|^cameo$|^musical guest$/i;
+
           for (const c of allCredits) {
             const mType: 'movie' | 'tv' = c.media_type === 'tv' ? 'tv' : 'movie';
             const tName = c.title || c.name || c.original_title || c.original_name;
             const key = `${mType}_${c.id}`;
 
             if (!tName || !c.poster_path) continue;
+
+            // Strict Talk Show & Self Appearance Filter
+            if (EXCLUDE_TALK_SHOW_REGEX.test(tName) || (c.character && EXCLUDE_CHARACTER_REGEX.test(c.character.trim()))) {
+              continue;
+            }
 
             if (!combinedMap.has(key)) {
               combinedMap.set(key, {
@@ -216,7 +224,9 @@ export async function searchTMDB(query: string, page = 1): Promise<MediaItem[]> 
             }
           }
 
-          const fullFilmography = Array.from(combinedMap.values());
+          const fullFilmography = Array.from(combinedMap.values()).filter(
+            (item) => !EXCLUDE_TALK_SHOW_REGEX.test(item.title)
+          );
           if (fullFilmography.length > 0) {
             fullFilmography.sort((a, b) => (b.voteCount || 0) - (a.voteCount || 0));
             return fullFilmography;
