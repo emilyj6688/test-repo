@@ -258,8 +258,19 @@ export const SearchView: React.FC<Props> = ({ initialSearchQuery = '', onRecords
                 placeholder="Search by title, actor, director, genre, or language (e.g. French, Emily Blunt)..."
                 className="w-full pl-12 pr-12 py-3.5 bg-slate-950/90 border border-slate-700/80 focus:border-cyan-500 rounded-2xl text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/30 text-sm shadow-xl transition"
               />
-              {loading && (
-                <Loader2 className="absolute right-4 w-5 h-5 text-cyan-400 animate-spin" />
+              {loading ? (
+                <Loader2 className="absolute right-4 w-5 h-5 text-cyan-400 animate-spin pointer-events-none" />
+              ) : (
+                query.trim().length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => handleSearch('')}
+                    className="absolute right-4 p-1.5 rounded-full text-slate-400 hover:text-white hover:bg-slate-800 transition"
+                    title="Clear search and stop searching"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )
               )}
             </div>
 
