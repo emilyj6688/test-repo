@@ -101,13 +101,27 @@ export const SearchView: React.FC<Props> = ({ initialSearchQuery = '', onRecords
     }, 350);
   };
 
-  // Compute live autosuggest recommendations
+  // Compute live autosuggest recommendations with deterministic prefix sorting (starts-with first)
   const suggestions = useMemo(() => {
     const lower = query.toLowerCase().trim();
     if (!lower) return { titles: [], people: [], tags: [] };
 
-    // 1. Title Matches (up to 5)
-    const titleMatches = results.filter((item) => item.title.toLowerCase().includes(lower)).slice(0, 5);
+    // 1. Title Matches: Filter all catalog items and prioritize titles starting with search query
+    const matchingTitles = MOCK_MEDIA_ITEMS.filter((item) =>
+      item.title.toLowerCase().includes(lower)
+    );
+
+    matchingTitles.sort((a, b) => {
+      const aTitle = a.title.toLowerCase();
+      const bTitle = b.title.toLowerCase();
+      const aStarts = aTitle.startsWith(lower);
+      const bStarts = bTitle.startsWith(lower);
+      if (aStarts && !bStarts) return -1;
+      if (!aStarts && bStarts) return 1;
+      return aTitle.localeCompare(bTitle);
+    });
+
+    const titleMatches = matchingTitles.slice(0, 5);
 
     // 2. Person Matches (Actors / Directors up to 3)
     const personSet = new Set<string>();
@@ -119,7 +133,15 @@ export const SearchView: React.FC<Props> = ({ initialSearchQuery = '', onRecords
         if (d.toLowerCase().includes(lower)) personSet.add(d);
       });
     });
-    const peopleMatches = Array.from(personSet).slice(0, 3);
+
+    const sortedPeople = Array.from(personSet).sort((a, b) => {
+      const aStarts = a.toLowerCase().startsWith(lower);
+      const bStarts = b.toLowerCase().startsWith(lower);
+      if (aStarts && !bStarts) return -1;
+      if (!aStarts && bStarts) return 1;
+      return a.localeCompare(b);
+    });
+    const peopleMatches = sortedPeople.slice(0, 3);
 
     // 3. Category / Language / Genre Matches (up to 3)
     const tagSet = new Set<string>();
@@ -131,10 +153,18 @@ export const SearchView: React.FC<Props> = ({ initialSearchQuery = '', onRecords
         tagSet.add(item.originalLanguage);
       }
     });
-    const tagMatches = Array.from(tagSet).slice(0, 3);
+
+    const sortedTags = Array.from(tagSet).sort((a, b) => {
+      const aStarts = a.toLowerCase().startsWith(lower);
+      const bStarts = b.toLowerCase().startsWith(lower);
+      if (aStarts && !bStarts) return -1;
+      if (!aStarts && bStarts) return 1;
+      return a.localeCompare(b);
+    });
+    const tagMatches = sortedTags.slice(0, 3);
 
     return { titles: titleMatches, people: peopleMatches, tags: tagMatches };
-  }, [query, results]);
+  }, [query]);
 
   const hasSuggestions =
     suggestions.titles.length > 0 || suggestions.people.length > 0 || suggestions.tags.length > 0;
