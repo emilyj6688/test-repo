@@ -1,4 +1,4 @@
-import { UserMediaRecord, UserProfile, MediaItem, MediaStatus, RatingTier } from '@/types/media';
+import { UserMediaRecord, UserProfile, MediaItem, MediaStatus, RatingTier, SeasonStatus } from '@/types/media';
 import demoTestRecords from '@/lib/demo-test-records.json';
 
 const USERS_KEY = 'cinetrack_users_v1';
@@ -130,7 +130,8 @@ export class StorageService {
     item: MediaItem,
     status: MediaStatus,
     ratingTier: RatingTier = 2,
-    userId?: string
+    userId?: string,
+    seasonsProgress?: Record<number, SeasonStatus>
   ): UserMediaRecord {
     const activeUserId = userId || this.getCurrentUser().id;
     const records = this.getUserRecords(activeUserId);
@@ -146,6 +147,7 @@ export class StorageService {
         item,
         status,
         ratingTier: status === 'watched' ? ratingTier : records[existingIndex].ratingTier,
+        seasonsProgress: seasonsProgress !== undefined ? seasonsProgress : records[existingIndex].seasonsProgress,
         updatedAt: now,
         watchedAt: status === 'watched' ? records[existingIndex].watchedAt || now : undefined,
       };
@@ -160,6 +162,7 @@ export class StorageService {
         ratingTier: status === 'watched' ? ratingTier : 2,
         eloRating: 1000,
         rankIndex: maxRank + 1,
+        seasonsProgress,
         createdAt: now,
         updatedAt: now,
         watchedAt: status === 'watched' ? now : undefined,

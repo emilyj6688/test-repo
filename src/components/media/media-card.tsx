@@ -103,6 +103,21 @@ export const MediaCard: React.FC<Props> = ({
               {item.directors.join(', ')}
             </p>
           )}
+
+          {item.mediaType === 'tv' && record?.seasonsProgress && (
+            <div className="mt-1">
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-300 border border-purple-500/40">
+                📺 {(() => {
+                  const progress = record.seasonsProgress || {};
+                  const total = item.numberOfSeasons || 1;
+                  const watchedCount = Object.values(progress).filter((s) => s === 'watched').length;
+                  const inProg = Object.values(progress).filter((s) => s === 'in_progress').length;
+                  if (inProg > 0) return `${watchedCount}/${total} Watched • ${inProg} In Progress`;
+                  return `${watchedCount}/${total} Seasons Watched`;
+                })()}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Tracking Actions / Rating Slider */}

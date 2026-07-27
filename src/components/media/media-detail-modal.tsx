@@ -1,12 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { MediaItem, RatingTier } from '@/types/media';
+import { MediaItem, RatingTier, SeasonStatus } from '@/types/media';
 import { getTMDBDetails, getTMDBImageUrl } from '@/lib/tmdb';
 import { StorageService } from '@/lib/storage';
 import { RatingSlider } from '@/components/media/rating-slider';
 import { getContentRatingStyle } from '@/components/media/media-card';
-import { X, Calendar, Star, CheckCircle, Bookmark, Trash2, User, Clock, Tag, Search, Clapperboard } from 'lucide-react';
+import { X, Calendar, Star, CheckCircle, Bookmark, Trash2, User, Clock, Tag, Search, Clapperboard, CheckSquare, Square, PlayCircle, CheckCircle2 } from 'lucide-react';
 
 interface Props {
   item: MediaItem | null;
@@ -76,6 +76,61 @@ export const MediaDetailModal: React.FC<Props> = ({ item, isOpen, onClose, onRec
       onPersonClick(tagValue);
     }
     onClose();
+  };
+
+  const handleSeasonStatusChange = (seasonNum: number, newStatus: SeasonStatus) => {
+    const currentProgress = { ...(userRecord?.seasonsProgress || {}) };
+    currentProgress[seasonNum] = newStatus;
+
+    let newOverallStatus = userRecord?.status || 'watched';
+    const watchedCount = Object.values(currentProgress).filter((st) => st === 'watched').length;
+    const inProgressCount = Object.values(currentProgress).filter((st) => st === 'in_progress').length;
+
+    if (watchedCount > 0 || inProgressCount > 0) {
+      newOverallStatus = 'watched';
+    }
+
+    StorageService.saveRecord(
+      currentDetails,
+      newOverallStatus,
+      userRecord?.ratingTier || 1.0,
+      undefined,
+      currentProgress
+    );
+
+    setRecordRevision((prev) => prev + 1);
+    if (onRecordChange) onRecordChange();
+  };
+
+  const handleSelectAllSeasons = () => {
+    const totalSeasons = currentDetails.numberOfSeasons || 1;
+    const currentProgress = { ...(userRecord?.seasonsProgress || {}) };
+
+    let allWatched = true;
+    for (let s = 1; s <= totalSeasons; s++) {
+      if (currentProgress[s] !== 'watched') {
+        allWatched = false;
+        break;
+      }
+    }
+
+    const updatedProgress: Record<number, SeasonStatus> = {};
+    for (let s = 1; s <= totalSeasons; s++) {
+      updatedProgress[s] = allWatched ? 'unwatched' : 'watched';
+    }
+
+    const newStatus = allWatched ? 'want_to_watch' : 'watched';
+
+    StorageService.saveRecord(
+      currentDetails,
+      newStatus,
+      userRecord?.ratingTier || 1.0,
+      undefined,
+      updatedProgress
+    );
+
+    setRecordRevision((prev) => prev + 1);
+    if (onRecordChange) onRecordChange();
   };
 
   return (
@@ -239,25 +294,104 @@ export const MediaDetailModal: React.FC<Props> = ({ item, isOpen, onClose, onRec
                   </p>
                 </div>
 
-                {/* TV Series Seasons & Episodes Info Card */}
+                {/* TV Series Season Progress & Select All Tracker */}
                 {currentDetails.mediaType === 'tv' && (
-                  <div className="bg-slate-950/80 border border-purple-500/40 p-4 rounded-2xl flex items-center justify-between shadow-lg">
-                    <div className="flex items-center gap-3.5">
-                      <div className="w-11 h-11 rounded-xl bg-purple-500/20 border border-purple-500/40 flex items-center justify-center text-xl text-purple-300 shadow-inner">
-                        📺
+                  <div className="bg-slate-950/80 border border-purple-500/40 p-5 rounded-2xl space-y-4 shadow-lg">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-purple-500/20 border border-purple-500/40 flex items-center justify-center text-lg text-purple-300 shadow-inner">
+                          📺
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-extrabold text-white">
+                            Season Progress Tracker ({currentDetails.numberOfSeasons || 1} {(currentDetails.numberOfSeasons || 1) === 1 ? 'Season' : 'Seasons'})
+                          </h4>
+                          <p className="text-xs text-purple-300/80">
+                            Select individual seasons or mark seasons as In Progress
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm font-extrabold text-white flex items-center gap-2">
-                          {currentDetails.numberOfSeasons || 1} {currentDetails.numberOfSeasons === 1 ? 'Season' : 'Seasons'}
-                        </p>
-                        <p className="text-xs text-purple-300/90 font-medium">
-                          {currentDetails.numberOfEpisodes ? `${currentDetails.numberOfEpisodes} Total Episodes` : 'Multi-Season Television Series'}
-                        </p>
-                      </div>
+
+                      {/* Select All Toggle Button */}
+                      <button
+                        type="button"
+                        onClick={handleSelectAllSeasons}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/50 text-purple-300 font-bold text-xs shadow-sm transition"
+                      >
+                        <CheckSquare className="w-4 h-4 text-purple-400" />
+                        {(() => {
+                          const total = currentDetails.numberOfSeasons || 1;
+                          const progress = userRecord?.seasonsProgress || {};
+                          let allW = true;
+                          for (let s = 1; s <= total; s++) {
+                            if (progress[s] !== 'watched') {
+                              allW = false;
+                              break;
+                            }
+                          }
+                          return allW ? 'Deselect All Seasons' : 'Select All Seasons';
+                        })()}
+                      </button>
                     </div>
-                    <span className="px-3 py-1 rounded-xl bg-purple-500/20 text-purple-300 text-xs font-bold border border-purple-500/40 shadow-sm">
-                      TV Series
-                    </span>
+
+                    {/* Season Grid / List */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2">
+                      {Array.from({ length: Math.min(currentDetails.numberOfSeasons || 1, 30) }, (_, i) => i + 1).map((seasonNum) => {
+                        const currentSeasonStatus: SeasonStatus = userRecord?.seasonsProgress?.[seasonNum] || 'unwatched';
+
+                        return (
+                          <div
+                            key={seasonNum}
+                            className={`flex items-center justify-between p-3 rounded-xl border transition ${
+                              currentSeasonStatus === 'watched'
+                                ? 'bg-emerald-950/40 border-emerald-500/60 text-emerald-300'
+                                : currentSeasonStatus === 'in_progress'
+                                ? 'bg-amber-950/40 border-amber-500/60 text-amber-300'
+                                : 'bg-slate-900 border-slate-800 text-slate-400'
+                            }`}
+                          >
+                            <span className="text-xs font-bold flex items-center gap-2">
+                              {currentSeasonStatus === 'watched' ? (
+                                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                              ) : currentSeasonStatus === 'in_progress' ? (
+                                <PlayCircle className="w-4 h-4 text-amber-400 animate-pulse" />
+                              ) : (
+                                <Square className="w-4 h-4 text-slate-500" />
+                              )}
+                              Season {seasonNum}
+                            </span>
+
+                            {/* 3-State Action Selector (Watched / In Progress / Unwatched) */}
+                            <div className="flex items-center gap-1 bg-slate-950/80 p-1 rounded-lg border border-slate-800 text-[10px] font-bold">
+                              <button
+                                type="button"
+                                onClick={() => handleSeasonStatusChange(seasonNum, currentSeasonStatus === 'watched' ? 'unwatched' : 'watched')}
+                                className={`px-2 py-1 rounded-md transition ${
+                                  currentSeasonStatus === 'watched'
+                                    ? 'bg-emerald-500 text-slate-950 font-extrabold'
+                                    : 'text-slate-400 hover:text-slate-200'
+                                }`}
+                                title="Mark Season as Watched"
+                              >
+                                Watched
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleSeasonStatusChange(seasonNum, currentSeasonStatus === 'in_progress' ? 'unwatched' : 'in_progress')}
+                                className={`px-2 py-1 rounded-md transition ${
+                                  currentSeasonStatus === 'in_progress'
+                                    ? 'bg-amber-500 text-slate-950 font-extrabold'
+                                    : 'text-slate-400 hover:text-slate-200'
+                                }`}
+                                title="Mark Season as In Progress"
+                              >
+                                In Progress
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
 

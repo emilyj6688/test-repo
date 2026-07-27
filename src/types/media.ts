@@ -42,6 +42,8 @@ export interface MediaItem {
 
 export type MediaStatus = 'watched' | 'want_to_watch';
 
+export type SeasonStatus = 'watched' | 'in_progress' | 'unwatched';
+
 export interface UserMediaRecord {
   id: string; // `${mediaType}_${tmdbId}`
   userId: string;
@@ -50,6 +52,7 @@ export interface UserMediaRecord {
   ratingTier: RatingTier; // Continuous 0.0 - 2.0 score
   eloRating: number; // Elo score used for pairwise sorting (default 1000)
   rankIndex: number; // Manual fine-tuned ordering index
+  seasonsProgress?: Record<number, SeasonStatus>; // Season number -> 'watched' | 'in_progress' | 'unwatched'
   watchedAt?: string;
   createdAt: string;
   updatedAt: string;
