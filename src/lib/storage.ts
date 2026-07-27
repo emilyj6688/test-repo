@@ -76,10 +76,12 @@ export class StorageService {
       const raw = localStorage.getItem(key);
       if (!raw) return [];
       const records: UserMediaRecord[] = JSON.parse(raw);
-      // Sort watched items by rankIndex (1 at top) then Elo
+      // Sort watched items safely by rankIndex then Elo
       return records.sort((a, b) => {
-        if (a.rankIndex !== b.rankIndex) return a.rankIndex - b.rankIndex;
-        return b.eloRating - a.eloRating;
+        const rankA = typeof a.rankIndex === 'number' ? a.rankIndex : Number.MAX_SAFE_INTEGER;
+        const rankB = typeof b.rankIndex === 'number' ? b.rankIndex : Number.MAX_SAFE_INTEGER;
+        if (rankA !== rankB) return rankA - rankB;
+        return (b.eloRating || 1000) - (a.eloRating || 1000);
       });
     } catch {
       return [];
