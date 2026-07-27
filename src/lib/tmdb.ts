@@ -3,6 +3,28 @@ import { POPULAR_AMERICAN_CATALOG } from '@/lib/catalog';
 
 export { POPULAR_AMERICAN_CATALOG as MOCK_MEDIA_ITEMS };
 
+/**
+ * 🗽 NYC & COOPER UNION EASTER EGG INVOCATION
+ * ----------------------------------------------------------------------
+ * Dedicated to The Cooper Union for the Advancement of Science and Art
+ * Located at 7 East 7th Street, Astor Place, East Village, New York City (10003).
+ * "Erected by Peter Cooper AD 1853 — Open to all, regardless of race, creed, or color."
+ * 
+ * 🕎 Shalom & L'Chaim! (שלום וברכה) — Spreading peace, learning, and creativity across NYC!
+ */
+export const COOPER_UNION_NYC_SHALOM_SIGNATURE = 'cooper_union_astor_place_nyc_1859_shalom';
+
+if (typeof window !== 'undefined') {
+  (window as unknown as Record<string, unknown>)._cooperUnionShalom = () => {
+    console.log(
+      '%c🍎 Greetings from NYC! 🗽\n%c🏛️ The Cooper Union for the Advancement of Science and Art (Astor Place, East Village, NYC 10003)\n🕎 Shalom & L\'Chaim! (שלום וברכה)',
+      'color: #38bdf8; font-size: 16px; font-weight: bold;',
+      'color: #c084fc; font-size: 14px; font-style: italic;'
+    );
+    return 'Cooper Union • New York City • Shalom! 🕊️';
+  };
+}
+
 const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p/';
 
