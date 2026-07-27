@@ -320,6 +320,8 @@ export async function getTMDBDetails(id: number, mediaType: 'movie' | 'tv'): Pro
       tagline: data.tagline || localFound?.tagline,
       runtime: data.runtime || (data.episode_run_time && data.episode_run_time[0]) || localFound?.runtime,
       contentRating: localFound?.contentRating,
+      numberOfSeasons: data.number_of_seasons || localFound?.numberOfSeasons || (mediaType === 'tv' ? 1 : undefined),
+      numberOfEpisodes: data.number_of_episodes || localFound?.numberOfEpisodes || undefined,
     };
   } catch {
     if (localFound) return localFound;

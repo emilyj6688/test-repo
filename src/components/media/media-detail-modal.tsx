@@ -144,6 +144,12 @@ export const MediaDetailModal: React.FC<Props> = ({ item, isOpen, onClose, onRec
                         <Clock className="w-3.5 h-3.5" /> {currentDetails.runtime} min
                       </span>
                     )}
+                    {currentDetails.mediaType === 'tv' && (
+                      <span className="flex items-center gap-1 text-xs text-purple-300 font-semibold bg-purple-500/20 px-2.5 py-0.5 rounded-md border border-purple-500/40">
+                        📺 {currentDetails.numberOfSeasons || 1} {currentDetails.numberOfSeasons === 1 ? 'Season' : 'Seasons'}
+                        {currentDetails.numberOfEpisodes ? ` (${currentDetails.numberOfEpisodes} Ep)` : ''}
+                      </span>
+                    )}
                     {currentDetails.voteAverage && (
                       <span className="flex items-center gap-1 text-xs text-amber-400 font-semibold bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/30">
                         <Star className="w-3.5 h-3.5 fill-amber-400" /> {currentDetails.voteAverage}/10
@@ -222,6 +228,28 @@ export const MediaDetailModal: React.FC<Props> = ({ item, isOpen, onClose, onRec
                     {currentDetails.overview}
                   </p>
                 </div>
+
+                {/* TV Series Seasons & Episodes Info Card */}
+                {currentDetails.mediaType === 'tv' && (
+                  <div className="bg-slate-950/80 border border-purple-500/40 p-4 rounded-2xl flex items-center justify-between shadow-lg">
+                    <div className="flex items-center gap-3.5">
+                      <div className="w-11 h-11 rounded-xl bg-purple-500/20 border border-purple-500/40 flex items-center justify-center text-xl text-purple-300 shadow-inner">
+                        📺
+                      </div>
+                      <div>
+                        <p className="text-sm font-extrabold text-white flex items-center gap-2">
+                          {currentDetails.numberOfSeasons || 1} {currentDetails.numberOfSeasons === 1 ? 'Season' : 'Seasons'}
+                        </p>
+                        <p className="text-xs text-purple-300/90 font-medium">
+                          {currentDetails.numberOfEpisodes ? `${currentDetails.numberOfEpisodes} Total Episodes` : 'Multi-Season Television Series'}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="px-3 py-1 rounded-xl bg-purple-500/20 text-purple-300 text-xs font-bold border border-purple-500/40 shadow-sm">
+                      TV Series
+                    </span>
+                  </div>
+                )}
 
                 {/* Clickable Genre Tags */}
                 {currentDetails.genres && currentDetails.genres.length > 0 && (
