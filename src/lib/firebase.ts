@@ -2,8 +2,13 @@ import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth, Auth, GoogleAuthProvider } from 'firebase/auth';
 import { getFirestore, Firestore } from 'firebase/firestore';
 
+const rawKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY || 'demo-key';
+const apiKey = rawKey.startsWith('b64:')
+  ? (typeof window !== 'undefined' ? atob(rawKey.slice(4)) : Buffer.from(rawKey.slice(4), 'base64').toString('utf-8'))
+  : rawKey;
+
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || 'demo-key',
+  apiKey,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || 'demo-project.firebaseapp.com',
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'demo-project',
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 'demo-project.appspot.com',
@@ -24,10 +29,10 @@ export const db: Firestore = getFirestore(app);
 export const googleProvider = new GoogleAuthProvider();
 
 export const isFirebaseConfigured = Boolean(
-  process.env.NEXT_PUBLIC_FIREBASE_API_KEY &&
+  apiKey &&
   process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID &&
-  process.env.NEXT_PUBLIC_FIREBASE_API_KEY !== 'demo-key' &&
-  !process.env.NEXT_PUBLIC_FIREBASE_API_KEY.includes('YourApiKeyHere')
+  apiKey !== 'demo-key' &&
+  !apiKey.includes('YourApiKeyHere')
 );
 
 export default app;
