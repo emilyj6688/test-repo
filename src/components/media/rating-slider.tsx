@@ -102,7 +102,7 @@ export const RatingSlider: React.FC<Props> = ({ value, onChange, compact = false
               tierCategory === 1 ? 'text-rose-400 font-black scale-105' : 'hover:text-slate-200'
             }`}
           >
-            <ThumbsDown className="w-3 h-3" /> Didn&apos;t Like (1-3)
+            <ThumbsDown className="w-3 h-3" /> Didn&apos;t Like
           </button>
 
           <button
@@ -112,7 +112,7 @@ export const RatingSlider: React.FC<Props> = ({ value, onChange, compact = false
               tierCategory === 2 ? 'text-amber-400 font-black scale-105' : 'hover:text-slate-200'
             }`}
           >
-            <Minus className="w-3 h-3" /> Neutral (4-6)
+            <Minus className="w-3 h-3" /> Neutral
           </button>
 
           <button
@@ -122,7 +122,7 @@ export const RatingSlider: React.FC<Props> = ({ value, onChange, compact = false
               tierCategory === 3 ? 'text-emerald-400 font-black scale-105' : 'hover:text-slate-200'
             }`}
           >
-            <ThumbsUp className="w-3 h-3" /> Liked (7-10)
+            <ThumbsUp className="w-3 h-3" /> Liked
           </button>
         </div>
       </div>
