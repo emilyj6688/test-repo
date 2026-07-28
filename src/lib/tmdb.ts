@@ -145,7 +145,7 @@ export function isTMDBConfigured(): boolean {
   return Boolean(getActiveTMDBApiKey());
 }
 
-export async function searchTMDB(query: string, page = 1): Promise<MediaItem[]> {
+export async function searchTMDB(query: string, page = 1, langCode = 'en-US'): Promise<MediaItem[]> {
   if (!query.trim()) return POPULAR_AMERICAN_CATALOG;
 
   const lower = query.toLowerCase().trim();
@@ -164,7 +164,7 @@ export async function searchTMDB(query: string, page = 1): Promise<MediaItem[]> 
   // 2. Perform TMDB Multi-search for titles (Movies & TV Shows) FIRST
   try {
     const res = await fetch(
-      `${TMDB_BASE_URL}/search/multi?api_key=${apiKey}&query=${encodeURIComponent(query)}&page=${page}&include_adult=false`,
+      `${TMDB_BASE_URL}/search/multi?api_key=${apiKey}&query=${encodeURIComponent(query)}&page=${page}&language=${langCode}&include_adult=false`,
       { cache: 'no-store' }
     );
 

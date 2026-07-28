@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState, useRef, useMemo, useEffect } from 'react';
+import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import { MediaItem, UserMediaRecord, MediaType, CastMember } from '@/types/media';
 import { searchTMDB, MOCK_MEDIA_ITEMS, getTMDBImageUrl } from '@/lib/tmdb';
 import { StorageService } from '@/lib/storage';
+import { useLanguage } from '@/context/language-context';
 import { MediaCard } from '@/components/media/media-card';
 import { MediaDetailModal } from '@/components/media/media-detail-modal';
 import { Search, Loader2, Film, Tv, Sparkles, Tag, X, User, Globe, ChevronRight } from 'lucide-react';
@@ -17,6 +18,7 @@ interface Props {
 const PAGE_SIZE = 24;
 
 export const SearchView: React.FC<Props> = ({ initialSearchQuery = '', onRecordsChanged }) => {
+  const { currentLanguage } = useLanguage();
   const [query, setQuery] = useState(initialSearchQuery);
   const [results, setResults] = useState<MediaItem[]>(MOCK_MEDIA_ITEMS);
   const [loading, setLoading] = useState(false);
@@ -38,6 +40,92 @@ export const SearchView: React.FC<Props> = ({ initialSearchQuery = '', onRecords
 
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  const refreshUserRecords = () => {
+    const records = StorageService.getUserRecords();
+    const map = new Map<string, UserMediaRecord>();
+    records.forEach((r) => map.set(r.id, r));
+    setUserRecordsMap(map);
+  };
+
+  const handleSearch = useCallback(
+    (searchTerm: string) => {
+      setQuery(searchTerm);
+      setVisibleCount(PAGE_SIZE);
+
+      const lower = searchTerm.toLowerCase().trim();
+
+      if (!lower) {
+        setResults(MOCK_MEDIA_ITEMS);
+        setLoading(false);
+        setShowSuggestions(false);
+        return;
+      }
+
+      setShowSuggestions(true);
+
+      // Instant local filter across title, genres, directors, cast, language
+      const instantLocalMatches = MOCK_MEDIA_ITEMS.filter(
+        (item) =>
+          item.title.toLowerCase().includes(lower) ||
+          (item.genres && item.genres.some((g: string) => g.toLowerCase().includes(lower))) ||
+          (item.directors && item.directors.some((d: string) => d.toLowerCase().includes(lower))) ||
+          (item.cast && item.cast.some((c: CastMember) => c.name.toLowerCase().includes(lower))) ||
+          (item.originalLanguage && item.originalLanguage.toLowerCase().includes(lower))
+      );
+
+      // Sort tag matches by: 1. Language match, 2. Popularity, 3. Recentness
+      instantLocalMatches.sort((a, b) => {
+        const langA = (a.originalLanguage || '').toLowerCase().includes(currentLanguage.name.toLowerCase()) ? 1 : 0;
+        const langB = (b.originalLanguage || '').toLowerCase().includes(currentLanguage.name.toLowerCase()) ? 1 : 0;
+        if (langA !== langB) return langB - langA;
+
+        const popA = (a.voteCount || 0) * (a.voteAverage || 5);
+        const popB = (b.voteCount || 0) * (b.voteAverage || 5);
+        if (Math.abs(popA - popB) > 500) return popB - popA;
+
+        const yrA = parseInt(a.releaseDate?.substring(0, 4) || '0', 10);
+        const yrB = parseInt(b.releaseDate?.substring(0, 4) || '0', 10);
+        return yrB - yrA;
+      });
+
+      setResults(instantLocalMatches);
+
+      // Asynchronous TMDB lookup for items outside local list
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+
+      setLoading(true);
+      debounceTimerRef.current = setTimeout(async () => {
+        try {
+          const fetched = await searchTMDB(searchTerm, 1, currentLanguage.code);
+          setResults(fetched);
+        } catch {
+          // keep local results on error
+        } finally {
+          setLoading(false);
+        }
+      }, 350);
+    },
+    [currentLanguage]
+  );
+
+  const isFirstRenderRef = useRef(true);
+
+  // Re-run search when currentLanguage changes
+  useEffect(() => {
+    if (isFirstRenderRef.current) {
+      isFirstRenderRef.current = false;
+      return;
+    }
+    if (query.trim()) {
+      const timer = setTimeout(() => {
+        handleSearch(query);
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+  }, [currentLanguage]);
+
   // Close autosuggest when clicking outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -48,58 +136,6 @@ export const SearchView: React.FC<Props> = ({ initialSearchQuery = '', onRecords
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-
-  const refreshUserRecords = () => {
-    const records = StorageService.getUserRecords();
-    const map = new Map<string, UserMediaRecord>();
-    records.forEach((r) => map.set(r.id, r));
-    setUserRecordsMap(map);
-  };
-
-  const handleSearch = (searchTerm: string) => {
-    setQuery(searchTerm);
-    setVisibleCount(PAGE_SIZE);
-
-    const lower = searchTerm.toLowerCase().trim();
-
-    if (!lower) {
-      setResults(MOCK_MEDIA_ITEMS);
-      setLoading(false);
-      setShowSuggestions(false);
-      return;
-    }
-
-    setShowSuggestions(true);
-
-    // Instant local filter across title, genres, directors, cast, language
-    const instantLocalMatches = MOCK_MEDIA_ITEMS.filter(
-      (item) =>
-        item.title.toLowerCase().includes(lower) ||
-        (item.genres && item.genres.some((g: string) => g.toLowerCase().includes(lower))) ||
-        (item.directors && item.directors.some((d: string) => d.toLowerCase().includes(lower))) ||
-        (item.cast && item.cast.some((c: CastMember) => c.name.toLowerCase().includes(lower))) ||
-        (item.originalLanguage && item.originalLanguage.toLowerCase().includes(lower))
-    );
-
-    setResults(instantLocalMatches);
-
-    // Asynchronous TMDB lookup for items outside local list
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
-
-    setLoading(true);
-    debounceTimerRef.current = setTimeout(async () => {
-      try {
-        const fetched = await searchTMDB(searchTerm);
-        setResults(fetched);
-      } catch {
-        // keep local results on error
-      } finally {
-        setLoading(false);
-      }
-    }, 350);
-  };
 
   // Compute live autosuggest recommendations with deterministic prefix sorting (starts-with first)
   const suggestions = useMemo(() => {

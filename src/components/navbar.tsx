@@ -7,6 +7,7 @@ import { isTMDBConfigured } from '@/lib/tmdb';
 import { UserProfileModal } from '@/components/auth/user-profile-modal';
 import { AuthModal } from '@/components/auth/auth-modal';
 import { useAuth } from '@/context/auth-context';
+import { LanguageSelector } from '@/components/language-selector';
 import { Search, Film, BookmarkCheck, Trophy, Sparkles, User, Database, LogIn, LogOut, Cloud, ShieldCheck } from 'lucide-react';
 
 export type ActiveTab = 'search' | 'watched' | 'watchlist' | 'ranking';
@@ -103,6 +104,9 @@ export const Navbar: React.FC<Props> = ({ activeTab, onTabChange, watchedCount, 
 
           {/* Right Actions: TMDB Badge & Cloud Auth Profile */}
           <div className="flex items-center gap-3">
+            {/* Global Language Selector */}
+            <LanguageSelector />
+
             {/* TMDB API Status */}
             <div
               className={`hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-mono ${
