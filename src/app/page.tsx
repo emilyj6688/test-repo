@@ -121,10 +121,22 @@ export default function Home() {
       {/* Footer */}
       <footer className="border-t border-slate-800/80 py-8 bg-slate-950/80 mt-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Sparkles className="w-4 h-4 text-cyan-400" />
             <span className="font-bold text-slate-300">CineRank Premium</span>
-            <span>— Media Tracking & Pairwise Ranking Engine</span>
+            <span className="hidden sm:inline">— Media Tracking &amp; Pairwise Ranking Engine</span>
+            
+            {/* Version Counter Badge */}
+            <div
+              className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-cyan-950/60 border border-cyan-500/30 text-[10px] font-mono font-bold text-cyan-400 shadow-sm ml-1"
+              title="Current Build: Version 0.1.0 Alpha"
+            >
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500"></span>
+              </span>
+              <span>v0.1.0-alpha</span>
+            </div>
           </div>
 
           <div className="flex items-center gap-4 text-slate-400 font-medium">
