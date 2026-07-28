@@ -6,6 +6,7 @@ import { SearchView } from '@/components/search/search-view';
 import { WatchedWatchlistView } from '@/components/media/watched-watchlist-view';
 import { RankingGame } from '@/components/ranking/ranking-game';
 import { TelemetryDrawer } from '@/components/telemetry-drawer';
+import { ShareRankingModal } from '@/components/media/share-ranking-modal';
 import { StorageService } from '@/lib/storage';
 import { Sparkles, Terminal, Download, Trash2, CheckCircle2 } from 'lucide-react';
 
@@ -14,6 +15,7 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showDevMode, setShowDevMode] = useState(false);
   const [isTelemetryOpen, setIsTelemetryOpen] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const [watchedCount, setWatchedCount] = useState(() => {
@@ -38,6 +40,10 @@ export default function Home() {
       const rawHash = window.location.hash.replace(/^#/, '');
 
       if (!rawHash) return;
+
+      if (rawHash.includes('share')) {
+        setIsShareModalOpen(true);
+      }
 
       if (rawHash.startsWith('watched')) {
         setActiveTab('watched');
@@ -120,6 +126,7 @@ export default function Home() {
         watchedCount={watchedCount}
         watchlistCount={watchlistCount}
         onOpenTelemetry={() => setIsTelemetryOpen(true)}
+        onOpenShareRanking={() => setIsShareModalOpen(true)}
       />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -237,6 +244,9 @@ export default function Home() {
 
       {/* Real-Time Telemetry & Diagnostic Logger Drawer */}
       <TelemetryDrawer isOpen={isTelemetryOpen} onClose={() => setIsTelemetryOpen(false)} />
+
+      {/* Share Ranking Modal */}
+      <ShareRankingModal isOpen={isShareModalOpen} onClose={() => setIsShareModalOpen(false)} />
     </div>
   );
 }

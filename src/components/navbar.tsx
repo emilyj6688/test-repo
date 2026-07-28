@@ -8,7 +8,7 @@ import { AuthModal } from '@/components/auth/auth-modal';
 import { useAuth } from '@/context/auth-context';
 import { useLanguage } from '@/context/language-context';
 import { LanguageSelector } from '@/components/language-selector';
-import { Search, Film, BookmarkCheck, Trophy, Sparkles, User, LogIn, LogOut, Cloud, ShieldCheck, Activity } from 'lucide-react';
+import { Search, Film, BookmarkCheck, Trophy, Sparkles, User, LogIn, LogOut, Cloud, ShieldCheck, Activity, Share2 } from 'lucide-react';
 
 export type ActiveTab = 'search' | 'watched' | 'watchlist' | 'ranking';
 
@@ -18,9 +18,10 @@ interface Props {
   watchedCount: number;
   watchlistCount: number;
   onOpenTelemetry?: () => void;
+  onOpenShareRanking?: () => void;
 }
 
-export const Navbar: React.FC<Props> = ({ activeTab, onTabChange, watchedCount, watchlistCount, onOpenTelemetry }) => {
+export const Navbar: React.FC<Props> = ({ activeTab, onTabChange, watchedCount, watchlistCount, onOpenTelemetry, onOpenShareRanking }) => {
   const [currentUser, setCurrentUser] = useState<UserProfile>(() => StorageService.getCurrentUser());
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -107,6 +108,18 @@ export const Navbar: React.FC<Props> = ({ activeTab, onTabChange, watchedCount, 
           <div className="flex items-center gap-3">
             {/* Global Language Selector */}
             <LanguageSelector />
+
+            {/* Share Ranking Button */}
+            {onOpenShareRanking && (
+              <button
+                onClick={onOpenShareRanking}
+                className="px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 text-amber-300 font-bold text-xs flex items-center gap-1.5 transition shadow-sm"
+                title="Share Your Movie Ranking"
+              >
+                <Share2 className="w-3.5 h-3.5" />
+                <span className="hidden md:inline">Share Ranking</span>
+              </button>
+            )}
 
             {/* Telemetry Diagnostics Button */}
             <button
