@@ -3,10 +3,10 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 
 export interface AppLanguage {
-  code: string;       // e.g. 'en-US', 'es-ES', 'fr-FR'
-  isoCode: string;    // e.g. 'en', 'es', 'fr'
-  name: string;       // e.g. 'English', 'Español'
-  flag: string;       // e.g. '🇺🇸', '🇪🇸'
+  code: string;       // e.g. 'en-US', 'es-ES', 'fr-FR', 'he-IL'
+  isoCode: string;    // e.g. 'en', 'es', 'fr', 'he'
+  name: string;       // e.g. 'English', 'Español', 'עברית (Hebrew)'
+  flag: string;       // e.g. '🇺🇸', '🇪🇸', '🇵🇹', '🇮🇱'
 }
 
 export const SUPPORTED_LANGUAGES: AppLanguage[] = [
@@ -15,11 +15,16 @@ export const SUPPORTED_LANGUAGES: AppLanguage[] = [
   { code: 'fr-FR', isoCode: 'fr', name: 'Français', flag: '🇫🇷' },
   { code: 'de-DE', isoCode: 'de', name: 'Deutsch', flag: '🇩🇪' },
   { code: 'it-IT', isoCode: 'it', name: 'Italiano', flag: '🇮🇹' },
+  { code: 'pt-PT', isoCode: 'pt', name: 'Português', flag: '🇵🇹' },
+  { code: 'he-IL', isoCode: 'he', name: 'עברית (Hebrew)', flag: '🇮🇱' },
   { code: 'ja-JP', isoCode: 'ja', name: '日本語', flag: '🇯🇵' },
   { code: 'ko-KR', isoCode: 'ko', name: '한국어', flag: '🇰🇷' },
   { code: 'zh-CN', isoCode: 'zh', name: '中文', flag: '🇨🇳' },
-  { code: 'pt-BR', isoCode: 'pt', name: 'Português', flag: '🇧🇷' },
   { code: 'ru-RU', isoCode: 'ru', name: 'Русский', flag: '🇷🇺' },
+  { code: 'nl-NL', isoCode: 'nl', name: 'Nederlands', flag: '🇳🇱' },
+  { code: 'sv-SE', isoCode: 'sv', name: 'Svenska', flag: '🇸🇪' },
+  { code: 'tr-TR', isoCode: 'tr', name: 'Türkçe', flag: '🇹🇷' },
+  { code: 'hi-IN', isoCode: 'hi', name: 'हिन्दी', flag: '🇮🇳' },
 ];
 
 interface LanguageContextType {
