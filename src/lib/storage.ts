@@ -9,9 +9,7 @@ const MEDIA_RECORDS_PREFIX = 'cinetrack_records_v1_';
 const COMPARED_PAIRS_PREFIX = 'cinetrack_compared_v1_';
 
 const DEFAULT_USERS: UserProfile[] = [
-  { id: 'user_test_critic', name: 'Film Critic Pro (200 Watched)', avatarUrl: '🎬', createdAt: new Date().toISOString() },
-  { id: 'user_default', name: 'Demo Movie Buff', avatarUrl: '🍿', createdAt: new Date().toISOString() },
-  { id: 'user_alex', name: 'Alex', avatarUrl: '🎥', createdAt: new Date().toISOString() },
+  { id: 'user_default', name: 'My Media List', avatarUrl: '🍿', createdAt: new Date().toISOString() },
 ];
 
 export class StorageService {
@@ -25,19 +23,7 @@ export class StorageService {
         return DEFAULT_USERS;
       }
       const stored: UserProfile[] = JSON.parse(data);
-      const existingIds = new Set(stored.map((u) => u.id));
-      let updated = false;
-
-      DEFAULT_USERS.forEach((defUser) => {
-        if (!existingIds.has(defUser.id)) {
-          stored.unshift(defUser);
-          updated = true;
-        }
-      });
-
-      if (updated) {
-        localStorage.setItem(USERS_KEY, JSON.stringify(stored));
-      }
+      if (stored.length === 0) return DEFAULT_USERS;
       return stored;
     } catch {
       return DEFAULT_USERS;
@@ -108,18 +94,12 @@ export class StorageService {
       const activeId = userId || this.getCurrentUser().id;
       const key = `${MEDIA_RECORDS_PREFIX}${activeId}`;
       const raw = localStorage.getItem(key);
-      let records: UserMediaRecord[] = [];
 
       if (!raw) {
-        if (activeId === 'user_test_critic' || activeId === 'user_default') {
-          records = demoTestRecords as unknown as UserMediaRecord[];
-          localStorage.setItem(key, JSON.stringify(records));
-        } else {
-          return [];
-        }
-      } else {
-        records = JSON.parse(raw);
+        // All new accounts and default visitors start with a clean 0-item slate
+        return [];
       }
+      const records: UserMediaRecord[] = JSON.parse(raw);
 
       // Sort watched items safely by rankIndex then Elo
       return records.sort((a, b) => {
@@ -130,6 +110,30 @@ export class StorageService {
       });
     } catch {
       return [];
+    }
+  }
+
+  // Developer / Demo Mode Helper: Load 200 sample critic movies on demand
+  public static loadDemoCriticRecords(userId?: string): UserMediaRecord[] {
+    const activeUserId = userId || this.getCurrentUser().id;
+    const sampleRecords = demoTestRecords as unknown as UserMediaRecord[];
+    const updated = sampleRecords.map((r) => ({
+      ...r,
+      userId: activeUserId,
+    }));
+    this.persistRecords(updated, activeUserId);
+    updated.forEach((r) => this.syncRecordToCloud(r, activeUserId));
+    return updated;
+  }
+
+  // Developer Mode Helper: Clear all saved records for current user
+  public static clearAllRecords(userId?: string): void {
+    const activeUserId = userId || this.getCurrentUser().id;
+    this.persistRecords([], activeUserId);
+    if (typeof window !== 'undefined') {
+      const key = this.getRecordsKey(activeUserId);
+      localStorage.removeItem(key);
+      window.dispatchEvent(new CustomEvent('cinetrack_records_updated'));
     }
   }
 

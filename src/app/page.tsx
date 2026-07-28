@@ -6,11 +6,14 @@ import { SearchView } from '@/components/search/search-view';
 import { WatchedWatchlistView } from '@/components/media/watched-watchlist-view';
 import { RankingGame } from '@/components/ranking/ranking-game';
 import { StorageService } from '@/lib/storage';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, Terminal, Download, Trash2, CheckCircle2 } from 'lucide-react';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('search');
   const [searchQuery, setSearchQuery] = useState('');
+  const [showDevMode, setShowDevMode] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
   const [watchedCount, setWatchedCount] = useState(() => {
     if (typeof window === 'undefined') return 0;
     return StorageService.getUserRecords().filter((r) => r.status === 'watched').length;
@@ -42,6 +45,20 @@ export default function Home() {
   const handlePersonSelect = (personName: string) => {
     setSearchQuery(personName);
     setActiveTab('search');
+  };
+
+  const handleLoadSampleRecords = () => {
+    StorageService.loadDemoCriticRecords();
+    refreshCounts();
+    setToastMessage('Loaded 200 sample watched movies into your list!');
+    setTimeout(() => setToastMessage(null), 3000);
+  };
+
+  const handleClearAllRecords = () => {
+    StorageService.clearAllRecords();
+    refreshCounts();
+    setToastMessage('Cleared all saved items! Your list is now clean.');
+    setTimeout(() => setToastMessage(null), 3000);
   };
 
   return (
@@ -93,6 +110,14 @@ export default function Home() {
         )}
       </main>
 
+      {/* Developer Mode Toast */}
+      {toastMessage && (
+        <div className="fixed bottom-6 right-6 z-50 p-4 rounded-2xl bg-slate-900 border border-cyan-500/40 text-cyan-300 text-xs font-semibold shadow-2xl flex items-center gap-2 animate-bounce">
+          <CheckCircle2 className="w-4 h-4 text-cyan-400 shrink-0" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
       {/* Footer */}
       <footer className="border-t border-slate-800/80 py-8 bg-slate-950/80 mt-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
@@ -107,13 +132,46 @@ export default function Home() {
               Search
             </button>
             <button onClick={() => setActiveTab('watched')} className="hover:text-cyan-400 transition">
-              Watched Log
+              Watched Log ({watchedCount})
             </button>
             <button onClick={() => setActiveTab('ranking')} className="hover:text-amber-400 transition">
               Pairwise Game
             </button>
+            <button
+              onClick={() => setShowDevMode(!showDevMode)}
+              className="text-slate-500 hover:text-cyan-400 flex items-center gap-1 transition"
+              title="Developer Mode options"
+            >
+              <Terminal className="w-3.5 h-3.5" />
+              <span>Developer Mode</span>
+            </button>
           </div>
         </div>
+
+        {/* Developer Mode Bar */}
+        {showDevMode && (
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 pt-4 border-t border-slate-800/40 flex items-center justify-between gap-4 text-xs bg-slate-900/60 p-3 rounded-2xl">
+            <div className="flex items-center gap-2 text-slate-400">
+              <Terminal className="w-4 h-4 text-cyan-400" />
+              <span className="font-bold text-white">Developer Mode:</span>
+              <span>Need sample data for testing pairwise rankings or a clean state?</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleLoadSampleRecords}
+                className="px-3 py-1.5 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 font-semibold rounded-xl flex items-center gap-1.5 transition"
+              >
+                <Download className="w-3.5 h-3.5" /> Load 200 Sample Movies
+              </button>
+              <button
+                onClick={handleClearAllRecords}
+                className="px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 font-semibold rounded-xl flex items-center gap-1.5 transition"
+              >
+                <Trash2 className="w-3.5 h-3.5" /> Clear All Items (0)
+              </button>
+            </div>
+          </div>
+        )}
       </footer>
     </div>
   );
