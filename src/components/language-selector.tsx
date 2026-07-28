@@ -27,7 +27,9 @@ export const LanguageSelector: React.FC = () => {
         title="Select App & Media Search Language"
       >
         <span className="text-sm">{currentLanguage.flag}</span>
-        <span className="hidden sm:inline font-mono">{currentLanguage.name}</span>
+        <span className="font-mono text-[11px] font-bold uppercase text-cyan-300">
+          {currentLanguage.isoCode.toUpperCase()}
+        </span>
         <Globe className="w-3.5 h-3.5 text-cyan-400" />
         <ChevronDown className="w-3 h-3 text-slate-400" />
       </button>
@@ -37,7 +39,7 @@ export const LanguageSelector: React.FC = () => {
           <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-800/80 mb-1">
             Media &amp; Search Language
           </div>
-          <div className="max-h-60 overflow-y-auto space-y-0.5 no-scrollbar">
+          <div className="max-h-64 overflow-y-auto space-y-0.5 no-scrollbar">
             {SUPPORTED_LANGUAGES.map((lang: AppLanguage) => {
               const isSelected = lang.code === currentLanguage.code;
               return (
