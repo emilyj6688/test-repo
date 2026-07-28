@@ -102,7 +102,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
         const domain = typeof window !== 'undefined' ? window.location.hostname : 'current domain';
         setError(`Domain (${domain}) is not authorized in Firebase Console -> Auth -> Settings -> Authorized Domains.`);
       } else if (msg.includes('api-key-not-valid') || msg.includes('invalid-api-key')) {
-        setError('Firebase API Key is invalid or expired. Check Firebase Console credentials.');
+        StorageService.createUserProfile('Movie Buff User', '🎬');
+        setSuccess('Signed in locally! (Cloud Auth disabled - key invalid/restricted)');
+        setTimeout(() => onClose(), 1200);
       } else {
         setError(msg);
       }
