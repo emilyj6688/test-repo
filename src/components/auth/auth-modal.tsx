@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useAuth } from '@/context/auth-context';
+import { StorageService } from '@/lib/storage';
 import { X, Mail, Lock, User, LogIn, Sparkles, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 interface AuthModalProps {
@@ -27,6 +28,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     setSuccess(null);
     setLoading(true);
 
+    if (!isFirebaseConfigured) {
+      const displayName = name.trim() || email.split('@')[0] || 'Local Movie Buff';
+      StorageService.createUserProfile(displayName, '🎬');
+      setSuccess(`Signed in as ${displayName}! (Add your live Firebase API key to .env.local for Cloud Sync)`);
+      setLoading(false);
+      setTimeout(() => {
+        onClose();
+      }, 1000);
+      return;
+    }
+
     try {
       if (mode === 'signin') {
         await signInWithEmail(email, password);
@@ -40,7 +52,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
       }, 600);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Authentication failed';
-      if (msg.includes('auth/invalid-credential') || msg.includes('auth/user-not-found') || msg.includes('auth/wrong-password')) {
+      if (msg.includes('api-key-not-valid') || msg.includes('invalid-api-key')) {
+        const displayName = name.trim() || email.split('@')[0] || 'Local Movie Buff';
+        StorageService.createUserProfile(displayName, '🎬');
+        setSuccess(`Signed in locally! Replace AIzaSyYourApiKeyHere in .env.local with your real Firebase key.`);
+        setTimeout(() => onClose(), 1200);
+      } else if (msg.includes('auth/invalid-credential') || msg.includes('auth/user-not-found') || msg.includes('auth/wrong-password')) {
         setError('Invalid email or password. Please check your credentials.');
       } else if (msg.includes('auth/email-already-in-use')) {
         setError('An account with this email already exists. Try signing in.');
@@ -57,6 +74,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
   const handleGoogleSignIn = async () => {
     setError(null);
     setLoading(true);
+
+    if (!isFirebaseConfigured) {
+      StorageService.createUserProfile('Google Demo User', '🌐');
+      setSuccess('Signed in as Google Demo User! (Add your live Firebase API key to .env.local for Cloud Sync)');
+      setLoading(false);
+      setTimeout(() => {
+        onClose();
+      }, 1000);
+      return;
+    }
+
     try {
       await signInWithGoogle();
       setSuccess('Signed in with Google!');
@@ -65,7 +93,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
       }, 600);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Google Sign-In failed';
-      setError(msg);
+      if (msg.includes('api-key-not-valid') || msg.includes('invalid-api-key')) {
+        StorageService.createUserProfile('Google Demo User', '🌐');
+        setSuccess('Signed in locally! Replace AIzaSyYourApiKeyHere in .env.local with your real Firebase key.');
+        setTimeout(() => onClose(), 1200);
+      } else {
+        setError(msg);
+      }
     } finally {
       setLoading(false);
     }

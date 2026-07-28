@@ -26,7 +26,8 @@ export const googleProvider = new GoogleAuthProvider();
 export const isFirebaseConfigured = Boolean(
   process.env.NEXT_PUBLIC_FIREBASE_API_KEY &&
   process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID &&
-  process.env.NEXT_PUBLIC_FIREBASE_API_KEY !== 'demo-key'
+  process.env.NEXT_PUBLIC_FIREBASE_API_KEY !== 'demo-key' &&
+  !process.env.NEXT_PUBLIC_FIREBASE_API_KEY.includes('YourApiKeyHere')
 );
 
 export default app;
