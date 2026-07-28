@@ -137,6 +137,19 @@ export const SearchView: React.FC<Props> = ({ initialSearchQuery = '', onRecords
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Sync records live across user changes and cloud sync events
+  useEffect(() => {
+    const handleUpdate = () => {
+      refreshUserRecords();
+    };
+    window.addEventListener('cinetrack_records_updated', handleUpdate);
+    window.addEventListener('cinetrack_user_changed', handleUpdate as EventListener);
+    return () => {
+      window.removeEventListener('cinetrack_records_updated', handleUpdate);
+      window.removeEventListener('cinetrack_user_changed', handleUpdate as EventListener);
+    };
+  }, []);
+
   // Compute live autosuggest recommendations with deterministic prefix sorting (starts-with first)
   const suggestions = useMemo(() => {
     const lower = query.toLowerCase().trim();

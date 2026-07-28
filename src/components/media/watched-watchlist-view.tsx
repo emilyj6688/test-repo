@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { UserMediaRecord, MediaItem, RatingTier, MediaType, getTierCategory } from '@/types/media';
 import { StorageService } from '@/lib/storage';
 import { useLanguage } from '@/context/language-context';
@@ -39,6 +39,18 @@ export const WatchedWatchlistView: React.FC<Props> = ({
   const refreshRecords = () => {
     setRecords(StorageService.getUserRecords());
   };
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      refreshRecords();
+    };
+    window.addEventListener('cinetrack_records_updated', handleUpdate);
+    window.addEventListener('cinetrack_user_changed', handleUpdate as EventListener);
+    return () => {
+      window.removeEventListener('cinetrack_records_updated', handleUpdate);
+      window.removeEventListener('cinetrack_user_changed', handleUpdate as EventListener);
+    };
+  }, []);
 
   const handleMarkWatched = (item: MediaItem, tier: RatingTier = 1.0) => {
     StorageService.saveRecord(item, 'watched', tier);
