@@ -126,7 +126,6 @@ export default function Home() {
         watchedCount={watchedCount}
         watchlistCount={watchlistCount}
         onOpenTelemetry={() => setIsTelemetryOpen(true)}
-        onOpenShareRanking={() => setIsShareModalOpen(true)}
       />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -145,6 +144,7 @@ export default function Home() {
             onRecordsChanged={refreshCounts}
             onNavigateToTab={handleTabChange}
             onPersonSelect={handlePersonSelect}
+            onOpenShareRanking={() => setIsShareModalOpen(true)}
           />
         )}
 
@@ -154,6 +154,7 @@ export default function Home() {
             onRecordsChanged={refreshCounts}
             onNavigateToTab={handleTabChange}
             onPersonSelect={handlePersonSelect}
+            onOpenShareRanking={() => setIsShareModalOpen(true)}
           />
         )}
 
@@ -162,6 +163,7 @@ export default function Home() {
             onRecordsChanged={refreshCounts}
             onNavigateToTab={handleTabChange}
             onPersonSelect={handlePersonSelect}
+            onOpenShareRanking={() => setIsShareModalOpen(true)}
           />
         )}
       </main>

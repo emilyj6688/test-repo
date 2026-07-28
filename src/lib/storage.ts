@@ -10,7 +10,7 @@ const MEDIA_RECORDS_PREFIX = 'cinetrack_records_v1_';
 const COMPARED_PAIRS_PREFIX = 'cinetrack_compared_v1_';
 
 const DEFAULT_USERS: UserProfile[] = [
-  { id: 'user_default', name: 'My Media List', avatarUrl: '🍿', createdAt: new Date().toISOString() },
+  { id: 'user_default', name: 'Movie Fan', avatarUrl: '🍿', createdAt: new Date().toISOString() },
 ];
 
 export class StorageService {
@@ -47,8 +47,8 @@ export class StorageService {
       if (currentId && currentId.length > 10) {
         return {
           id: currentId,
-          name: 'Cloud Member',
-          avatarUrl: '☁️',
+          name: 'Movie Fan',
+          avatarUrl: '🍿',
           createdAt: new Date().toISOString(),
         };
       }

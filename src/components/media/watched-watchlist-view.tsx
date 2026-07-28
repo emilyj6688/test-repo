@@ -6,13 +6,14 @@ import { StorageService } from '@/lib/storage';
 import { useLanguage } from '@/context/language-context';
 import { MediaCard } from '@/components/media/media-card';
 import { MediaDetailModal } from '@/components/media/media-detail-modal';
-import { Film, BookmarkCheck, ArrowUpDown, ThumbsUp, ThumbsDown, Minus, ChevronDown, Search, X } from 'lucide-react';
+import { Film, BookmarkCheck, ArrowUpDown, ThumbsUp, ThumbsDown, Minus, ChevronDown, Search, X, Share2 } from 'lucide-react';
 
 interface Props {
   initialTab?: 'watched' | 'watchlist';
   onRecordsChanged: () => void;
   onNavigateToTab: (tab: 'search' | 'watched' | 'watchlist' | 'ranking') => void;
   onPersonSelect?: (personName: string) => void;
+  onOpenShareRanking?: () => void;
 }
 
 const PAGE_SIZE = 24;
@@ -22,6 +23,7 @@ export const WatchedWatchlistView: React.FC<Props> = ({
   onRecordsChanged,
   onNavigateToTab,
   onPersonSelect,
+  onOpenShareRanking,
 }) => {
   const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState<'watched' | 'watchlist'>(initialTab);
@@ -213,6 +215,17 @@ export const WatchedWatchlistView: React.FC<Props> = ({
           >
             <BookmarkCheck className="w-4 h-4" /> {t('watchlist_tab')} ({records.filter((r) => r.status === 'want_to_watch').length})
           </button>
+
+          {onOpenShareRanking && (
+            <button
+              onClick={onOpenShareRanking}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 transition shadow-sm ml-1"
+              title="Share Your Custom Top 10 Ranking"
+            >
+              <Share2 className="w-3.5 h-3.5 text-amber-400" />
+              <span>Share Ranking</span>
+            </button>
+          )}
         </div>
       </div>
 

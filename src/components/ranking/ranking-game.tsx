@@ -19,15 +19,17 @@ import {
   Sparkles,
   GripVertical,
   ArrowDownCircle,
+  Share2,
 } from 'lucide-react';
 
 interface Props {
   onRecordsChanged: () => void;
   onNavigateToTab: (tab: 'search' | 'watched' | 'watchlist' | 'ranking') => void;
   onPersonSelect?: (personName: string) => void;
+  onOpenShareRanking?: () => void;
 }
 
-export const RankingGame: React.FC<Props> = ({ onRecordsChanged, onNavigateToTab, onPersonSelect }) => {
+export const RankingGame: React.FC<Props> = ({ onRecordsChanged, onNavigateToTab, onPersonSelect, onOpenShareRanking }) => {
   const { t } = useLanguage();
   const [records, setRecords] = useState<UserMediaRecord[]>(() => {
     if (typeof window === 'undefined') return [];
@@ -384,7 +386,7 @@ export const RankingGame: React.FC<Props> = ({ onRecordsChanged, onNavigateToTab
 
       {/* Manual Fine-Tuning Ordered Master List with Drag & Drop */}
       <div className="space-y-4 pt-8 border-t border-slate-800">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h2 className="text-xl font-bold text-white flex items-center gap-2">
               <ListOrdered className="w-5 h-5 text-cyan-400" /> Master Ordered List & Fine-Tuning
@@ -393,6 +395,15 @@ export const RankingGame: React.FC<Props> = ({ onRecordsChanged, onNavigateToTab
               Click any title to view full details. Drag using the left handle to move titles up or down multiple spots.
             </p>
           </div>
+
+          {onOpenShareRanking && (
+            <button
+              onClick={onOpenShareRanking}
+              className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs flex items-center gap-1.5 transition shadow-lg shadow-amber-500/20 shrink-0 self-start sm:self-auto"
+            >
+              <Share2 className="w-4 h-4" /> Share My Ranking
+            </button>
+          )}
         </div>
 
         {watchedRecords.length > 0 ? (
