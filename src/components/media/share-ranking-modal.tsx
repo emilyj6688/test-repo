@@ -2,27 +2,90 @@
 
 import React, { useState } from 'react';
 import { StorageService } from '@/lib/storage';
-import { X, Share2, Copy, Check, Sparkles, Trophy, Link as LinkIcon } from 'lucide-react';
+import { X, Share2, Copy, Check, Sparkles, Trophy, Link as LinkIcon, Download } from 'lucide-react';
+import { MOCK_MEDIA_ITEMS } from '@/lib/tmdb';
+import { MediaItem } from '@/types/media';
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
 }
 
+interface SharedItem {
+  tmdbId: number;
+  mediaType: 'movie' | 'tv';
+  title: string;
+  ratingTier: number;
+}
+
 export const ShareRankingModal: React.FC<Props> = ({ isOpen, onClose }) => {
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedText, setCopiedText] = useState(false);
+  const [imported, setImported] = useState(false);
 
-  if (!isOpen) return null;
+  const currentUser = StorageService.getCurrentUser();
+  const localRecords = StorageService.getUserRecords().filter((r) => r.status === 'watched');
+  localRecords.sort((a, b) => (a.rankIndex || 999) - (b.rankIndex || 999));
 
-  const user = StorageService.getCurrentUser();
-  const records = StorageService.getUserRecords().filter((r) => r.status === 'watched');
+  // Parse incoming shared payload from URL hash (if opened from a friend's link)
+  const parseSharedHash = (): { userName: string; items: SharedItem[] } => {
+    if (typeof window === 'undefined') return { userName: '', items: [] };
+    const hash = window.location.hash;
+    const match = hash.match(/#share=([^&]+)/);
+    if (!match || !match[1]) return { userName: '', items: [] };
 
-  // Sort by master rank index (1 = top)
-  records.sort((a, b) => (a.rankIndex || 999) - (b.rankIndex || 999));
-  const top10 = records.slice(0, 10);
+    try {
+      const raw = match[1];
+      let decoded = '';
+      try {
+        decoded = decodeURIComponent(escape(atob(raw)));
+      } catch {
+        decoded = decodeURIComponent(raw);
+      }
 
-  // Safe encoding helper that handles UTF-8 / special characters safely
+      let userName = 'Friend';
+      let itemsStr = decoded;
+      if (decoded.includes('|')) {
+        const parts = decoded.split('|');
+        if (parts[0].startsWith('u:')) {
+          userName = parts[0].replace('u:', '');
+          itemsStr = parts.slice(1).join('|');
+        }
+      }
+
+      const items: SharedItem[] = [];
+      itemsStr.split(';').forEach((entry) => {
+        const [idStr, type, titleEnc, scoreStr] = entry.split(':');
+        if (idStr && type) {
+          items.push({
+            tmdbId: parseInt(idStr, 10),
+            mediaType: type as 'movie' | 'tv',
+            title: titleEnc ? decodeURIComponent(titleEnc) : 'Title',
+            ratingTier: scoreStr ? parseFloat(scoreStr) : 8.0,
+          });
+        }
+      });
+
+      return { userName, items };
+    } catch {
+      return { userName: '', items: [] };
+    }
+  };
+
+  const sharedData = parseSharedHash();
+  const isIncomingShare = sharedData.items.length > 0;
+
+  const activeName = isIncomingShare ? sharedData.userName : currentUser.name;
+  const activeItems: { title: string; ratingTier: number; tmdbId: number; mediaType: 'movie' | 'tv' }[] = isIncomingShare
+    ? sharedData.items
+    : localRecords.slice(0, 10).map((r) => ({
+        title: r.item.title,
+        ratingTier: r.ratingTier,
+        tmdbId: r.item.tmdbId,
+        mediaType: r.item.mediaType,
+      }));
+
+  // Encoding helper
   const safeEncode = (str: string): string => {
     try {
       return btoa(unescape(encodeURIComponent(str)));
@@ -31,19 +94,18 @@ export const ShareRankingModal: React.FC<Props> = ({ isOpen, onClose }) => {
     }
   };
 
-  // Build lightweight payload
-  const payload = top10.map((r) => `${r.item.tmdbId}:${r.item.mediaType}:${r.ratingTier}`).join(';');
-  const encodedPayload = safeEncode(payload);
-
+  // Build outgoing payload link from local user records
+  const topLocal = localRecords.slice(0, 10);
+  const outgoingPayload = `u:${currentUser.name}|` + topLocal.map((r) => `${r.item.tmdbId}:${r.item.mediaType}:${encodeURIComponent(r.item.title)}:${r.ratingTier}`).join(';');
   const shareableUrl = typeof window !== 'undefined'
-    ? `${window.location.origin}${window.location.pathname}#share=${encodedPayload}`
+    ? `${window.location.origin}${window.location.pathname}#share=${safeEncode(outgoingPayload)}`
     : 'https://jcpapernik.github.io/cinerank-media-tracker/';
 
   const generateTextSummary = () => {
-    let text = `🎬 ${user.name}'s Top Movie & TV Rankings on CineRank:\n\n`;
-    top10.forEach((r, idx) => {
+    let text = `🎬 ${activeName}'s Top Movie & TV Rankings on CineRank:\n\n`;
+    activeItems.forEach((r, idx) => {
       const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}.`;
-      text += `${medal} ${r.item.title} (${r.ratingTier}/10)\n`;
+      text += `${medal} ${r.title} (${r.ratingTier}/10)\n`;
     });
     text += `\nTrack & rank your favorite movies at:\n${shareableUrl}`;
     return text;
@@ -53,17 +115,15 @@ export const ShareRankingModal: React.FC<Props> = ({ isOpen, onClose }) => {
   const copyToClipboard = async (textToCopy: string): Promise<boolean> => {
     if (!textToCopy) return false;
 
-    // Method 1: Modern navigator.clipboard API
     if (typeof navigator !== 'undefined' && navigator.clipboard && window.isSecureContext) {
       try {
         await navigator.clipboard.writeText(textToCopy);
         return true;
       } catch {
-        // Continue to fallback
+        // Fallback
       }
     }
 
-    // Method 2: Fallback textarea execCommand copy (Works on all mobile/desktop browsers)
     try {
       const textArea = document.createElement('textarea');
       textArea.value = textToCopy;
@@ -101,7 +161,7 @@ export const ShareRankingModal: React.FC<Props> = ({ isOpen, onClose }) => {
     if (typeof navigator !== 'undefined' && navigator.share) {
       try {
         await navigator.share({
-          title: `${user.name}'s Movie Rankings`,
+          title: `${activeName}'s Movie Rankings`,
           text: generateTextSummary(),
           url: shareableUrl,
         });
@@ -112,6 +172,33 @@ export const ShareRankingModal: React.FC<Props> = ({ isOpen, onClose }) => {
       await handleCopyLink();
     }
   };
+
+  const handleImportSharedItems = () => {
+    sharedData.items.forEach((item) => {
+      const matchedCatalogItem = MOCK_MEDIA_ITEMS.find((m) => m.tmdbId === item.tmdbId && m.mediaType === item.mediaType);
+      const mediaItemToSave: MediaItem = matchedCatalogItem || {
+        id: item.tmdbId,
+        tmdbId: item.tmdbId,
+        title: item.title,
+        mediaType: item.mediaType,
+        posterPath: null,
+        backdropPath: null,
+        releaseDate: '2026',
+        overview: 'Shared title from friend.',
+        genres: ['Featured'],
+        originalLanguage: 'English',
+        directors: [],
+        cast: [],
+      };
+
+      StorageService.saveRecord(mediaItemToSave, 'watched', item.ratingTier);
+    });
+
+    setImported(true);
+    setTimeout(() => setImported(false), 3000);
+  };
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in" onClick={onClose}>
@@ -130,28 +217,30 @@ export const ShareRankingModal: React.FC<Props> = ({ isOpen, onClose }) => {
             <Trophy className="w-6 h-6" />
           </div>
           <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-            Share Your Movie Ranking
+            {isIncomingShare ? `${activeName}'s Shared Ranking` : 'Share Your Movie Ranking'}
           </h2>
           <p className="text-xs text-slate-400">
-            Share your custom Top 10 list with friends, social media, or iMessage!
+            {isIncomingShare
+              ? `Viewing top ranked movie choices shared by ${activeName}!`
+              : 'Share your custom Top 10 list with friends, social media, or iMessage!'}
           </p>
         </div>
 
         {/* Top Ranked Preview Card */}
-        <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800/80 space-y-2 max-h-52 overflow-y-auto">
+        <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800/80 space-y-2 max-h-56 overflow-y-auto">
           <div className="flex items-center justify-between text-[11px] font-bold text-slate-400 uppercase tracking-wider pb-2 border-b border-slate-800">
-            <span>{user.name}&apos;s Top Titles ({records.length} total)</span>
+            <span>{activeName}&apos;s Top Titles ({activeItems.length} items)</span>
             <span className="text-amber-400">Master Rank</span>
           </div>
 
-          {top10.length > 0 ? (
-            top10.map((r, idx) => (
-              <div key={r.id} className="flex items-center justify-between text-xs py-1">
+          {activeItems.length > 0 ? (
+            activeItems.map((r, idx) => (
+              <div key={`${r.tmdbId}_${idx}`} className="flex items-center justify-between text-xs py-1">
                 <div className="flex items-center gap-2 font-medium text-slate-200 truncate">
                   <span className="font-mono text-[11px] font-extrabold w-5 text-amber-400">
                     {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`}
                   </span>
-                  <span className="truncate">{r.item.title}</span>
+                  <span className="truncate">{r.title}</span>
                 </div>
                 <span className="font-mono font-extrabold text-[11px] text-cyan-300 bg-slate-900 px-2 py-0.5 rounded border border-cyan-500/20">
                   {r.ratingTier}/10
@@ -159,9 +248,26 @@ export const ShareRankingModal: React.FC<Props> = ({ isOpen, onClose }) => {
               </div>
             ))
           ) : (
-            <p className="text-xs text-slate-500 text-center py-4">No watched movies logged yet!</p>
+            <p className="text-xs text-slate-500 text-center py-4">
+              No watched movies logged yet! Mark titles as watched to generate your shareable link.
+            </p>
           )}
         </div>
+
+        {/* Incoming Share: Import Button */}
+        {isIncomingShare && (
+          <button
+            onClick={handleImportSharedItems}
+            className={`w-full py-2.5 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition border ${
+              imported
+                ? 'bg-emerald-500/20 border-emerald-500/60 text-emerald-300'
+                : 'bg-cyan-500 hover:bg-cyan-400 text-slate-950 border-cyan-400 shadow-md shadow-cyan-500/20'
+            }`}
+          >
+            {imported ? <Check className="w-4 h-4" /> : <Download className="w-4 h-4" />}
+            {imported ? `Added ${activeName}'s list to your watched log!` : `Add ${activeName}'s Top Titles to My List`}
+          </button>
+        )}
 
         {/* Interactive Share Link Input Box */}
         <div className="space-y-1.5">
