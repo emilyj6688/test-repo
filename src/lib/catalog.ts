@@ -1,21 +1,28 @@
 import { MediaItem } from "@/types/media";
 import rawCatalog from "./catalog.json";
 
-// Sort catalog chronologically starting off NOW (recent theater & TV hits) going back in time
-const currentYear = 2026;
+// Sort catalog in 30-day rolling chronological windows (Past 30 Days -> Prev 30 Days -> Back in time)
+// Within each 30-day window, top-rated big-name titles appear first!
+const MS_PER_DAY = 86400000;
+const referenceTime = new Date('2026-07-28').getTime();
+
 const sortedCatalog: MediaItem[] = (rawCatalog as unknown as MediaItem[])
   .slice()
   .sort((a, b) => {
-    const yrA = parseInt(a.releaseDate?.substring(0, 4) || '0', 10);
-    const yrB = parseInt(b.releaseDate?.substring(0, 4) || '0', 10);
+    const timeA = a.releaseDate ? new Date(a.releaseDate).getTime() : 0;
+    const timeB = b.releaseDate ? new Date(b.releaseDate).getTime() : 0;
 
-    // Prioritize current/recent releases up to current year, then past years descending
-    const validA = yrA <= currentYear ? yrA : 0;
-    const validB = yrB <= currentYear ? yrB : 0;
+    // Releases up to current date
+    const validA = timeA <= referenceTime && timeA > 0 ? timeA : 0;
+    const validB = timeB <= referenceTime && timeB > 0 ? timeB : 0;
 
-    if (validA !== validB) return validB - validA;
+    // 30-Day Window Bucket Index (0 = Past 30 Days, 1 = 30-60 Days ago, etc.)
+    const bucketA = validA > 0 ? Math.floor((referenceTime - validA) / (30 * MS_PER_DAY)) : 9999;
+    const bucketB = validB > 0 ? Math.floor((referenceTime - validB) / (30 * MS_PER_DAY)) : 9999;
 
-    // Within same year, sort by popularity & rating score
+    if (bucketA !== bucketB) return bucketA - bucketB;
+
+    // Within the same 30-day window, sort by Popularity & Rating Score
     const popA = (a.voteCount || 0) * (a.voteAverage || 5);
     const popB = (b.voteCount || 0) * (b.voteAverage || 5);
     return popB - popA;
