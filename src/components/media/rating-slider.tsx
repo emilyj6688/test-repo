@@ -65,7 +65,7 @@ export const RatingSlider: React.FC<Props> = ({ value, onChange, compact = false
 
   return (
     <div className="w-full space-y-2 select-none" onClick={(e) => e.stopPropagation()}>
-      {/* Header: Rating Title & Current Score Badge */}
+      {/* Header: Rating Title & Current Score Badge (Only visible on full card/modal) */}
       {!compact && (
         <div className="flex justify-between items-center text-xs font-semibold">
           <span className="text-slate-400 uppercase tracking-wider text-[10px]">User Rating</span>
@@ -95,39 +95,42 @@ export const RatingSlider: React.FC<Props> = ({ value, onChange, compact = false
           />
         </div>
 
-        {/* 3 Clean Quick Buttons Below Slider: Icons Only Always */}
+        {/* 3 Quick Buttons: Icons Only when compact; Icons + Text when larger detail card */}
         <div className="flex justify-between items-center text-[10px] font-bold text-slate-400 pt-1">
           <button
             type="button"
             onClick={() => handleSliderChange(2)}
-            className={`flex items-center gap-1 transition p-1.5 rounded-lg ${
+            className={`flex items-center gap-1.5 transition px-2 py-1 rounded-lg ${
               tierCategory === 1 ? 'text-rose-400 font-black bg-rose-500/10 border border-rose-500/30' : 'hover:text-slate-200'
             }`}
             title="Didn't Like (Rating 2)"
           >
             <ThumbsDown className="w-3.5 h-3.5" />
+            {!compact && <span>Didn&apos;t Like</span>}
           </button>
 
           <button
             type="button"
             onClick={() => handleSliderChange(5)}
-            className={`flex items-center gap-1 transition p-1.5 rounded-lg ${
+            className={`flex items-center gap-1.5 transition px-2 py-1 rounded-lg ${
               tierCategory === 2 ? 'text-amber-400 font-black bg-amber-500/10 border border-amber-500/30' : 'hover:text-slate-200'
             }`}
             title="Neutral (Rating 5)"
           >
             <Minus className="w-3.5 h-3.5" />
+            {!compact && <span>Neutral</span>}
           </button>
 
           <button
             type="button"
             onClick={() => handleSliderChange(8)}
-            className={`flex items-center gap-1 transition p-1.5 rounded-lg ${
+            className={`flex items-center gap-1.5 transition px-2 py-1 rounded-lg ${
               tierCategory === 3 ? 'text-emerald-400 font-black bg-emerald-500/10 border border-emerald-500/30' : 'hover:text-slate-200'
             }`}
             title="Liked (Rating 8)"
           >
             <ThumbsUp className="w-3.5 h-3.5" />
+            {!compact && <span>Liked</span>}
           </button>
         </div>
       </div>
