@@ -1,7 +1,7 @@
 import { UserMediaRecord, UserProfile, MediaItem, MediaStatus, RatingTier, SeasonStatus } from '@/types/media';
 import demoTestRecords from '@/lib/demo-test-records.json';
 import { db, isFirebaseConfigured } from '@/lib/firebase';
-import { doc, setDoc, getDocs, collection, deleteDoc } from 'firebase/firestore';
+import { doc, setDoc, getDocs, collection, deleteDoc, onSnapshot, Unsubscribe } from 'firebase/firestore';
 
 const USERS_KEY = 'cinetrack_users_v1';
 const CURRENT_USER_KEY = 'cinetrack_current_user_v1';
@@ -13,6 +13,8 @@ const DEFAULT_USERS: UserProfile[] = [
 ];
 
 export class StorageService {
+  private static unsubscribeCloudListener: Unsubscribe | null = null;
+
   // --- User Profile Management ---
   public static getUsers(): UserProfile[] {
     if (typeof window === 'undefined') return DEFAULT_USERS;
@@ -61,9 +63,9 @@ export class StorageService {
     localStorage.setItem(CURRENT_USER_KEY, userId);
     window.dispatchEvent(new CustomEvent('cinetrack_user_changed', { detail: userId }));
     
-    // Automatically trigger cloud fetch if cloud user
+    // Automatically trigger cloud fetch & live real-time subscription if cloud user
     if (isFirebaseConfigured && userId && !userId.startsWith('user_')) {
-      this.syncFromCloud(userId);
+      this.subscribeToCloudSync(userId);
     }
   }
 
@@ -96,7 +98,6 @@ export class StorageService {
       const raw = localStorage.getItem(key);
 
       if (!raw) {
-        // All new accounts and default visitors start with a clean 0-item slate
         return [];
       }
       const records: UserMediaRecord[] = JSON.parse(raw);
@@ -230,7 +231,7 @@ export class StorageService {
     window.dispatchEvent(new CustomEvent('cinetrack_records_updated'));
   }
 
-  // --- Cloud Firestore Persistence & Synchronization ---
+  // --- Cloud Firestore Persistence & Real-Time Synchronization ---
   public static async syncRecordToCloud(record: UserMediaRecord, userId: string): Promise<void> {
     if (!isFirebaseConfigured || !userId || userId.startsWith('user_')) return;
     try {
@@ -248,6 +249,41 @@ export class StorageService {
       await deleteDoc(docRef);
     } catch (err) {
       console.warn('Firestore Delete Record Error:', err);
+    }
+  }
+
+  public static subscribeToCloudSync(userId: string): void {
+    if (!isFirebaseConfigured || !userId || userId.startsWith('user_')) return;
+
+    if (this.unsubscribeCloudListener) {
+      this.unsubscribeCloudListener();
+      this.unsubscribeCloudListener = null;
+    }
+
+    // Perform initial fetch & merge
+    this.syncFromCloud(userId);
+
+    // Subscribe to live Firestore changes across tabs and devices
+    try {
+      const colRef = collection(db, 'users', userId, 'records');
+      this.unsubscribeCloudListener = onSnapshot(
+        colRef,
+        (snapshot) => {
+          const cloudRecords: UserMediaRecord[] = [];
+          snapshot.forEach((d) => {
+            cloudRecords.push(d.data() as UserMediaRecord);
+          });
+
+          if (cloudRecords.length > 0) {
+            this.persistRecords(cloudRecords, userId);
+          }
+        },
+        (err) => {
+          console.warn('Firestore Real-Time Listener Error:', err);
+        }
+      );
+    } catch (err) {
+      console.warn('Failed to attach Firestore Real-Time Listener:', err);
     }
   }
 
@@ -302,7 +338,6 @@ export class StorageService {
       } else {
         window.dispatchEvent(new CustomEvent('cinetrack_records_updated'));
       }
-      return mergedList;
       return mergedList;
     } catch (err) {
       console.warn('Firestore Fetch Records Error:', err);
