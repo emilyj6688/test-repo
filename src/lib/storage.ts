@@ -228,23 +228,24 @@ export class StorageService {
       records.push(record);
     }
 
-    Telemetry.log('sync', `Saved "${item.title}" (${status}) for user ${activeUserId.slice(0, 8)}...`);
+    Telemetry.log('sync', `Saved "${item.title}" (${status}, Tier ${record.ratingTier}) for user ${activeUserId.slice(0, 8)}...`);
     this.persistRecords(records, activeUserId);
     this.syncRecordToCloud(record, activeUserId);
     return record;
   }
 
   public static updateRatingTier(tmdbId: number, mediaType: 'movie' | 'tv', ratingTier: RatingTier): void {
-    const records = this.getUserRecords();
+    const activeUserId = this.getCurrentUser().id;
+    const records = this.getUserRecords(activeUserId);
     const id = `${mediaType}_${tmdbId}`;
     const record = records.find((r) => r.id === id);
     if (!record) return;
 
     record.ratingTier = ratingTier;
     record.updatedAt = new Date().toISOString();
-    Telemetry.log('sync', `Updated rating tier to ${ratingTier} for ${id}`);
-    this.persistRecords(records);
-    this.syncRecordToCloud(record, record.userId);
+    Telemetry.log('sync', `Updated rating tier to Tier ${ratingTier} for ${id}`);
+    this.persistRecords(records, activeUserId);
+    this.syncRecordToCloud(record, activeUserId);
   }
 
   public static removeRecord(tmdbId: number, mediaType: 'movie' | 'tv'): void {
@@ -259,8 +260,10 @@ export class StorageService {
 
   public static updateRecordsList(updatedRecords: UserMediaRecord[], userId?: string): void {
     const activeUserId = userId || this.getCurrentUser().id;
-    this.persistRecords(updatedRecords, activeUserId);
-    updatedRecords.forEach((r) => this.syncRecordToCloud(r, activeUserId));
+    const now = new Date().toISOString();
+    const recordsWithTime = updatedRecords.map((r) => ({ ...r, updatedAt: now }));
+    this.persistRecords(recordsWithTime, activeUserId);
+    recordsWithTime.forEach((r) => this.syncRecordToCloud(r, activeUserId));
   }
 
   private static persistRecords(records: UserMediaRecord[], userId?: string): void {
@@ -279,7 +282,7 @@ export class StorageService {
       try {
         const docRef = doc(db, 'users', userId, 'records', record.id);
         await setDoc(docRef, record, { merge: true });
-        Telemetry.log('sync', `Pushed "${record.item.title}" to Cloud Firestore path users/${userId.slice(0, 8)}.../records/${record.id}`);
+        Telemetry.log('sync', `Pushed "${record.item.title}" (Tier ${record.ratingTier}) to Cloud Firestore path users/${userId.slice(0, 8)}.../records/${record.id}`);
       } catch (err) {
         Telemetry.log('error', `Firestore Sync Record Error: ${err}`);
         console.warn('Firestore Sync Record Error:', err);
@@ -331,7 +334,7 @@ export class StorageService {
     // Perform initial fetch & merge
     this.syncFromCloud(userId);
 
-    // Setup 3-second automatic heartbeat sync so all open tabs refresh automatically without user pressing refresh
+    // Setup 3-second automatic heartbeat sync so all open tabs refresh automatically
     this.heartbeatTimer = setInterval(() => {
       this.syncFromCloud(userId);
     }, 3000);
@@ -347,9 +350,26 @@ export class StorageService {
             cloudRecords.push(d.data() as UserMediaRecord);
           });
 
-          Telemetry.log('sync', `Received onSnapshot WebSocket broadcast from Cloud Firestore: ${cloudRecords.length} records`);
-          // Always persist cloud state (even if empty) so wipe/deletions sync live
-          this.persistRecords(cloudRecords, userId);
+          // Merge with current local records preserving newest updatedAt timestamps
+          const currentLocal = this.getUserRecords(userId);
+          const localMap = new Map(currentLocal.map((r) => [r.id, r]));
+
+          const finalRecords = cloudRecords.map((cloudRec) => {
+            const loc = localMap.get(cloudRec.id);
+            if (loc) {
+              const locTime = new Date(loc.updatedAt || 0).getTime();
+              const cloudTime = new Date(cloudRec.updatedAt || 0).getTime();
+              if (locTime > cloudTime) {
+                // Local update is newer! Keep local and push to cloud!
+                this.syncRecordToCloud(loc, userId);
+                return loc;
+              }
+            }
+            return { ...cloudRec, userId };
+          });
+
+          Telemetry.log('sync', `Received onSnapshot WebSocket broadcast from Cloud Firestore: ${finalRecords.length} records`);
+          this.persistRecords(finalRecords, userId);
         },
         (err) => {
           Telemetry.log('error', `Firestore Real-Time Listener Error: ${err}`);
@@ -398,12 +418,21 @@ export class StorageService {
       // Add cloud records first
       cloudRecords.forEach((r) => mergedMap.set(r.id, { ...r, userId }));
 
-      // Merge any local/guest records missing in cloud and sync them immediately to Cloud Firestore
-      allLocalRecords.forEach((r) => {
-        const updatedRecord = { ...r, userId };
-        if (!mergedMap.has(r.id)) {
-          mergedMap.set(r.id, updatedRecord);
+      // Merge local records: if local record is missing OR has a newer updatedAt timestamp than cloud, preserve local and sync to cloud!
+      allLocalRecords.forEach((localRec) => {
+        const cloudRec = mergedMap.get(localRec.id);
+        const updatedRecord = { ...localRec, userId };
+
+        if (!cloudRec) {
+          mergedMap.set(localRec.id, updatedRecord);
           this.syncRecordToCloud(updatedRecord, userId);
+        } else {
+          const localTime = new Date(localRec.updatedAt || 0).getTime();
+          const cloudTime = new Date(cloudRec.updatedAt || 0).getTime();
+          if (localTime > cloudTime) {
+            mergedMap.set(localRec.id, updatedRecord);
+            this.syncRecordToCloud(updatedRecord, userId);
+          }
         }
       });
 
