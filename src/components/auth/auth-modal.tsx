@@ -55,7 +55,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
       if (msg.includes('api-key-not-valid') || msg.includes('invalid-api-key')) {
         const displayName = name.trim() || email.split('@')[0] || 'Local Movie Buff';
         StorageService.createUserProfile(displayName, '🎬');
-        setSuccess(`Signed in locally! Replace AIzaSyYourApiKeyHere in .env.local with your real Firebase key.`);
+        setSuccess(`Signed in locally as ${displayName}!`);
         setTimeout(() => onClose(), 1200);
       } else if (msg.includes('auth/invalid-credential') || msg.includes('auth/user-not-found') || msg.includes('auth/wrong-password')) {
         setError('Invalid email or password. Please check your credentials.');
@@ -93,9 +93,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
       }, 600);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Google Sign-In failed';
-      if (msg.includes('api-key-not-valid') || msg.includes('invalid-api-key')) {
-        StorageService.createUserProfile('Google Demo User', '🌐');
-        setSuccess('Signed in locally! Replace AIzaSyYourApiKeyHere in .env.local with your real Firebase key.');
+      if (msg.includes('popup-closed-by-user')) {
+        setError('Google Sign-In popup was closed before completing.');
+      } else if (msg.includes('unauthorized-domain')) {
+        StorageService.createUserProfile('Google User', '🌐');
+        setSuccess('Signed in locally! (Domain needs authorization in Firebase Console)');
+        setTimeout(() => onClose(), 1500);
+      } else if (msg.includes('api-key-not-valid') || msg.includes('invalid-api-key')) {
+        StorageService.createUserProfile('Google User', '🌐');
+        setSuccess('Signed in locally as Guest Movie Buff!');
         setTimeout(() => onClose(), 1200);
       } else {
         setError(msg);
