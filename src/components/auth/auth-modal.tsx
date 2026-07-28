@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/context/auth-context';
 import { StorageService } from '@/lib/storage';
-import { X, Mail, Lock, User, LogIn, Sparkles, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { X, Mail, Lock, User, LogIn, Sparkles, AlertCircle, CheckCircle2, Zap } from 'lucide-react';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -22,6 +22,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
 
   if (!isOpen) return null;
 
+  const handleInstantGuestAccess = () => {
+    const guestName = name.trim() || 'Movie Buff Guest';
+    StorageService.createUserProfile(guestName, '🎬');
+    setSuccess(`Signed in as ${guestName}!`);
+    setTimeout(() => onClose(), 600);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -29,13 +36,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     setLoading(true);
 
     if (!isFirebaseConfigured) {
-      const displayName = name.trim() || email.split('@')[0] || 'Local Movie Buff';
-      StorageService.createUserProfile(displayName, '🎬');
-      setSuccess(`Signed in as ${displayName}! (Add your live Firebase API key to .env.local for Cloud Sync)`);
+      handleInstantGuestAccess();
       setLoading(false);
-      setTimeout(() => {
-        onClose();
-      }, 1000);
       return;
     }
 
@@ -53,10 +55,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Authentication failed';
       if (msg.includes('api-key-not-valid') || msg.includes('invalid-api-key')) {
-        const displayName = name.trim() || email.split('@')[0] || 'Local Movie Buff';
-        StorageService.createUserProfile(displayName, '🎬');
-        setSuccess(`Signed in locally as ${displayName}!`);
-        setTimeout(() => onClose(), 1200);
+        handleInstantGuestAccess();
       } else if (msg.includes('auth/invalid-credential') || msg.includes('auth/user-not-found') || msg.includes('auth/wrong-password')) {
         setError('Invalid email or password. Please check your credentials.');
       } else if (msg.includes('auth/email-already-in-use')) {
@@ -76,12 +75,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     setLoading(true);
 
     if (!isFirebaseConfigured) {
-      StorageService.createUserProfile('Google Demo User', '🌐');
-      setSuccess('Signed in as Google Demo User! (Add your live Firebase API key to .env.local for Cloud Sync)');
+      handleInstantGuestAccess();
       setLoading(false);
-      setTimeout(() => {
-        onClose();
-      }, 1000);
       return;
     }
 
@@ -102,11 +97,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
         const domain = typeof window !== 'undefined' ? window.location.hostname : 'current domain';
         setError(`Domain (${domain}) is not authorized in Firebase Console -> Auth -> Settings -> Authorized Domains.`);
       } else if (msg.includes('api-key-not-valid') || msg.includes('invalid-api-key')) {
-        StorageService.createUserProfile('Movie Buff User', '🎬');
-        setSuccess('Signed in locally! (Cloud Auth disabled - key invalid/restricted)');
-        setTimeout(() => onClose(), 1200);
+        handleInstantGuestAccess();
       } else {
-        setError(msg);
+        setError('Google Auth popup failed. You can use 1-Click Guest Mode or Email Sign In.');
       }
     } finally {
       setLoading(false);
@@ -140,6 +133,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
           </p>
         </div>
 
+        {/* Instant 1-Click Guest Button */}
+        <button
+          type="button"
+          onClick={handleInstantGuestAccess}
+          className="w-full mb-5 py-2.5 px-4 rounded-xl bg-cyan-950/40 border border-cyan-500/30 hover:bg-cyan-900/40 text-cyan-300 font-semibold text-xs flex items-center justify-center gap-2 transition shadow-sm"
+        >
+          <Zap className="w-4 h-4 text-cyan-400 fill-cyan-400/20" />
+          <span>Instant 1-Click Guest Mode (No Setup Required)</span>
+        </button>
+
         {/* Mode Selector Tabs */}
         <div className="grid grid-cols-2 p-1 bg-slate-950/60 rounded-xl mb-6 border border-slate-800/80">
           <button
@@ -172,12 +175,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
           <div className="mb-4 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 shrink-0" />
             <span>{success}</span>
-          </div>
-        )}
-
-        {!isFirebaseConfigured && (
-          <div className="mb-4 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs">
-            💡 <strong>Demo Mode Active:</strong> Firebase API keys not detected in <code>.env.local</code>. You can test local user accounts or add your Firebase config.
           </div>
         )}
 
