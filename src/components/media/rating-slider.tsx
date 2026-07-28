@@ -20,7 +20,6 @@ const toScale = (val: number): number => {
 export const RatingSlider: React.FC<Props> = ({ value, onChange, compact = false }) => {
   const [prevValue, setPrevValue] = useState<number>(value);
   const [localValue, setLocalValue] = useState<number>(() => toScale(value));
-  const [showLabels, setShowLabels] = useState<boolean>(!compact);
 
   if (prevValue !== value) {
     setPrevValue(value);
@@ -67,17 +66,19 @@ export const RatingSlider: React.FC<Props> = ({ value, onChange, compact = false
   return (
     <div className="w-full space-y-2 select-none" onClick={(e) => e.stopPropagation()}>
       {/* Header: Rating Title & Current Score Badge */}
-      <div className="flex justify-between items-center text-xs font-semibold">
-        <span className="text-slate-400 uppercase tracking-wider text-[10px]">User Rating</span>
-        <div className="flex items-center gap-2">
-          <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold border flex items-center gap-1.5 ${info.bgClass} ${info.colorClass}`}>
-            {info.icon} {info.label}
-          </span>
-          <span className="font-mono text-xs text-cyan-300 font-extrabold bg-slate-900 px-2.5 py-0.5 rounded-md border border-cyan-500/30">
-            {localValue} / 10
-          </span>
+      {!compact && (
+        <div className="flex justify-between items-center text-xs font-semibold">
+          <span className="text-slate-400 uppercase tracking-wider text-[10px]">User Rating</span>
+          <div className="flex items-center gap-2">
+            <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold border flex items-center gap-1.5 ${info.bgClass} ${info.colorClass}`}>
+              {info.icon} {info.label}
+            </span>
+            <span className="font-mono text-xs text-cyan-300 font-extrabold bg-slate-900 px-2.5 py-0.5 rounded-md border border-cyan-500/30">
+              {localValue} / 10
+            </span>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Main Slider Track Container */}
       <div className="relative bg-slate-950 p-3 rounded-2xl border border-slate-800 space-y-2">
@@ -89,59 +90,44 @@ export const RatingSlider: React.FC<Props> = ({ value, onChange, compact = false
             max="10"
             step="1"
             value={localValue}
-            onChange={(e) => {
-              handleSliderChange(parseInt(e.target.value, 10));
-              setShowLabels(true);
-            }}
+            onChange={(e) => handleSliderChange(parseInt(e.target.value, 10))}
             className={`w-full h-2.5 rounded-lg appearance-none cursor-pointer bg-slate-800 ${info.trackClass} transition-all`}
           />
         </div>
 
-        {/* 3 Quick Buttons Below Slider: Icons Only by Default, Text Revealed on Click */}
+        {/* 3 Clean Quick Buttons Below Slider: Icons Only Always */}
         <div className="flex justify-between items-center text-[10px] font-bold text-slate-400 pt-1">
           <button
             type="button"
-            onClick={() => {
-              handleSliderChange(2);
-              setShowLabels(true);
-            }}
-            className={`flex items-center gap-1.5 transition px-2 py-1 rounded-lg ${
-              tierCategory === 1 ? 'text-rose-400 font-black bg-rose-500/10' : 'hover:text-slate-200'
+            onClick={() => handleSliderChange(2)}
+            className={`flex items-center gap-1 transition p-1.5 rounded-lg ${
+              tierCategory === 1 ? 'text-rose-400 font-black bg-rose-500/10 border border-rose-500/30' : 'hover:text-slate-200'
             }`}
             title="Didn't Like (Rating 2)"
           >
             <ThumbsDown className="w-3.5 h-3.5" />
-            {showLabels && <span>Didn&apos;t Like</span>}
           </button>
 
           <button
             type="button"
-            onClick={() => {
-              handleSliderChange(5);
-              setShowLabels(true);
-            }}
-            className={`flex items-center gap-1.5 transition px-2 py-1 rounded-lg ${
-              tierCategory === 2 ? 'text-amber-400 font-black bg-amber-500/10' : 'hover:text-slate-200'
+            onClick={() => handleSliderChange(5)}
+            className={`flex items-center gap-1 transition p-1.5 rounded-lg ${
+              tierCategory === 2 ? 'text-amber-400 font-black bg-amber-500/10 border border-amber-500/30' : 'hover:text-slate-200'
             }`}
             title="Neutral (Rating 5)"
           >
             <Minus className="w-3.5 h-3.5" />
-            {showLabels && <span>Neutral</span>}
           </button>
 
           <button
             type="button"
-            onClick={() => {
-              handleSliderChange(8);
-              setShowLabels(true);
-            }}
-            className={`flex items-center gap-1.5 transition px-2 py-1 rounded-lg ${
-              tierCategory === 3 ? 'text-emerald-400 font-black bg-emerald-500/10' : 'hover:text-slate-200'
+            onClick={() => handleSliderChange(8)}
+            className={`flex items-center gap-1 transition p-1.5 rounded-lg ${
+              tierCategory === 3 ? 'text-emerald-400 font-black bg-emerald-500/10 border border-emerald-500/30' : 'hover:text-slate-200'
             }`}
             title="Liked (Rating 8)"
           >
             <ThumbsUp className="w-3.5 h-3.5" />
-            {showLabels && <span>Liked</span>}
           </button>
         </div>
       </div>
