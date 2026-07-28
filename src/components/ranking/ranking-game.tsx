@@ -3,6 +3,7 @@
 import React, { useState, useRef } from 'react';
 import { MediaItem, UserMediaRecord, PairwiseMatchup } from '@/types/media';
 import { StorageService } from '@/lib/storage';
+import { useLanguage } from '@/context/language-context';
 import { calculateElo, selectNextMatchup, reindexRecords } from '@/lib/elo';
 import { getTMDBImageUrl } from '@/lib/tmdb';
 import { MediaDetailModal } from '@/components/media/media-detail-modal';
@@ -27,6 +28,7 @@ interface Props {
 }
 
 export const RankingGame: React.FC<Props> = ({ onRecordsChanged, onNavigateToTab, onPersonSelect }) => {
+  const { t } = useLanguage();
   const [records, setRecords] = useState<UserMediaRecord[]>(() => {
     if (typeof window === 'undefined') return [];
     return reindexRecords(StorageService.getUserRecords());
@@ -204,13 +206,13 @@ export const RankingGame: React.FC<Props> = ({ onRecordsChanged, onNavigateToTab
       <div className="bg-gradient-to-r from-amber-950/40 via-slate-900 to-indigo-950/40 border border-amber-500/30 p-6 sm:p-8 rounded-3xl shadow-2xl relative overflow-hidden">
         <div className="max-w-2xl space-y-3 relative z-10">
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-500/20 border border-amber-500/40 text-amber-300">
-            <Trophy className="w-3.5 h-3.5" /> Head-to-Head Comparison Engine
+            <Trophy className="w-3.5 h-3.5" /> {t('ranking_tab')}
           </span>
           <h1 className="text-3xl font-extrabold text-white tracking-tight">
-            Head-to-Head Ranking Game (&ldquo;A vs B&rdquo;)
+            {t('game_title')}
           </h1>
           <p className="text-sm text-slate-300">
-            Compare two titles of close rank proximity head-to-head. Pick your favorite to refine your master ranked list! Click any row to view full details.
+            {t('game_desc')}
           </p>
         </div>
       </div>

@@ -18,7 +18,7 @@ interface Props {
 const PAGE_SIZE = 24;
 
 export const SearchView: React.FC<Props> = ({ initialSearchQuery = '', onRecordsChanged }) => {
-  const { currentLanguage } = useLanguage();
+  const { currentLanguage, t } = useLanguage();
   const [query, setQuery] = useState(initialSearchQuery);
   const [results, setResults] = useState<MediaItem[]>(MOCK_MEDIA_ITEMS);
   const [loading, setLoading] = useState(false);
@@ -265,13 +265,13 @@ export const SearchView: React.FC<Props> = ({ initialSearchQuery = '', onRecords
       <div className="bg-gradient-to-r from-slate-900 via-cyan-950/40 to-slate-900 border border-slate-800 p-6 sm:p-10 rounded-3xl shadow-2xl relative z-20">
         <div className="max-w-3xl space-y-4 relative z-10">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">
-            <Sparkles className="w-3.5 h-3.5" /> Instant Search & Filter Engine
+            <Sparkles className="w-3.5 h-3.5" /> {t('hero_tag')}
           </div>
           <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
-            Discover, Search, and Rank Movies &amp; TV Shows
+            {t('hero_title')}
           </h1>
           <p className="text-sm text-slate-300">
-            Search over 12,000 titles by title, actor, director, genre, or language to rate and build your master ranked list.
+            {t('hero_desc')}
           </p>
 
           {/* Search Input Box with Interactive Autosuggest */}
@@ -291,7 +291,7 @@ export const SearchView: React.FC<Props> = ({ initialSearchQuery = '', onRecords
                     (e.target as HTMLInputElement).blur();
                   }
                 }}
-                placeholder="Search by title, actor, director, genre, or language (e.g. French, Emily Blunt)..."
+                placeholder={t('search_placeholder')}
                 className="w-full pl-12 pr-12 py-3.5 bg-slate-950/90 border border-slate-700/80 focus:border-cyan-500 rounded-2xl text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/30 text-sm shadow-xl transition"
               />
               {loading ? (

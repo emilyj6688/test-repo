@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { t as translate, TranslationKey } from '@/lib/translations';
 
 export interface AppLanguage {
   code: string;       // e.g. 'en-US', 'ar-SA', 'he-IL'
@@ -32,11 +33,13 @@ export const SUPPORTED_LANGUAGES: AppLanguage[] = [
 interface LanguageContextType {
   currentLanguage: AppLanguage;
   setLanguage: (lang: AppLanguage) => void;
+  t: (key: TranslationKey) => string;
 }
 
 const LanguageContext = createContext<LanguageContextType>({
   currentLanguage: SUPPORTED_LANGUAGES[0],
   setLanguage: () => {},
+  t: (key: TranslationKey) => translate(key, 'en'),
 });
 
 const LANG_KEY = 'cinetrack_language_v1';
@@ -73,8 +76,12 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const t = (key: TranslationKey): string => {
+    return translate(key, currentLanguage.isoCode);
+  };
+
   return (
-    <LanguageContext.Provider value={{ currentLanguage, setLanguage }}>
+    <LanguageContext.Provider value={{ currentLanguage, setLanguage, t }}>
       {children}
     </LanguageContext.Provider>
   );

@@ -3,6 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import { UserMediaRecord, MediaItem, RatingTier, MediaType, getTierCategory } from '@/types/media';
 import { StorageService } from '@/lib/storage';
+import { useLanguage } from '@/context/language-context';
 import { MediaCard } from '@/components/media/media-card';
 import { MediaDetailModal } from '@/components/media/media-detail-modal';
 import { Film, BookmarkCheck, ArrowUpDown, ThumbsUp, ThumbsDown, Minus, ChevronDown, Search, X } from 'lucide-react';
@@ -22,6 +23,7 @@ export const WatchedWatchlistView: React.FC<Props> = ({
   onNavigateToTab,
   onPersonSelect,
 }) => {
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState<'watched' | 'watchlist'>(initialTab);
   const [records, setRecords] = useState<UserMediaRecord[]>(() => {
     if (typeof window === 'undefined') return [];
@@ -114,12 +116,10 @@ export const WatchedWatchlistView: React.FC<Props> = ({
           </div>
           <div>
             <h1 className="text-2xl font-bold text-white">
-              {activeTab === 'watched' ? 'My Watched Media Log (Ranked Order)' : 'My Watchlist'}
+              {activeTab === 'watched' ? t('watched_title') : t('watchlist_title')}
             </h1>
             <p className="text-xs text-slate-400">
-              {activeTab === 'watched'
-                ? 'Your watched media automatically sorted from highest ranked (#1) down to lowest.'
-                : 'Titles you plan to watch soon.'}
+              {activeTab === 'watched' ? t('watched_desc') : t('watchlist_desc')}
             </p>
           </div>
         </div>
@@ -137,7 +137,7 @@ export const WatchedWatchlistView: React.FC<Props> = ({
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            <Film className="w-4 h-4" /> Watched ({records.filter((r) => r.status === 'watched').length})
+            <Film className="w-4 h-4" /> {t('watched_tab')} ({records.filter((r) => r.status === 'watched').length})
           </button>
           <button
             onClick={() => {
@@ -150,7 +150,7 @@ export const WatchedWatchlistView: React.FC<Props> = ({
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            <BookmarkCheck className="w-4 h-4" /> Watchlist ({records.filter((r) => r.status === 'want_to_watch').length})
+            <BookmarkCheck className="w-4 h-4" /> {t('watchlist_tab')} ({records.filter((r) => r.status === 'want_to_watch').length})
           </button>
         </div>
       </div>
@@ -168,7 +168,7 @@ export const WatchedWatchlistView: React.FC<Props> = ({
               setSearchFilter(e.target.value);
               setVisibleCount(PAGE_SIZE);
             }}
-            placeholder={`Filter your ${activeTab === 'watched' ? 'watched' : 'watchlist'} titles...`}
+            placeholder={t('filter_placeholder')}
             className="w-full pl-9 pr-8 py-1.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition"
           />
           {searchFilter && (
@@ -194,7 +194,7 @@ export const WatchedWatchlistView: React.FC<Props> = ({
                   tierFilter === 'all' ? 'bg-slate-700 text-white' : 'bg-slate-950 text-slate-400 hover:text-slate-200'
                 }`}
               >
-                All Tiers
+                {t('all_tiers')}
               </button>
               <button
                 onClick={() => {
@@ -207,7 +207,7 @@ export const WatchedWatchlistView: React.FC<Props> = ({
                     : 'bg-slate-950 border border-slate-800 text-emerald-400 hover:bg-slate-800'
                 }`}
               >
-                <ThumbsUp className="w-3 h-3" /> Liked
+                <ThumbsUp className="w-3 h-3" /> {t('liked')}
               </button>
               <button
                 onClick={() => {
@@ -220,7 +220,7 @@ export const WatchedWatchlistView: React.FC<Props> = ({
                     : 'bg-slate-950 border border-slate-800 text-amber-400 hover:bg-slate-800'
                 }`}
               >
-                <Minus className="w-3 h-3" /> Neutral
+                <Minus className="w-3 h-3" /> {t('neutral')}
               </button>
               <button
                 onClick={() => {
@@ -233,14 +233,14 @@ export const WatchedWatchlistView: React.FC<Props> = ({
                     : 'bg-slate-950 border border-slate-800 text-rose-400 hover:bg-slate-800'
                 }`}
               >
-                <ThumbsDown className="w-3 h-3" /> Didn&apos;t Like
+                <ThumbsDown className="w-3 h-3" /> {t('disliked')}
               </button>
             </div>
           )}
 
           {/* Media Type Filter */}
           <div className="flex items-center gap-1 text-xs">
-            <span className="text-slate-400">Type:</span>
+            <span className="text-slate-400">{t('type_label')}</span>
             <select
               value={typeFilter}
               onChange={(e) => {
@@ -249,9 +249,9 @@ export const WatchedWatchlistView: React.FC<Props> = ({
               }}
               className="bg-slate-950 border border-slate-700 text-slate-200 text-xs rounded-lg px-2 py-1 focus:outline-none focus:border-cyan-500"
             >
-              <option value="all">All</option>
-              <option value="movie">Movies</option>
-              <option value="tv">TV Shows</option>
+              <option value="all">{t('all_type')}</option>
+              <option value="movie">{t('movies_type')}</option>
+              <option value="tv">{t('tv_type')}</option>
             </select>
           </div>
 
