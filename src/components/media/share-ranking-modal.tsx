@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { StorageService } from '@/lib/storage';
-import { X, Share2, Copy, Check, Sparkles, Trophy, Link as LinkIcon, Download } from 'lucide-react';
+import { X, Share2, Copy, Check, Sparkles, Trophy, Link as LinkIcon, Download, User } from 'lucide-react';
 import { MOCK_MEDIA_ITEMS } from '@/lib/tmdb';
 import { MediaItem } from '@/types/media';
 
@@ -19,13 +19,15 @@ interface SharedItem {
 }
 
 export const ShareRankingModal: React.FC<Props> = ({ isOpen, onClose }) => {
+  const currentUser = StorageService.getCurrentUser();
+  const [userName, setUserName] = useState(currentUser.name);
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedText, setCopiedText] = useState(false);
   const [imported, setImported] = useState(false);
 
-  const currentUser = StorageService.getCurrentUser();
-  const localRecords = StorageService.getUserRecords().filter((r) => r.status === 'watched');
-  localRecords.sort((a, b) => (a.rankIndex || 999) - (b.rankIndex || 999));
+  const localUserRecords = StorageService.getUserRecords();
+  const watchedRecords = localUserRecords.filter((r) => r.status === 'watched');
+  watchedRecords.sort((a, b) => (a.rankIndex || 999) - (b.rankIndex || 999));
 
   // Parse incoming shared payload from URL hash (if opened from a friend's link)
   const parseSharedHash = (): { userName: string; items: SharedItem[] } => {
@@ -43,12 +45,12 @@ export const ShareRankingModal: React.FC<Props> = ({ isOpen, onClose }) => {
         decoded = decodeURIComponent(raw);
       }
 
-      let userName = 'Friend';
+      let parsedName = 'Friend';
       let itemsStr = decoded;
       if (decoded.includes('|')) {
         const parts = decoded.split('|');
         if (parts[0].startsWith('u:')) {
-          userName = parts[0].replace('u:', '');
+          parsedName = parts[0].replace('u:', '');
           itemsStr = parts.slice(1).join('|');
         }
       }
@@ -66,7 +68,7 @@ export const ShareRankingModal: React.FC<Props> = ({ isOpen, onClose }) => {
         }
       });
 
-      return { userName, items };
+      return { userName: parsedName, items };
     } catch {
       return { userName: '', items: [] };
     }
@@ -75,15 +77,18 @@ export const ShareRankingModal: React.FC<Props> = ({ isOpen, onClose }) => {
   const sharedData = parseSharedHash();
   const isIncomingShare = sharedData.items.length > 0;
 
-  const activeName = isIncomingShare ? sharedData.userName : currentUser.name;
-  const activeItems: { title: string; ratingTier: number; tmdbId: number; mediaType: 'movie' | 'tv' }[] = isIncomingShare
+  const activeDisplayName = isIncomingShare ? sharedData.userName : userName;
+
+  // Determine top items to show & encode: use watched list first, fallback to user's saved items or top catalog items
+  const itemsToEncode = watchedRecords.length > 0
+    ? watchedRecords.slice(0, 10).map((r) => ({ title: r.item.title, ratingTier: r.ratingTier, tmdbId: r.item.tmdbId, mediaType: r.item.mediaType }))
+    : localUserRecords.length > 0
+    ? localUserRecords.slice(0, 10).map((r) => ({ title: r.item.title, ratingTier: r.ratingTier || 8.0, tmdbId: r.item.tmdbId, mediaType: r.item.mediaType }))
+    : MOCK_MEDIA_ITEMS.slice(0, 10).map((m, idx) => ({ title: m.title, ratingTier: 10 - idx * 0.2, tmdbId: m.tmdbId, mediaType: m.mediaType }));
+
+  const activeItems = isIncomingShare
     ? sharedData.items
-    : localRecords.slice(0, 10).map((r) => ({
-        title: r.item.title,
-        ratingTier: r.ratingTier,
-        tmdbId: r.item.tmdbId,
-        mediaType: r.item.mediaType,
-      }));
+    : itemsToEncode;
 
   // Encoding helper
   const safeEncode = (str: string): string => {
@@ -94,15 +99,19 @@ export const ShareRankingModal: React.FC<Props> = ({ isOpen, onClose }) => {
     }
   };
 
-  // Build outgoing payload link from local user records
-  const topLocal = localRecords.slice(0, 10);
-  const outgoingPayload = `u:${currentUser.name}|` + topLocal.map((r) => `${r.item.tmdbId}:${r.item.mediaType}:${encodeURIComponent(r.item.title)}:${r.ratingTier}`).join(';');
+  // Build outgoing payload link
+  const outgoingPayload = `u:${userName}|` + itemsToEncode.map((r) => `${r.tmdbId}:${r.mediaType}:${encodeURIComponent(r.title)}:${r.ratingTier}`).join(';');
   const shareableUrl = typeof window !== 'undefined'
     ? `${window.location.origin}${window.location.pathname}#share=${safeEncode(outgoingPayload)}`
     : 'https://jcpapernik.github.io/cinerank-media-tracker/';
 
+  const handleNameChange = (newName: string) => {
+    setUserName(newName);
+    StorageService.updateCurrentUserName(newName);
+  };
+
   const generateTextSummary = () => {
-    let text = `🎬 ${activeName}'s Top Movie & TV Rankings on CineRank:\n\n`;
+    let text = `🎬 ${activeDisplayName}'s Top Movie & TV Rankings on CineRank:\n\n`;
     activeItems.forEach((r, idx) => {
       const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}.`;
       text += `${medal} ${r.title} (${r.ratingTier}/10)\n`;
@@ -111,7 +120,7 @@ export const ShareRankingModal: React.FC<Props> = ({ isOpen, onClose }) => {
     return text;
   };
 
-  // Robust Clipboard Copy function with execCommand fallback
+  // Clipboard Copy function with execCommand fallback
   const copyToClipboard = async (textToCopy: string): Promise<boolean> => {
     if (!textToCopy) return false;
 
@@ -161,7 +170,7 @@ export const ShareRankingModal: React.FC<Props> = ({ isOpen, onClose }) => {
     if (typeof navigator !== 'undefined' && navigator.share) {
       try {
         await navigator.share({
-          title: `${activeName}'s Movie Rankings`,
+          title: `${activeDisplayName}'s Movie Rankings`,
           text: generateTextSummary(),
           url: shareableUrl,
         });
@@ -217,19 +226,35 @@ export const ShareRankingModal: React.FC<Props> = ({ isOpen, onClose }) => {
             <Trophy className="w-6 h-6" />
           </div>
           <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-            {isIncomingShare ? `${activeName}'s Shared Ranking` : 'Share Your Movie Ranking'}
+            {isIncomingShare ? `${activeDisplayName}'s Shared Ranking` : 'Share Your Movie Ranking'}
           </h2>
           <p className="text-xs text-slate-400">
             {isIncomingShare
-              ? `Viewing top ranked movie choices shared by ${activeName}!`
+              ? `Viewing top ranked movie choices shared by ${activeDisplayName}!`
               : 'Share your custom Top 10 list with friends, social media, or iMessage!'}
           </p>
         </div>
 
+        {/* Editable User Name (if sending) */}
+        {!isIncomingShare && (
+          <div className="space-y-1">
+            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+              <User className="w-3.5 h-3.5 text-amber-400" /> Your Display Name on Shared Link
+            </label>
+            <input
+              type="text"
+              value={userName}
+              onChange={(e) => handleNameChange(e.target.value)}
+              placeholder="e.g. Jonah"
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-bold text-white focus:outline-none focus:border-amber-400 transition"
+            />
+          </div>
+        )}
+
         {/* Top Ranked Preview Card */}
-        <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800/80 space-y-2 max-h-56 overflow-y-auto">
+        <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800/80 space-y-2 max-h-52 overflow-y-auto">
           <div className="flex items-center justify-between text-[11px] font-bold text-slate-400 uppercase tracking-wider pb-2 border-b border-slate-800">
-            <span>{activeName}&apos;s Top Titles ({activeItems.length} items)</span>
+            <span>{activeDisplayName}&apos;s Top Titles ({activeItems.length} items)</span>
             <span className="text-amber-400">Master Rank</span>
           </div>
 
@@ -265,7 +290,7 @@ export const ShareRankingModal: React.FC<Props> = ({ isOpen, onClose }) => {
             }`}
           >
             {imported ? <Check className="w-4 h-4" /> : <Download className="w-4 h-4" />}
-            {imported ? `Added ${activeName}'s list to your watched log!` : `Add ${activeName}'s Top Titles to My List`}
+            {imported ? `Added ${activeDisplayName}'s list to your watched log!` : `Add ${activeDisplayName}'s Top Titles to My List`}
           </button>
         )}
 

@@ -89,6 +89,15 @@ export class StorageService {
     return newUser;
   }
 
+  public static updateCurrentUserName(newName: string): void {
+    if (typeof window === 'undefined' || !newName.trim()) return;
+    const currentUser = this.getCurrentUser();
+    const users = this.getUsers();
+    const updatedUsers = users.map((u) => (u.id === currentUser.id ? { ...u, name: newName.trim() } : u));
+    localStorage.setItem(USERS_KEY, JSON.stringify(updatedUsers));
+    window.dispatchEvent(new CustomEvent('cinetrack_user_changed', { detail: currentUser.id }));
+  }
+
   // --- Scoped User Media Records ---
   private static getRecordsKey(userId?: string): string {
     const activeId = userId || this.getCurrentUser().id;
