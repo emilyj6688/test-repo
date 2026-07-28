@@ -44,10 +44,7 @@ if (!getApps().length) {
 export const auth: Auth = getAuth(app);
 export const db: Firestore = getFirestore(app);
 export const googleProvider = new GoogleAuthProvider();
-googleProvider.setCustomParameters({
-  prompt: 'select_account',
-  client_id: process.env.NEXT_PUBLIC_FIREBASE_CLIENT_ID || '370819170283-e5m9m6hvvssjqkg6llc8l7rv27grhs46.apps.googleusercontent.com',
-});
+googleProvider.setCustomParameters({ prompt: 'select_account' });
 
 export const isFirebaseConfigured = Boolean(
   apiKey &&
