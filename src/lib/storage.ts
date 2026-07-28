@@ -261,10 +261,26 @@ export class StorageService {
         cloudRecords.push(d.data() as UserMediaRecord);
       });
 
-      if (cloudRecords.length > 0) {
-        this.persistRecords(cloudRecords, userId);
+      // Retrieve any existing local records for this user
+      const existingLocal = this.getUserRecords(userId);
+      const mergedMap = new Map<string, UserMediaRecord>();
+
+      // Add cloud records
+      cloudRecords.forEach((r) => mergedMap.set(r.id, r));
+
+      // Merge any local records missing in cloud and sync back
+      existingLocal.forEach((r) => {
+        if (!mergedMap.has(r.id)) {
+          mergedMap.set(r.id, r);
+          this.syncRecordToCloud(r, userId);
+        }
+      });
+
+      const mergedList = Array.from(mergedMap.values());
+      if (mergedList.length > 0) {
+        this.persistRecords(mergedList, userId);
       }
-      return cloudRecords;
+      return mergedList;
     } catch (err) {
       console.warn('Firestore Fetch Records Error:', err);
       return [];
