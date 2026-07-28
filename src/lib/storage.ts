@@ -1,5 +1,7 @@
 import { UserMediaRecord, UserProfile, MediaItem, MediaStatus, RatingTier, SeasonStatus } from '@/types/media';
 import demoTestRecords from '@/lib/demo-test-records.json';
+import { db, isFirebaseConfigured } from '@/lib/firebase';
+import { doc, setDoc, getDocs, collection, deleteDoc } from 'firebase/firestore';
 
 const USERS_KEY = 'cinetrack_users_v1';
 const CURRENT_USER_KEY = 'cinetrack_current_user_v1';
@@ -49,7 +51,17 @@ export class StorageService {
       const users = this.getUsers();
       const found = users.find((u) => u.id === currentId);
       if (found) return found;
-      
+
+      // Check if currentId is a Cloud Auth UID
+      if (currentId && currentId.length > 10) {
+        return {
+          id: currentId,
+          name: 'Cloud Member',
+          avatarUrl: '☁️',
+          createdAt: new Date().toISOString(),
+        };
+      }
+
       const first = users[0] || DEFAULT_USERS[0];
       localStorage.setItem(CURRENT_USER_KEY, first.id);
       return first;
@@ -62,6 +74,11 @@ export class StorageService {
     if (typeof window === 'undefined') return;
     localStorage.setItem(CURRENT_USER_KEY, userId);
     window.dispatchEvent(new CustomEvent('cinetrack_user_changed', { detail: userId }));
+    
+    // Automatically trigger cloud fetch if cloud user
+    if (isFirebaseConfigured && userId && !userId.startsWith('user_')) {
+      this.syncFromCloud(userId);
+    }
   }
 
   public static createUserProfile(name: string, avatarUrl: string = '👤'): UserProfile {
@@ -171,6 +188,7 @@ export class StorageService {
     }
 
     this.persistRecords(records, activeUserId);
+    this.syncRecordToCloud(record, activeUserId);
     return record;
   }
 
@@ -183,17 +201,22 @@ export class StorageService {
     record.ratingTier = ratingTier;
     record.updatedAt = new Date().toISOString();
     this.persistRecords(records);
+    this.syncRecordToCloud(record, record.userId);
   }
 
   public static removeRecord(tmdbId: number, mediaType: 'movie' | 'tv'): void {
-    const records = this.getUserRecords();
+    const activeUserId = this.getCurrentUser().id;
+    const records = this.getUserRecords(activeUserId);
     const id = `${mediaType}_${tmdbId}`;
     const filtered = records.filter((r) => r.id !== id);
-    this.persistRecords(filtered);
+    this.persistRecords(filtered, activeUserId);
+    this.removeRecordFromCloud(id, activeUserId);
   }
 
   public static updateRecordsList(updatedRecords: UserMediaRecord[], userId?: string): void {
-    this.persistRecords(updatedRecords, userId);
+    const activeUserId = userId || this.getCurrentUser().id;
+    this.persistRecords(updatedRecords, activeUserId);
+    updatedRecords.forEach((r) => this.syncRecordToCloud(r, activeUserId));
   }
 
   private static persistRecords(records: UserMediaRecord[], userId?: string): void {
@@ -201,6 +224,47 @@ export class StorageService {
     const key = this.getRecordsKey(userId);
     localStorage.setItem(key, JSON.stringify(records));
     window.dispatchEvent(new CustomEvent('cinetrack_records_updated'));
+  }
+
+  // --- Cloud Firestore Persistence & Synchronization ---
+  public static async syncRecordToCloud(record: UserMediaRecord, userId: string): Promise<void> {
+    if (!isFirebaseConfigured || !userId || userId.startsWith('user_')) return;
+    try {
+      const docRef = doc(db, 'users', userId, 'records', record.id);
+      await setDoc(docRef, record, { merge: true });
+    } catch (err) {
+      console.warn('Firestore Sync Record Error:', err);
+    }
+  }
+
+  public static async removeRecordFromCloud(recordId: string, userId: string): Promise<void> {
+    if (!isFirebaseConfigured || !userId || userId.startsWith('user_')) return;
+    try {
+      const docRef = doc(db, 'users', userId, 'records', recordId);
+      await deleteDoc(docRef);
+    } catch (err) {
+      console.warn('Firestore Delete Record Error:', err);
+    }
+  }
+
+  public static async syncFromCloud(userId: string): Promise<UserMediaRecord[]> {
+    if (!isFirebaseConfigured || !userId || userId.startsWith('user_')) return [];
+    try {
+      const colRef = collection(db, 'users', userId, 'records');
+      const snapshot = await getDocs(colRef);
+      const cloudRecords: UserMediaRecord[] = [];
+      snapshot.forEach((d) => {
+        cloudRecords.push(d.data() as UserMediaRecord);
+      });
+
+      if (cloudRecords.length > 0) {
+        this.persistRecords(cloudRecords, userId);
+      }
+      return cloudRecords;
+    } catch (err) {
+      console.warn('Firestore Fetch Records Error:', err);
+      return [];
+    }
   }
 
   // --- No Repeat Matchup History Tracking ---

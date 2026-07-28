@@ -6,6 +6,8 @@ export const metadata: Metadata = {
   description: 'Search, track, rate, and contextually rank your favorite movies and TV shows through head-to-head pairwise comparisons.',
 };
 
+import { Providers } from './providers';
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -14,7 +16,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className="antialiased bg-slate-950 text-slate-100 min-h-screen selection:bg-cyan-500 selection:text-slate-950">
-        {children}
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

@@ -5,7 +5,9 @@ import { StorageService } from '@/lib/storage';
 import { UserProfile } from '@/types/media';
 import { isTMDBConfigured } from '@/lib/tmdb';
 import { UserProfileModal } from '@/components/auth/user-profile-modal';
-import { Search, Film, BookmarkCheck, Trophy, Sparkles, User, Database } from 'lucide-react';
+import { AuthModal } from '@/components/auth/auth-modal';
+import { useAuth } from '@/context/auth-context';
+import { Search, Film, BookmarkCheck, Trophy, Sparkles, User, Database, LogIn, LogOut, Cloud, ShieldCheck } from 'lucide-react';
 
 export type ActiveTab = 'search' | 'watched' | 'watchlist' | 'ranking';
 
@@ -19,7 +21,10 @@ interface Props {
 export const Navbar: React.FC<Props> = ({ activeTab, onTabChange, watchedCount, watchlistCount }) => {
   const [currentUser, setCurrentUser] = useState<UserProfile>(() => StorageService.getCurrentUser());
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
+  const { user, logout, isFirebaseConfigured } = useAuth();
   const hasTMDB = isTMDBConfigured();
 
   return (
@@ -96,11 +101,11 @@ export const Navbar: React.FC<Props> = ({ activeTab, onTabChange, watchedCount, 
             </button>
           </nav>
 
-          {/* Right Actions: TMDB Badge & User Profile */}
+          {/* Right Actions: TMDB Badge & Cloud Auth Profile */}
           <div className="flex items-center gap-3">
             {/* TMDB API Status */}
             <div
-              className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-mono ${
+              className={`hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-mono ${
                 hasTMDB
                   ? 'bg-emerald-950/40 border-emerald-500/30 text-emerald-400'
                   : 'bg-slate-900 border-slate-800 text-slate-400'
@@ -111,17 +116,89 @@ export const Navbar: React.FC<Props> = ({ activeTab, onTabChange, watchedCount, 
               <span>{hasTMDB ? 'TMDB Live' : 'Demo Mode'}</span>
             </div>
 
-            {/* Profile Button */}
-            <button
-              onClick={() => setIsProfileModalOpen(true)}
-              className="flex items-center gap-2 px-3 py-1.5 bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-xl transition text-slate-200"
-            >
-              <span className="text-lg">{currentUser.avatarUrl || '👤'}</span>
-              <span className="text-xs font-semibold hidden sm:inline max-w-[100px] truncate">
-                {currentUser.name}
-              </span>
-              <User className="w-3.5 h-3.5 text-slate-400" />
-            </button>
+            {/* Cloud Sync Status */}
+            {isFirebaseConfigured && user && (
+              <div
+                className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-full bg-cyan-950/40 border border-cyan-500/30 text-cyan-400 text-[11px] font-mono"
+                title="Cloud Sync Active - Data synced across all devices"
+              >
+                <Cloud className="w-3 h-3" />
+                <span>Cloud Sync</span>
+              </div>
+            )}
+
+            {/* Authenticated User Menu vs Sign In Button */}
+            {user ? (
+              <div className="relative">
+                <button
+                  onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-slate-900 border border-slate-700 hover:border-cyan-500 rounded-xl transition text-slate-100 shadow-md"
+                >
+                  {user.photoURL ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img src={user.photoURL} alt={user.displayName || 'User'} className="w-6 h-6 rounded-full object-cover" />
+                  ) : (
+                    <div className="w-6 h-6 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold text-xs">
+                      {(user.displayName || user.email || 'U')[0].toUpperCase()}
+                    </div>
+                  )}
+                  <span className="text-xs font-bold max-w-[110px] truncate">
+                    {user.displayName || user.email?.split('@')[0] || 'Cloud User'}
+                  </span>
+                </button>
+
+                {/* Dropdown Menu */}
+                {isUserMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-56 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-2 z-50 animate-fade-in text-slate-200">
+                    <div className="px-3 py-2 border-b border-slate-800/80 mb-1">
+                      <p className="text-xs font-bold text-white truncate">{user.displayName || 'Cloud User'}</p>
+                      <p className="text-[11px] text-slate-400 truncate">{user.email}</p>
+                      <div className="flex items-center gap-1 text-[10px] text-cyan-400 mt-1">
+                        <ShieldCheck className="w-3 h-3" />
+                        <span>Cloud Authenticated</span>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        setIsUserMenuOpen(false);
+                        setIsProfileModalOpen(true);
+                      }}
+                      className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800 rounded-xl flex items-center gap-2 transition"
+                    >
+                      <User className="w-4 h-4 text-cyan-400" /> Switch Profile / Local Modes
+                    </button>
+
+                    <button
+                      onClick={async () => {
+                        setIsUserMenuOpen(false);
+                        await logout();
+                      }}
+                      className="w-full text-left px-3 py-2 text-xs font-semibold text-rose-400 hover:bg-rose-500/10 rounded-xl flex items-center gap-2 transition mt-1"
+                    >
+                      <LogOut className="w-4 h-4" /> Sign Out
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setIsAuthModalOpen(true)}
+                  className="flex items-center gap-2 px-3.5 py-1.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold text-xs rounded-xl transition shadow-lg shadow-cyan-500/20"
+                >
+                  <LogIn className="w-3.5 h-3.5" /> Sign In
+                </button>
+
+                <button
+                  onClick={() => setIsProfileModalOpen(true)}
+                  className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-xl text-slate-300 text-xs transition"
+                  title="Guest / Switch Profiles"
+                >
+                  <span>{currentUser.avatarUrl || '👤'}</span>
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -169,6 +246,11 @@ export const Navbar: React.FC<Props> = ({ activeTab, onTabChange, watchedCount, 
         isOpen={isProfileModalOpen}
         onClose={() => setIsProfileModalOpen(false)}
         onUserChanged={(u) => setCurrentUser(u)}
+      />
+
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
       />
     </>
   );
