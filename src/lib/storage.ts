@@ -127,14 +127,32 @@ export class StorageService {
     return updated;
   }
 
-  // Developer Mode Helper: Clear all saved records for current user
-  public static clearAllRecords(userId?: string): void {
+  // Developer Mode Helper: Clear all saved records for current user locally & from Cloud Firestore
+  public static async clearAllRecords(userId?: string): Promise<void> {
     const activeUserId = userId || this.getCurrentUser().id;
-    this.persistRecords([], activeUserId);
+
     if (typeof window !== 'undefined') {
-      const key = this.getRecordsKey(activeUserId);
-      localStorage.removeItem(key);
+      localStorage.removeItem(this.getRecordsKey(activeUserId));
+      localStorage.removeItem(this.getRecordsKey('user_default'));
+      this.persistRecords([], activeUserId);
       window.dispatchEvent(new CustomEvent('cinetrack_records_updated'));
+    }
+
+    if (isFirebaseConfigured && activeUserId && !activeUserId.startsWith('user_')) {
+      try {
+        const colRef = collection(db, 'users', activeUserId, 'records');
+        const snapshot = await getDocs(colRef);
+        const deletePromises: Promise<void>[] = [];
+        snapshot.forEach((docSnap) => {
+          deletePromises.push(deleteDoc(doc(db, 'users', activeUserId, 'records', docSnap.id)));
+        });
+        await Promise.all(deletePromises);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('cinetrack_records_updated'));
+        }
+      } catch (err) {
+        console.warn('Firestore Clear All Records Error:', err);
+      }
     }
   }
 

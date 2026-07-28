@@ -54,8 +54,8 @@ export default function Home() {
     setTimeout(() => setToastMessage(null), 3000);
   };
 
-  const handleClearAllRecords = () => {
-    StorageService.clearAllRecords();
+  const handleClearAllRecords = async () => {
+    await StorageService.clearAllRecords();
     refreshCounts();
     setToastMessage('Cleared all saved items! Your list is now clean.');
     setTimeout(() => setToastMessage(null), 3000);
