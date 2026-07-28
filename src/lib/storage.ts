@@ -1,7 +1,7 @@
 import { UserMediaRecord, UserProfile, MediaItem, MediaStatus, RatingTier, SeasonStatus } from '@/types/media';
 import demoTestRecords from '@/lib/demo-test-records.json';
 import { db, isFirebaseConfigured } from '@/lib/firebase';
-import { doc, setDoc, getDocs, collection, deleteDoc, onSnapshot, Unsubscribe } from 'firebase/firestore';
+import { doc, setDoc, getDocs, collection, deleteDoc, onSnapshot, writeBatch, Unsubscribe } from 'firebase/firestore';
 
 const USERS_KEY = 'cinetrack_users_v1';
 const CURRENT_USER_KEY = 'cinetrack_current_user_v1';
@@ -146,11 +146,15 @@ export class StorageService {
       try {
         const colRef = collection(db, 'users', activeUserId, 'records');
         const snapshot = await getDocs(colRef);
-        const deletePromises: Promise<void>[] = [];
-        snapshot.forEach((docSnap) => {
-          deletePromises.push(deleteDoc(doc(db, 'users', activeUserId, 'records', docSnap.id)));
-        });
-        await Promise.all(deletePromises);
+        
+        if (!snapshot.empty) {
+          const batch = writeBatch(db);
+          snapshot.forEach((docSnap) => {
+            batch.delete(docSnap.ref);
+          });
+          await batch.commit();
+        }
+
         if (typeof window !== 'undefined') {
           this.persistRecords([], activeUserId);
           window.dispatchEvent(new CustomEvent('cinetrack_records_updated'));
