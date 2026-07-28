@@ -92,17 +92,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
         onClose();
       }, 600);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Google Sign-In failed';
+      console.error('Google Sign-In Error details:', err);
+      const msg = err instanceof Error ? err.message : String(err);
       if (msg.includes('popup-closed-by-user')) {
         setError('Google Sign-In popup was closed before completing.');
+      } else if (msg.includes('popup-blocked')) {
+        setError('Popup was blocked by your browser. Please allow popups for Google Sign-In.');
       } else if (msg.includes('unauthorized-domain')) {
-        StorageService.createUserProfile('Google User', '🌐');
-        setSuccess('Signed in locally! (Domain needs authorization in Firebase Console)');
-        setTimeout(() => onClose(), 1500);
+        const domain = typeof window !== 'undefined' ? window.location.hostname : 'current domain';
+        setError(`Domain (${domain}) is not authorized in Firebase Console -> Auth -> Settings -> Authorized Domains.`);
       } else if (msg.includes('api-key-not-valid') || msg.includes('invalid-api-key')) {
-        StorageService.createUserProfile('Google User', '🌐');
-        setSuccess('Signed in locally as Guest Movie Buff!');
-        setTimeout(() => onClose(), 1200);
+        setError('Firebase API Key is invalid or expired. Check Firebase Console credentials.');
       } else {
         setError(msg);
       }
