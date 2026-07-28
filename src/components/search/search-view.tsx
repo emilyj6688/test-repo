@@ -27,11 +27,7 @@ export const SearchView: React.FC<Props> = ({ initialSearchQuery = '', onRecords
 
   // Autosuggest State
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [showStickySuggestions, setShowStickySuggestions] = useState(false);
   const searchContainerRef = useRef<HTMLDivElement>(null);
-  const stickySearchContainerRef = useRef<HTMLDivElement>(null);
-  const heroRef = useRef<HTMLDivElement>(null);
-  const [isScrolledPastHero, setIsScrolledPastHero] = useState(false);
 
   const [userRecordsMap, setUserRecordsMap] = useState<Map<string, UserMediaRecord>>(() => {
     if (typeof window === 'undefined') return new Map();
@@ -42,29 +38,11 @@ export const SearchView: React.FC<Props> = ({ initialSearchQuery = '', onRecords
   });
   const [selectedItem, setSelectedItem] = useState<MediaItem | null>(null);
 
-  // Monitor scroll position to dock search bar into sticky header when scrolled past centerpiece
-  useEffect(() => {
-    const handleScroll = () => {
-      if (heroRef.current) {
-        const rect = heroRef.current.getBoundingClientRect();
-        setIsScrolledPastHero(rect.bottom <= 80);
-      }
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    handleScroll();
-
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  // Click outside listener for autosuggest dropdowns
+  // Click outside listener for autosuggest dropdown
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
         setShowSuggestions(false);
-      }
-      if (stickySearchContainerRef.current && !stickySearchContainerRef.current.contains(e.target as Node)) {
-        setShowStickySuggestions(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -140,12 +118,10 @@ export const SearchView: React.FC<Props> = ({ initialSearchQuery = '', onRecords
         setResults(MOCK_MEDIA_ITEMS);
         setLoading(false);
         setShowSuggestions(false);
-        setShowStickySuggestions(false);
         return;
       }
 
       setShowSuggestions(true);
-      setShowStickySuggestions(true);
 
       // Instant local filter across title, genres, directors, cast, language
       const instantLocalMatches = MOCK_MEDIA_ITEMS.filter(
@@ -196,19 +172,16 @@ export const SearchView: React.FC<Props> = ({ initialSearchQuery = '', onRecords
   const handleSelectSuggestionItem = (item: MediaItem) => {
     setSelectedItem(item);
     setShowSuggestions(false);
-    setShowStickySuggestions(false);
   };
 
   const handleSelectPerson = (personName: string) => {
     handleSearch(personName);
     setShowSuggestions(false);
-    setShowStickySuggestions(false);
   };
 
   const handleSelectGenreTag = (genreTag: string) => {
     handleSearch(genreTag);
     setShowSuggestions(false);
-    setShowStickySuggestions(false);
   };
 
   // Compute autosuggest recommendations for title, actors, directors, and genres
@@ -426,99 +399,10 @@ export const SearchView: React.FC<Props> = ({ initialSearchQuery = '', onRecords
 
   return (
     <div className="space-y-8 relative">
-      {/* STICKY DOCKED TOP SEARCH BAR: Appears when scrolled down past center hero */}
-      {isScrolledPastHero && (
-        <div className="fixed top-0 left-0 right-0 z-40 bg-slate-950/95 backdrop-blur-xl border-b border-slate-800/90 shadow-2xl py-2.5 px-4 sm:px-8 animate-in fade-in slide-in-from-top-3 duration-200">
-          <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
-            {/* Brand Logo Dock */}
-            <div
-              className="hidden sm:flex items-center gap-2 cursor-pointer group"
-              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-              title="Click to scroll back to top"
-            >
-              <div className="w-7 h-7 rounded-xl bg-cyan-500/20 border border-cyan-500/40 text-cyan-400 flex items-center justify-center font-extrabold text-xs shadow-sm group-hover:scale-105 transition">
-                <Sparkles className="w-3.5 h-3.5" />
-              </div>
-              <span className="font-black text-xs text-white tracking-tight group-hover:text-cyan-400 transition">CineRank</span>
-            </div>
 
-            {/* Docked Search Input */}
-            <div className="flex-1 max-w-xl relative" ref={stickySearchContainerRef}>
-              <div className="relative flex items-center">
-                <Search className="absolute left-3.5 w-4 h-4 text-slate-400 pointer-events-none" />
-                <input
-                  type="text"
-                  value={query}
-                  onFocus={() => {
-                    if (query.trim().length >= 1) setShowStickySuggestions(true);
-                  }}
-                  onChange={(e) => handleSearch(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === 'Escape') {
-                      setShowStickySuggestions(false);
-                      (e.target as HTMLInputElement).blur();
-                    }
-                  }}
-                  placeholder={t('search_placeholder')}
-                  className="w-full pl-10 pr-10 py-2 bg-slate-900 border border-slate-700/80 focus:border-cyan-500 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none text-xs shadow-inner transition"
-                />
-                {loading ? (
-                  <Loader2 className="absolute right-3 w-4 h-4 text-cyan-400 animate-spin pointer-events-none" />
-                ) : (
-                  query.trim().length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => handleSearch('')}
-                      className="absolute right-3 p-1 rounded-full text-slate-400 hover:text-white hover:bg-slate-800 transition"
-                      title="Clear search"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  )
-                )}
-              </div>
-
-              {/* Sticky Autosuggest Dropdown */}
-              {showStickySuggestions && query.trim().length >= 1 && hasSuggestions && (
-                <div className="absolute left-0 right-0 mt-2 z-[9999] bg-slate-900/95 backdrop-blur-xl border border-slate-700/80 rounded-2xl shadow-2xl overflow-hidden max-h-[380px] overflow-y-auto divide-y divide-slate-800/80 animate-in fade-in slide-in-from-top-2 duration-150">
-                  {renderAutosuggestContent()}
-                </div>
-              )}
-            </div>
-
-            {/* Quick Type Filter Pills in Sticky Dock */}
-            <div className="flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800 shrink-0">
-              <button
-                onClick={() => setFilterType('all')}
-                className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
-                  filterType === 'all' ? 'bg-cyan-500 text-slate-950 shadow-sm' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                All
-              </button>
-              <button
-                onClick={() => setFilterType('movie')}
-                className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
-                  filterType === 'movie' ? 'bg-cyan-500 text-slate-950 shadow-sm' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                Movies
-              </button>
-              <button
-                onClick={() => setFilterType('tv')}
-                className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
-                  filterType === 'tv' ? 'bg-cyan-500 text-slate-950 shadow-sm' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                TV
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Hero Centerpiece Search Section */}
-      <div ref={heroRef} className="bg-gradient-to-r from-slate-900 via-cyan-950/40 to-slate-900 border border-slate-800 p-6 sm:p-10 rounded-3xl shadow-2xl relative z-20">
+      <div className="bg-gradient-to-r from-slate-900 via-cyan-950/40 to-slate-900 border border-slate-800 p-6 sm:p-10 rounded-3xl shadow-2xl relative z-20">
         <div className="max-w-3xl space-y-4 relative z-10">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">
             <Sparkles className="w-3.5 h-3.5" /> {t('hero_tag')}

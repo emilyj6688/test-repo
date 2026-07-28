@@ -8,7 +8,7 @@ import { AuthModal } from '@/components/auth/auth-modal';
 import { useAuth } from '@/context/auth-context';
 import { useLanguage } from '@/context/language-context';
 import { LanguageSelector } from '@/components/language-selector';
-import { Search, Film, BookmarkCheck, Trophy, Sparkles, User, LogIn, LogOut, ShieldCheck } from 'lucide-react';
+import { Search, Film, BookmarkCheck, Trophy, Sparkles, User, LogIn, LogOut, ShieldCheck, X } from 'lucide-react';
 
 export type ActiveTab = 'search' | 'watched' | 'watchlist' | 'ranking';
 
@@ -17,13 +17,23 @@ interface Props {
   onTabChange: (tab: ActiveTab) => void;
   watchedCount: number;
   watchlistCount: number;
+  searchQuery?: string;
+  onSearchChange?: (q: string) => void;
 }
 
-export const Navbar: React.FC<Props> = ({ activeTab, onTabChange, watchedCount, watchlistCount }) => {
+export const Navbar: React.FC<Props> = ({
+  activeTab,
+  onTabChange,
+  watchedCount,
+  watchlistCount,
+  searchQuery = '',
+  onSearchChange,
+}) => {
   const [currentUser, setCurrentUser] = useState<UserProfile>(() => StorageService.getCurrentUser());
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
 
   const { user, logout } = useAuth();
   const { t } = useLanguage();
@@ -32,67 +42,95 @@ export const Navbar: React.FC<Props> = ({ activeTab, onTabChange, watchedCount, 
     <>
       <header className="sticky top-0 z-40 bg-slate-950/80 backdrop-blur-xl border-b border-slate-800/80">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          {/* Logo & Brand */}
-          <div className="flex items-center gap-3 cursor-pointer" onClick={() => onTabChange('search')}>
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 via-indigo-500 to-purple-500 p-0.5 shadow-lg shadow-cyan-500/20">
-              <div className="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center">
+          {/* Left Brand Logo & Title */}
+          <div
+            onClick={() => onTabChange('search')}
+            className="flex items-center gap-3 cursor-pointer group"
+          >
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 p-0.5 shadow-lg shadow-cyan-500/20 group-hover:scale-105 transition-transform duration-300">
+              <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center">
                 <Sparkles className="w-5 h-5 text-cyan-400" />
               </div>
             </div>
+
             <div>
-              <span className="font-extrabold text-lg tracking-tight bg-gradient-to-r from-cyan-400 via-sky-300 to-purple-400 bg-clip-text text-transparent">
-                CineRank
-              </span>
-              <span className="text-[10px] font-semibold text-slate-400 block -mt-1 tracking-widest uppercase">
-                Media Ranker &amp; Tracker
-              </span>
+              <div className="flex items-center gap-1.5">
+                <span className="font-black text-lg text-white tracking-tight group-hover:text-cyan-400 transition">
+                  CineRank
+                </span>
+                <span className="px-1.5 py-0.5 text-[10px] font-extrabold bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 rounded-md">
+                  PRO
+                </span>
+              </div>
+              <p className="text-[10px] font-medium text-slate-400 hidden sm:block">
+                Pairwise Ranking &amp; Tracker
+              </p>
             </div>
           </div>
 
-          {/* Navigation Tabs */}
-          <nav className="hidden md:flex items-center gap-1 bg-slate-900/60 border border-slate-800 p-1.5 rounded-2xl">
+          {/* Center Navigation Tabs */}
+          <nav className="flex items-center gap-1 sm:gap-2 bg-slate-900/90 p-1.5 rounded-2xl border border-slate-800/80 shadow-inner">
             <button
               onClick={() => onTabChange('search')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition ${
+              className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs font-semibold transition ${
                 activeTab === 'search'
-                  ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 shadow-md'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                  ? 'bg-cyan-500 text-slate-950 font-bold shadow-md'
+                  : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              <Search className="w-4 h-4" /> {t('search_tab')}
+              <Search className="w-4 h-4" />
+              <span className="hidden sm:inline">{t('search_tab')}</span>
             </button>
 
             <button
               onClick={() => onTabChange('watched')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition ${
+              className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs font-semibold transition ${
                 activeTab === 'watched'
-                  ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 shadow-md'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                  ? 'bg-cyan-500 text-slate-950 font-bold shadow-md'
+                  : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              <Film className="w-4 h-4" /> {t('watched_tab')}
-              <span className="px-1.5 py-0.5 text-[10px] rounded-full bg-slate-800 text-slate-300 font-mono">
-                {watchedCount}
-              </span>
+              <Film className="w-4 h-4" />
+              <span className="hidden sm:inline">{t('watched_tab')}</span>
+              {watchedCount > 0 && (
+                <span
+                  className={`px-1.5 py-0.5 text-[10px] font-extrabold rounded-full ${
+                    activeTab === 'watched'
+                      ? 'bg-slate-950 text-cyan-400'
+                      : 'bg-slate-800 text-slate-300'
+                  }`}
+                >
+                  {watchedCount}
+                </span>
+              )}
             </button>
 
             <button
               onClick={() => onTabChange('watchlist')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition ${
+              className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs font-semibold transition ${
                 activeTab === 'watchlist'
-                  ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 shadow-md'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                  ? 'bg-cyan-500 text-slate-950 font-bold shadow-md'
+                  : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              <BookmarkCheck className="w-4 h-4" /> {t('watchlist_tab')}
-              <span className="px-1.5 py-0.5 text-[10px] rounded-full bg-slate-800 text-slate-300 font-mono">
-                {watchlistCount}
-              </span>
+              <BookmarkCheck className="w-4 h-4" />
+              <span className="hidden sm:inline">{t('watchlist_tab')}</span>
+              {watchlistCount > 0 && (
+                <span
+                  className={`px-1.5 py-0.5 text-[10px] font-extrabold rounded-full ${
+                    activeTab === 'watchlist'
+                      ? 'bg-slate-950 text-cyan-400'
+                      : 'bg-slate-800 text-slate-300'
+                  }`}
+                >
+                  {watchlistCount}
+                </span>
+              )}
             </button>
 
             <button
               onClick={() => onTabChange('ranking')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition ${
+              className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs font-semibold transition ${
                 activeTab === 'ranking'
                   ? 'bg-gradient-to-r from-amber-400 to-orange-500 text-slate-950 font-bold shadow-md shadow-amber-500/20 animate-pulse'
                   : 'text-amber-400 hover:text-amber-300 hover:bg-amber-500/10'
@@ -102,9 +140,57 @@ export const Navbar: React.FC<Props> = ({ activeTab, onTabChange, watchedCount, 
             </button>
           </nav>
 
-          {/* Right Actions: Language Selector, Telemetry Diagnostics & Cloud Auth Profile */}
-          {/* Right Actions: Language Selector & User Auth Profile */}
-          <div className="flex items-center gap-3">
+          {/* Right Actions: Top-Right Expanding Search, Language Selector & Profile */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* Top-Right Compact Expanding Search Bar */}
+            {onSearchChange && (
+              <div className="relative flex items-center">
+                {isSearchExpanded || (searchQuery && searchQuery.trim().length > 0) ? (
+                  <div className="relative flex items-center animate-in fade-in zoom-in-95 duration-150">
+                    <Search className="absolute left-2.5 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+                    <input
+                      type="text"
+                      autoFocus
+                      value={searchQuery || ''}
+                      onChange={(e) => {
+                        onSearchChange(e.target.value);
+                        if (activeTab !== 'search') onTabChange('search');
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Escape') {
+                          setIsSearchExpanded(false);
+                          if (!searchQuery) (e.target as HTMLInputElement).blur();
+                        }
+                      }}
+                      placeholder="Search title, actor..."
+                      className="w-36 sm:w-56 pl-8 pr-7 py-1.5 bg-slate-900 border border-cyan-500/50 rounded-xl text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-cyan-500/50 transition-all shadow-inner"
+                    />
+                    <button
+                      onClick={() => {
+                        onSearchChange('');
+                        setIsSearchExpanded(false);
+                      }}
+                      className="absolute right-2 p-0.5 rounded-full text-slate-400 hover:text-white hover:bg-slate-800 transition"
+                      title="Clear search"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setIsSearchExpanded(true);
+                      if (activeTab !== 'search') onTabChange('search');
+                    }}
+                    className="p-2 rounded-xl bg-slate-900 border border-slate-800 hover:border-cyan-500/50 text-slate-400 hover:text-cyan-400 transition"
+                    title="Search Titles"
+                  >
+                    <Search className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            )}
+
             {/* Global Language Selector */}
             <LanguageSelector />
 
@@ -123,7 +209,7 @@ export const Navbar: React.FC<Props> = ({ activeTab, onTabChange, watchedCount, 
                       {(user.displayName || user.email || 'U')[0].toUpperCase()}
                     </div>
                   )}
-                  <span className="text-xs font-bold max-w-[110px] truncate">
+                  <span className="text-xs font-bold max-w-[110px] truncate hidden md:inline">
                     {user.displayName || user.email?.split('@')[0] || 'Cloud User'}
                   </span>
                 </button>
@@ -157,82 +243,35 @@ export const Navbar: React.FC<Props> = ({ activeTab, onTabChange, watchedCount, 
                       }}
                       className="w-full text-left px-3 py-2 text-xs font-semibold text-rose-400 hover:bg-rose-500/10 rounded-xl flex items-center gap-2 transition mt-1"
                     >
-                      <LogOut className="w-4 h-4" /> {t('sign_out')}
+                      <LogOut className="w-4 h-4" /> Log Out
                     </button>
                   </div>
                 )}
               </div>
             ) : (
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setIsAuthModalOpen(true)}
-                  className="flex items-center gap-2 px-3.5 py-1.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold text-xs rounded-xl transition shadow-lg shadow-cyan-500/20"
-                >
-                  <LogIn className="w-3.5 h-3.5" /> {t('sign_in')}
-                </button>
-
-                <button
-                  onClick={() => setIsProfileModalOpen(true)}
-                  className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-xl text-slate-300 text-xs transition"
-                  title="Guest / Switch Profiles"
-                >
-                  <span>{currentUser.avatarUrl || '👤'}</span>
-                </button>
-              </div>
+              <button
+                onClick={() => setIsProfileModalOpen(true)}
+                className="flex items-center gap-2 px-3 py-1.5 bg-slate-900 border border-slate-800 hover:border-cyan-500/50 rounded-xl text-slate-200 hover:text-white text-xs font-bold transition shadow-sm"
+              >
+                <LogIn className="w-4 h-4 text-cyan-400" />
+                <span className="hidden sm:inline font-bold">{currentUser.name}</span>
+              </button>
             )}
           </div>
         </div>
-
-        {/* Mobile Navigation Row */}
-        <div className="md:hidden flex items-center justify-between gap-1 border-t border-slate-800/60 py-2 px-3 bg-slate-950 overflow-x-auto no-scrollbar">
-          <button
-            onClick={() => onTabChange('search')}
-            className={`flex flex-col items-center gap-1 text-[11px] font-medium p-1 ${
-              activeTab === 'search' ? 'text-cyan-400 font-bold' : 'text-slate-400'
-            }`}
-          >
-            <Search className="w-4 h-4" /> Search
-          </button>
-
-          <button
-            onClick={() => onTabChange('watched')}
-            className={`flex flex-col items-center gap-1 text-[11px] font-medium p-1 ${
-              activeTab === 'watched' ? 'text-cyan-400 font-bold' : 'text-slate-400'
-            }`}
-          >
-            <Film className="w-4 h-4" /> Watched ({watchedCount})
-          </button>
-
-          <button
-            onClick={() => onTabChange('watchlist')}
-            className={`flex flex-col items-center gap-1 text-[11px] font-medium p-1 ${
-              activeTab === 'watchlist' ? 'text-cyan-400 font-bold' : 'text-slate-400'
-            }`}
-          >
-            <BookmarkCheck className="w-4 h-4" /> Watchlist ({watchlistCount})
-          </button>
-
-          <button
-            onClick={() => onTabChange('ranking')}
-            className={`flex flex-col items-center gap-1 text-[11px] font-medium p-1 ${
-              activeTab === 'ranking' ? 'text-amber-400 font-bold' : 'text-slate-400'
-            }`}
-          >
-            <Trophy className="w-4 h-4" /> Rank (A/B)
-          </button>
-        </div>
       </header>
 
+      {/* Profile Management Modal */}
       <UserProfileModal
         isOpen={isProfileModalOpen}
         onClose={() => setIsProfileModalOpen(false)}
-        onUserChanged={(u) => setCurrentUser(u)}
+        onUserChanged={(u) => {
+          setCurrentUser(u);
+        }}
       />
 
-      <AuthModal
-        isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
-      />
+      {/* Cloud Auth Login/Signup Modal */}
+      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
     </>
   );
 };
