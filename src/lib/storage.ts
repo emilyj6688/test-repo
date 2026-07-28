@@ -1,6 +1,6 @@
 import { UserMediaRecord, UserProfile, MediaItem, MediaStatus, RatingTier, SeasonStatus } from '@/types/media';
 import demoTestRecords from '@/lib/demo-test-records.json';
-import { db, isFirebaseConfigured } from '@/lib/firebase';
+import { auth, db, isFirebaseConfigured } from '@/lib/firebase';
 import { doc, setDoc, getDocs, collection, deleteDoc, onSnapshot, writeBatch, Unsubscribe } from 'firebase/firestore';
 import { Telemetry } from '@/lib/telemetry';
 
@@ -45,12 +45,17 @@ export class StorageService {
 
       // Check if currentId is a Cloud Auth UID
       if (currentId && currentId.length > 10) {
-        return {
+        const fbUser = auth.currentUser;
+        const name = fbUser?.displayName || (fbUser?.email ? fbUser.email.split('@')[0] : 'Jonah Papernik');
+        const newUser: UserProfile = {
           id: currentId,
-          name: 'Movie Fan',
-          avatarUrl: '🍿',
+          name: name,
+          avatarUrl: '👤',
           createdAt: new Date().toISOString(),
         };
+        const updated = [...users, newUser];
+        localStorage.setItem(USERS_KEY, JSON.stringify(updated));
+        return newUser;
       }
 
       const first = users[0] || DEFAULT_USERS[0];
@@ -61,9 +66,27 @@ export class StorageService {
     }
   }
 
-  public static setCurrentUser(userId: string): void {
+  public static setCurrentUser(userId: string, defaultName?: string): void {
     if (typeof window === 'undefined') return;
     localStorage.setItem(CURRENT_USER_KEY, userId);
+
+    const users = this.getUsers();
+    const found = users.find((u) => u.id === userId);
+    if (!found) {
+      const name = defaultName || 'Jonah Papernik';
+      const newUser: UserProfile = {
+        id: userId,
+        name: name,
+        avatarUrl: '👤',
+        createdAt: new Date().toISOString(),
+      };
+      const updated = [...users, newUser];
+      localStorage.setItem(USERS_KEY, JSON.stringify(updated));
+    } else if (defaultName && (found.name === 'Movie Fan' || found.name === 'Cloud Member' || found.name === 'My Media List')) {
+      found.name = defaultName;
+      localStorage.setItem(USERS_KEY, JSON.stringify(users));
+    }
+
     Telemetry.log('info', `Active user changed to ID: ${userId.slice(0, 12)}...`);
     window.dispatchEvent(new CustomEvent('cinetrack_user_changed', { detail: userId }));
     
@@ -290,7 +313,8 @@ export class StorageService {
     const writePromise = (async () => {
       try {
         const docRef = doc(db, 'users', userId, 'records', record.id);
-        await setDoc(docRef, record, { merge: true });
+        const cleanRecord = JSON.parse(JSON.stringify(record));
+        await setDoc(docRef, cleanRecord, { merge: true });
         Telemetry.log('sync', `Pushed "${record.item.title}" (Tier ${record.ratingTier}) to Cloud Firestore path users/${userId.slice(0, 8)}.../records/${record.id}`);
       } catch (err) {
         Telemetry.log('error', `Firestore Sync Record Error: ${err}`);

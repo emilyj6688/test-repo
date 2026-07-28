@@ -41,8 +41,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
-        // Sync StorageService current user ID with Firebase Auth UID
-        StorageService.setCurrentUser(currentUser.uid);
+        const displayName = currentUser.displayName || (currentUser.email ? currentUser.email.split('@')[0] : 'Jonah Papernik');
+        StorageService.setCurrentUser(currentUser.uid, displayName);
       }
       setLoading(false);
     });
