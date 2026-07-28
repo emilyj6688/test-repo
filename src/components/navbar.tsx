@@ -8,7 +8,7 @@ import { AuthModal } from '@/components/auth/auth-modal';
 import { useAuth } from '@/context/auth-context';
 import { useLanguage } from '@/context/language-context';
 import { LanguageSelector } from '@/components/language-selector';
-import { Search, Film, BookmarkCheck, Trophy, Sparkles, User, LogIn, LogOut, Cloud, ShieldCheck, Activity } from 'lucide-react';
+import { Search, Film, BookmarkCheck, Trophy, Sparkles, User, LogIn, LogOut, ShieldCheck } from 'lucide-react';
 
 export type ActiveTab = 'search' | 'watched' | 'watchlist' | 'ranking';
 
@@ -17,16 +17,15 @@ interface Props {
   onTabChange: (tab: ActiveTab) => void;
   watchedCount: number;
   watchlistCount: number;
-  onOpenTelemetry?: () => void;
 }
 
-export const Navbar: React.FC<Props> = ({ activeTab, onTabChange, watchedCount, watchlistCount, onOpenTelemetry }) => {
+export const Navbar: React.FC<Props> = ({ activeTab, onTabChange, watchedCount, watchlistCount }) => {
   const [currentUser, setCurrentUser] = useState<UserProfile>(() => StorageService.getCurrentUser());
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
-  const { user, logout, isFirebaseConfigured } = useAuth();
+  const { user, logout } = useAuth();
   const { t } = useLanguage();
 
   return (
@@ -104,29 +103,10 @@ export const Navbar: React.FC<Props> = ({ activeTab, onTabChange, watchedCount, 
           </nav>
 
           {/* Right Actions: Language Selector, Telemetry Diagnostics & Cloud Auth Profile */}
+          {/* Right Actions: Language Selector & User Auth Profile */}
           <div className="flex items-center gap-3">
             {/* Global Language Selector */}
             <LanguageSelector />
-
-            {/* Telemetry Diagnostics Button */}
-            <button
-              onClick={onOpenTelemetry}
-              className="p-2 rounded-xl bg-slate-900 border border-slate-800 hover:border-cyan-500/50 text-slate-400 hover:text-cyan-400 transition"
-              title="Live System Telemetry & Diagnostics"
-            >
-              <Activity className="w-4 h-4" />
-            </button>
-
-            {/* Cloud Sync Status */}
-            {isFirebaseConfigured && user && (
-              <div
-                className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-full bg-cyan-950/40 border border-cyan-500/30 text-cyan-400 text-[11px] font-mono"
-                title="Cloud Sync Active"
-              >
-                <Cloud className="w-3 h-3" />
-                <span>{t('cloud_sync')}</span>
-              </div>
-            )}
 
             {/* Authenticated User Menu vs Sign In Button */}
             {user ? (

@@ -8,7 +8,7 @@ import { RankingGame } from '@/components/ranking/ranking-game';
 import { TelemetryDrawer } from '@/components/telemetry-drawer';
 import { ShareRankingModal } from '@/components/media/share-ranking-modal';
 import { StorageService } from '@/lib/storage';
-import { Sparkles, Terminal, Download, Trash2, CheckCircle2 } from 'lucide-react';
+import { Sparkles, Terminal, Download, Trash2, CheckCircle2, Activity, Cloud } from 'lucide-react';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('search');
@@ -125,7 +125,6 @@ export default function Home() {
         onTabChange={handleTabChange}
         watchedCount={watchedCount}
         watchlistCount={watchlistCount}
-        onOpenTelemetry={() => setIsTelemetryOpen(true)}
       />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -187,17 +186,26 @@ export default function Home() {
             {/* Version Counter Badge */}
             <div
               className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-cyan-950/60 border border-cyan-500/30 text-[10px] font-mono font-bold text-cyan-400 shadow-sm ml-1"
-              title="Current Build: Version 0.1.0 Alpha"
+              title="Current Build: Version 0.1.1 Alpha"
             >
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500"></span>
               </span>
-              <span>v0.1.0-alpha</span>
+              <span>v0.1.1-alpha</span>
             </div>
           </div>
 
-          <div className="flex items-center gap-4 text-slate-400 font-medium">
+          <div className="flex flex-wrap items-center gap-4 text-slate-400 font-medium">
+            {/* Cloud Sync Status Indicator */}
+            <div
+              className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-900 border border-slate-800 text-cyan-400 text-[11px] font-mono"
+              title="Cloud Sync Engine Active"
+            >
+              <Cloud className="w-3 h-3 text-cyan-400" />
+              <span>Cloud Sync Active</span>
+            </div>
+
             <button onClick={() => handleTabChange('search')} className="hover:text-cyan-400 transition">
               Search
             </button>
@@ -207,6 +215,17 @@ export default function Home() {
             <button onClick={() => handleTabChange('ranking')} className="hover:text-amber-400 transition">
               Pairwise Game
             </button>
+            
+            {/* Live Telemetry Diagnostics Trigger */}
+            <button
+              onClick={() => setIsTelemetryOpen(true)}
+              className="text-slate-400 hover:text-cyan-400 flex items-center gap-1 transition"
+              title="View Live System Telemetry & Diagnostics"
+            >
+              <Activity className="w-3.5 h-3.5 text-cyan-400" />
+              <span>System Telemetry</span>
+            </button>
+
             <button
               onClick={() => setShowDevMode(!showDevMode)}
               className="text-slate-500 hover:text-cyan-400 flex items-center gap-1 transition"
