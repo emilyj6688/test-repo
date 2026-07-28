@@ -2,6 +2,7 @@ import { UserMediaRecord, UserProfile, MediaItem, MediaStatus, RatingTier, Seaso
 import demoTestRecords from '@/lib/demo-test-records.json';
 import { db, isFirebaseConfigured } from '@/lib/firebase';
 import { doc, setDoc, getDocs, collection, deleteDoc, onSnapshot, writeBatch, Unsubscribe } from 'firebase/firestore';
+import { Telemetry } from '@/lib/telemetry';
 
 const USERS_KEY = 'cinetrack_users_v1';
 const CURRENT_USER_KEY = 'cinetrack_current_user_v1';
@@ -61,6 +62,7 @@ export class StorageService {
   public static setCurrentUser(userId: string): void {
     if (typeof window === 'undefined') return;
     localStorage.setItem(CURRENT_USER_KEY, userId);
+    Telemetry.log('info', `Active user changed to ID: ${userId.slice(0, 12)}...`);
     window.dispatchEvent(new CustomEvent('cinetrack_user_changed', { detail: userId }));
     
     // Automatically trigger cloud fetch & live real-time subscription if cloud user
@@ -80,6 +82,7 @@ export class StorageService {
     };
     const updated = [...users, newUser];
     localStorage.setItem(USERS_KEY, JSON.stringify(updated));
+    Telemetry.log('info', `Created local user profile "${name}" (${newId})`);
     this.setCurrentUser(newId);
     return newUser;
   }
@@ -122,6 +125,7 @@ export class StorageService {
       ...r,
       userId: activeUserId,
     }));
+    Telemetry.log('warn', `Loaded 200 demo critic sample records for user ${activeUserId.slice(0, 10)}`);
     this.persistRecords(updated, activeUserId);
     updated.forEach((r) => this.syncRecordToCloud(r, activeUserId));
     return updated;
@@ -130,6 +134,7 @@ export class StorageService {
   // Developer Mode Helper: Clear all saved records for current user locally & from Cloud Firestore
   public static async clearAllRecords(userId?: string): Promise<void> {
     const activeUserId = userId || this.getCurrentUser().id;
+    Telemetry.log('warn', `Clearing all records locally and on Cloud Firestore for ${activeUserId.slice(0, 12)}...`);
 
     if (typeof window !== 'undefined') {
       for (let i = localStorage.length - 1; i >= 0; i--) {
@@ -153,6 +158,7 @@ export class StorageService {
             batch.delete(docSnap.ref);
           });
           await batch.commit();
+          Telemetry.log('sync', `Wiped ${snapshot.docs.length} documents from Cloud Firestore path users/${activeUserId.slice(0, 8)}.../records`);
         }
 
         if (typeof window !== 'undefined') {
@@ -160,6 +166,7 @@ export class StorageService {
           window.dispatchEvent(new CustomEvent('cinetrack_records_updated'));
         }
       } catch (err) {
+        Telemetry.log('error', `Firestore Clear All Records Error: ${err}`);
         console.warn('Firestore Clear All Records Error:', err);
       }
     }
@@ -219,6 +226,7 @@ export class StorageService {
       records.push(record);
     }
 
+    Telemetry.log('sync', `Saved "${item.title}" (${status}) for user ${activeUserId.slice(0, 8)}...`);
     this.persistRecords(records, activeUserId);
     this.syncRecordToCloud(record, activeUserId);
     return record;
@@ -232,6 +240,7 @@ export class StorageService {
 
     record.ratingTier = ratingTier;
     record.updatedAt = new Date().toISOString();
+    Telemetry.log('sync', `Updated rating tier to ${ratingTier} for ${id}`);
     this.persistRecords(records);
     this.syncRecordToCloud(record, record.userId);
   }
@@ -241,6 +250,7 @@ export class StorageService {
     const records = this.getUserRecords(activeUserId);
     const id = `${mediaType}_${tmdbId}`;
     const filtered = records.filter((r) => r.id !== id);
+    Telemetry.log('sync', `Removed record ${id} for ${activeUserId.slice(0, 8)}...`);
     this.persistRecords(filtered, activeUserId);
     this.removeRecordFromCloud(id, activeUserId);
   }
@@ -264,7 +274,9 @@ export class StorageService {
     try {
       const docRef = doc(db, 'users', userId, 'records', record.id);
       await setDoc(docRef, record, { merge: true });
+      Telemetry.log('sync', `Pushed "${record.item.title}" to Cloud Firestore path users/${userId.slice(0, 8)}.../records/${record.id}`);
     } catch (err) {
+      Telemetry.log('error', `Firestore Sync Record Error: ${err}`);
       console.warn('Firestore Sync Record Error:', err);
     }
   }
@@ -274,7 +286,9 @@ export class StorageService {
     try {
       const docRef = doc(db, 'users', userId, 'records', recordId);
       await deleteDoc(docRef);
+      Telemetry.log('sync', `Deleted document ${recordId} from Cloud Firestore`);
     } catch (err) {
+      Telemetry.log('error', `Firestore Delete Record Error: ${err}`);
       console.warn('Firestore Delete Record Error:', err);
     }
   }
@@ -286,6 +300,8 @@ export class StorageService {
       this.unsubscribeCloudListener();
       this.unsubscribeCloudListener = null;
     }
+
+    Telemetry.log('sync', `Attached Cloud Firestore live WebSocket onSnapshot listener for ${userId.slice(0, 10)}...`);
 
     // Perform initial fetch & merge
     this.syncFromCloud(userId);
@@ -301,14 +317,17 @@ export class StorageService {
             cloudRecords.push(d.data() as UserMediaRecord);
           });
 
+          Telemetry.log('sync', `Received onSnapshot WebSocket broadcast from Cloud Firestore: ${cloudRecords.length} records`);
           // Always persist cloud state (even if empty) so wipe/deletions sync live
           this.persistRecords(cloudRecords, userId);
         },
         (err) => {
+          Telemetry.log('error', `Firestore Real-Time Listener Error: ${err}`);
           console.warn('Firestore Real-Time Listener Error:', err);
         }
       );
     } catch (err) {
+      Telemetry.log('error', `Failed to attach Firestore Real-Time Listener: ${err}`);
       console.warn('Failed to attach Firestore Real-Time Listener:', err);
     }
   }
@@ -322,6 +341,8 @@ export class StorageService {
       snapshot.forEach((d) => {
         cloudRecords.push(d.data() as UserMediaRecord);
       });
+
+      Telemetry.log('sync', `Fetched ${cloudRecords.length} documents from Cloud Firestore for user ${userId.slice(0, 8)}...`);
 
       // Gather ALL local records stored across any local keys
       const allLocalRecords: UserMediaRecord[] = [];
@@ -362,6 +383,7 @@ export class StorageService {
       this.persistRecords(mergedList, userId);
       return mergedList;
     } catch (err) {
+      Telemetry.log('error', `Firestore Fetch Records Error: ${err}`);
       console.warn('Firestore Fetch Records Error:', err);
       return [];
     }

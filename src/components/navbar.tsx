@@ -8,7 +8,7 @@ import { AuthModal } from '@/components/auth/auth-modal';
 import { useAuth } from '@/context/auth-context';
 import { useLanguage } from '@/context/language-context';
 import { LanguageSelector } from '@/components/language-selector';
-import { Search, Film, BookmarkCheck, Trophy, Sparkles, User, LogIn, LogOut, Cloud, ShieldCheck } from 'lucide-react';
+import { Search, Film, BookmarkCheck, Trophy, Sparkles, User, LogIn, LogOut, Cloud, ShieldCheck, Activity } from 'lucide-react';
 
 export type ActiveTab = 'search' | 'watched' | 'watchlist' | 'ranking';
 
@@ -17,9 +17,10 @@ interface Props {
   onTabChange: (tab: ActiveTab) => void;
   watchedCount: number;
   watchlistCount: number;
+  onOpenTelemetry?: () => void;
 }
 
-export const Navbar: React.FC<Props> = ({ activeTab, onTabChange, watchedCount, watchlistCount }) => {
+export const Navbar: React.FC<Props> = ({ activeTab, onTabChange, watchedCount, watchlistCount, onOpenTelemetry }) => {
   const [currentUser, setCurrentUser] = useState<UserProfile>(() => StorageService.getCurrentUser());
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -102,10 +103,19 @@ export const Navbar: React.FC<Props> = ({ activeTab, onTabChange, watchedCount, 
             </button>
           </nav>
 
-          {/* Right Actions: Language Selector & Cloud Auth Profile */}
+          {/* Right Actions: Language Selector, Telemetry Diagnostics & Cloud Auth Profile */}
           <div className="flex items-center gap-3">
             {/* Global Language Selector */}
             <LanguageSelector />
+
+            {/* Telemetry Diagnostics Button */}
+            <button
+              onClick={onOpenTelemetry}
+              className="p-2 rounded-xl bg-slate-900 border border-slate-800 hover:border-cyan-500/50 text-slate-400 hover:text-cyan-400 transition"
+              title="Live System Telemetry & Diagnostics"
+            >
+              <Activity className="w-4 h-4" />
+            </button>
 
             {/* Cloud Sync Status */}
             {isFirebaseConfigured && user && (

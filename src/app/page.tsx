@@ -5,6 +5,7 @@ import { Navbar, ActiveTab } from '@/components/navbar';
 import { SearchView } from '@/components/search/search-view';
 import { WatchedWatchlistView } from '@/components/media/watched-watchlist-view';
 import { RankingGame } from '@/components/ranking/ranking-game';
+import { TelemetryDrawer } from '@/components/telemetry-drawer';
 import { StorageService } from '@/lib/storage';
 import { Sparkles, Terminal, Download, Trash2, CheckCircle2 } from 'lucide-react';
 
@@ -12,6 +13,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('search');
   const [searchQuery, setSearchQuery] = useState('');
   const [showDevMode, setShowDevMode] = useState(false);
+  const [isTelemetryOpen, setIsTelemetryOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const [watchedCount, setWatchedCount] = useState(() => {
@@ -71,6 +73,7 @@ export default function Home() {
         }}
         watchedCount={watchedCount}
         watchlistCount={watchlistCount}
+        onOpenTelemetry={() => setIsTelemetryOpen(true)}
       />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -185,6 +188,9 @@ export default function Home() {
           </div>
         )}
       </footer>
+
+      {/* Real-Time Telemetry & Diagnostic Logger Drawer */}
+      <TelemetryDrawer isOpen={isTelemetryOpen} onClose={() => setIsTelemetryOpen(false)} />
     </div>
   );
 }
