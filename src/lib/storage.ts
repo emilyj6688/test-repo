@@ -15,6 +15,8 @@ const DEFAULT_USERS: UserProfile[] = [
 
 export class StorageService {
   private static unsubscribeCloudListener: Unsubscribe | null = null;
+  private static heartbeatTimer: NodeJS.Timeout | null = null;
+  private static pendingCloudWrites: Map<string, Promise<void>> = new Map();
 
   // --- User Profile Management ---
   public static getUsers(): UserProfile[] {
@@ -271,26 +273,44 @@ export class StorageService {
   // --- Cloud Firestore Persistence & Real-Time Synchronization ---
   public static async syncRecordToCloud(record: UserMediaRecord, userId: string): Promise<void> {
     if (!isFirebaseConfigured || !userId || userId.startsWith('user_')) return;
-    try {
-      const docRef = doc(db, 'users', userId, 'records', record.id);
-      await setDoc(docRef, record, { merge: true });
-      Telemetry.log('sync', `Pushed "${record.item.title}" to Cloud Firestore path users/${userId.slice(0, 8)}.../records/${record.id}`);
-    } catch (err) {
-      Telemetry.log('error', `Firestore Sync Record Error: ${err}`);
-      console.warn('Firestore Sync Record Error:', err);
-    }
+    const writeKey = `${userId}_${record.id}`;
+    
+    const writePromise = (async () => {
+      try {
+        const docRef = doc(db, 'users', userId, 'records', record.id);
+        await setDoc(docRef, record, { merge: true });
+        Telemetry.log('sync', `Pushed "${record.item.title}" to Cloud Firestore path users/${userId.slice(0, 8)}.../records/${record.id}`);
+      } catch (err) {
+        Telemetry.log('error', `Firestore Sync Record Error: ${err}`);
+        console.warn('Firestore Sync Record Error:', err);
+      } finally {
+        this.pendingCloudWrites.delete(writeKey);
+      }
+    })();
+
+    this.pendingCloudWrites.set(writeKey, writePromise);
+    await writePromise;
   }
 
   public static async removeRecordFromCloud(recordId: string, userId: string): Promise<void> {
     if (!isFirebaseConfigured || !userId || userId.startsWith('user_')) return;
-    try {
-      const docRef = doc(db, 'users', userId, 'records', recordId);
-      await deleteDoc(docRef);
-      Telemetry.log('sync', `Deleted document ${recordId} from Cloud Firestore`);
-    } catch (err) {
-      Telemetry.log('error', `Firestore Delete Record Error: ${err}`);
-      console.warn('Firestore Delete Record Error:', err);
-    }
+    const writeKey = `${userId}_delete_${recordId}`;
+
+    const writePromise = (async () => {
+      try {
+        const docRef = doc(db, 'users', userId, 'records', recordId);
+        await deleteDoc(docRef);
+        Telemetry.log('sync', `Deleted document ${recordId} from Cloud Firestore`);
+      } catch (err) {
+        Telemetry.log('error', `Firestore Delete Record Error: ${err}`);
+        console.warn('Firestore Delete Record Error:', err);
+      } finally {
+        this.pendingCloudWrites.delete(writeKey);
+      }
+    })();
+
+    this.pendingCloudWrites.set(writeKey, writePromise);
+    await writePromise;
   }
 
   public static subscribeToCloudSync(userId: string): void {
@@ -301,10 +321,20 @@ export class StorageService {
       this.unsubscribeCloudListener = null;
     }
 
-    Telemetry.log('sync', `Attached Cloud Firestore live WebSocket onSnapshot listener for ${userId.slice(0, 10)}...`);
+    if (this.heartbeatTimer) {
+      clearInterval(this.heartbeatTimer);
+      this.heartbeatTimer = null;
+    }
+
+    Telemetry.log('sync', `Attached Cloud Firestore live WebSocket onSnapshot & 3s Heartbeat for ${userId.slice(0, 10)}...`);
 
     // Perform initial fetch & merge
     this.syncFromCloud(userId);
+
+    // Setup 3-second automatic heartbeat sync so all open tabs refresh automatically without user pressing refresh
+    this.heartbeatTimer = setInterval(() => {
+      this.syncFromCloud(userId);
+    }, 3000);
 
     // Subscribe to live Firestore changes across tabs and devices
     try {
@@ -341,8 +371,6 @@ export class StorageService {
       snapshot.forEach((d) => {
         cloudRecords.push(d.data() as UserMediaRecord);
       });
-
-      Telemetry.log('sync', `Fetched ${cloudRecords.length} documents from Cloud Firestore for user ${userId.slice(0, 8)}...`);
 
       // Gather ALL local records stored across any local keys
       const allLocalRecords: UserMediaRecord[] = [];
@@ -419,4 +447,14 @@ export class StorageService {
     if (typeof window === 'undefined') return;
     localStorage.removeItem(this.getComparedPairsKey(userId));
   }
+}
+
+// Global browser listeners for visibility change & page exit auto-sync
+if (typeof window !== 'undefined') {
+  window.addEventListener('visibilitychange', () => {
+    const user = StorageService.getCurrentUser();
+    if (document.visibilityState === 'visible' && user && !user.id.startsWith('user_')) {
+      StorageService.syncFromCloud(user.id);
+    }
+  });
 }
