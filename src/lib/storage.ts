@@ -132,8 +132,12 @@ export class StorageService {
     const activeUserId = userId || this.getCurrentUser().id;
 
     if (typeof window !== 'undefined') {
-      localStorage.removeItem(this.getRecordsKey(activeUserId));
-      localStorage.removeItem(this.getRecordsKey('user_default'));
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith(MEDIA_RECORDS_PREFIX)) {
+          localStorage.removeItem(k);
+        }
+      }
       this.persistRecords([], activeUserId);
       window.dispatchEvent(new CustomEvent('cinetrack_records_updated'));
     }
@@ -148,6 +152,7 @@ export class StorageService {
         });
         await Promise.all(deletePromises);
         if (typeof window !== 'undefined') {
+          this.persistRecords([], activeUserId);
           window.dispatchEvent(new CustomEvent('cinetrack_records_updated'));
         }
       } catch (err) {
@@ -292,9 +297,8 @@ export class StorageService {
             cloudRecords.push(d.data() as UserMediaRecord);
           });
 
-          if (cloudRecords.length > 0) {
-            this.persistRecords(cloudRecords, userId);
-          }
+          // Always persist cloud state (even if empty) so wipe/deletions sync live
+          this.persistRecords(cloudRecords, userId);
         },
         (err) => {
           console.warn('Firestore Real-Time Listener Error:', err);
@@ -351,11 +355,7 @@ export class StorageService {
       });
 
       const mergedList = Array.from(mergedMap.values());
-      if (mergedList.length > 0) {
-        this.persistRecords(mergedList, userId);
-      } else {
-        window.dispatchEvent(new CustomEvent('cinetrack_records_updated'));
-      }
+      this.persistRecords(mergedList, userId);
       return mergedList;
     } catch (err) {
       console.warn('Firestore Fetch Records Error:', err);
