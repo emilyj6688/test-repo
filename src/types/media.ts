@@ -1,19 +1,13 @@
 export type MediaType = 'movie' | 'tv';
 export type CooperUnionNycMediaType = MediaType;
 
-export type RatingTier = number; // Continuous 0.0 to 10.0 rating scale (0-3.3: Didn't Like, 3.4-6.6: Neutral, 6.7-10.0: Liked)
+export type RatingTier = number; // Integer 1 through 10 rating scale (1-3: Didn't Like, 4-6: Neutral, 7-10: Liked)
 export type ShalomRatingTier = RatingTier;
 
 export function getTierCategory(score: number): 1 | 2 | 3 {
-  // Legacy integer tier mapping
-  if (score === 1) return 1; // Didn't Like
-  if (score === 2) return 2; // Neutral
-  if (score === 3) return 3; // Liked
-
-  // Continuous 0.0 - 10.0 scale mapping
-  if (score < 3.33) return 1; // Didn't Like (0.0 - 3.32)
-  if (score <= 6.66) return 2; // Neutral (3.33 - 6.66)
-  return 3; // Liked (6.67 - 10.0)
+  if (score <= 3) return 1; // 1, 2, 3: Didn't Like
+  if (score <= 6) return 2; // 4, 5, 6: Neutral
+  return 3; // 7, 8, 9, 10: Liked
 }
 
 export interface CastMember {
@@ -55,7 +49,7 @@ export interface UserMediaRecord {
   userId: string;
   item: MediaItem;
   status: MediaStatus;
-  ratingTier: RatingTier; // Continuous 0.0 - 10.0 score or legacy 1,2,3
+  ratingTier: RatingTier; // Integer 1 through 10 score
   eloRating: number; // Elo score used for pairwise sorting (default 1000)
   rankIndex: number; // Manual fine-tuned ordering index
   seasonsProgress?: Record<number, SeasonStatus>; // Season number -> 'watched' | 'in_progress' | 'unwatched'

@@ -11,11 +11,10 @@ interface Props {
 }
 
 const toScale = (val: number): number => {
-  if (val === 1) return 2.0;
-  if (val === 2) return 5.0;
-  if (val === 3) return 8.5;
-  if (val <= 0) return 0.0;
-  return Math.min(10.0, Math.max(0.0, Math.round(val * 10) / 10));
+  if (val === 1) return 2;
+  if (val === 2) return 5;
+  if (val === 3) return 8;
+  return Math.min(10, Math.max(1, Math.round(val)));
 };
 
 export const RatingSlider: React.FC<Props> = ({ value, onChange, compact = false }) => {
@@ -73,57 +72,57 @@ export const RatingSlider: React.FC<Props> = ({ value, onChange, compact = false
             <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold border flex items-center gap-1.5 ${info.bgClass} ${info.colorClass}`}>
               {info.icon} {info.label}
             </span>
-            <span className="font-mono text-xs text-cyan-300 font-extrabold bg-slate-900 px-2 py-0.5 rounded-md border border-cyan-500/30">
-              {localValue.toFixed(1)} / 10
+            <span className="font-mono text-xs text-cyan-300 font-extrabold bg-slate-900 px-2.5 py-0.5 rounded-md border border-cyan-500/30">
+              {localValue} / 10
             </span>
           </div>
         </div>
       )}
 
       <div className="relative bg-slate-950 p-3 rounded-2xl border border-slate-800 space-y-2">
-        {/* Continuous Range Track */}
+        {/* Integer Range Track 1 through 10 */}
         <div className="relative flex items-center">
           <input
             type="range"
-            min="0"
+            min="1"
             max="10"
-            step="0.1"
+            step="1"
             value={localValue}
-            onChange={(e) => handleSliderChange(parseFloat(e.target.value))}
+            onChange={(e) => handleSliderChange(parseInt(e.target.value, 10))}
             className={`w-full h-2.5 rounded-lg appearance-none cursor-pointer bg-slate-800 ${info.trackClass} transition-all`}
           />
         </div>
 
-        {/* Continuous Scale Label Ticks */}
+        {/* Scale Label Ticks */}
         <div className="flex justify-between items-center text-[10px] font-bold text-slate-400 pt-1">
           <button
             type="button"
-            onClick={() => handleSliderChange(2.0)}
+            onClick={() => handleSliderChange(2)}
             className={`flex items-center gap-1 transition ${
               tierCategory === 1 ? 'text-rose-400 font-black scale-105' : 'hover:text-slate-200'
             }`}
           >
-            <ThumbsDown className="w-3 h-3" /> Didn&apos;t Like (2.0)
+            <ThumbsDown className="w-3 h-3" /> Didn&apos;t Like (1-3)
           </button>
 
           <button
             type="button"
-            onClick={() => handleSliderChange(5.0)}
+            onClick={() => handleSliderChange(5)}
             className={`flex items-center gap-1 transition ${
               tierCategory === 2 ? 'text-amber-400 font-black scale-105' : 'hover:text-slate-200'
             }`}
           >
-            <Minus className="w-3 h-3" /> Neutral (5.0)
+            <Minus className="w-3 h-3" /> Neutral (4-6)
           </button>
 
           <button
             type="button"
-            onClick={() => handleSliderChange(8.5)}
+            onClick={() => handleSliderChange(8)}
             className={`flex items-center gap-1 transition ${
               tierCategory === 3 ? 'text-emerald-400 font-black scale-105' : 'hover:text-slate-200'
             }`}
           >
-            <ThumbsUp className="w-3 h-3" /> Liked (8.5)
+            <ThumbsUp className="w-3 h-3" /> Liked (7-10)
           </button>
         </div>
       </div>
