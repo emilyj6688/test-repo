@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { UserMediaRecord, MediaItem, RatingTier, MediaType, getTierCategory } from '@/types/media';
 import { StorageService } from '@/lib/storage';
 import { useLanguage } from '@/context/language-context';
@@ -35,6 +35,55 @@ export const WatchedWatchlistView: React.FC<Props> = ({
   const [sortBy, setSortBy] = useState<'rank' | 'title' | 'date'>('rank');
   const [selectedItem, setSelectedItem] = useState<MediaItem | null>(null);
   const [visibleCount, setVisibleCount] = useState<number>(PAGE_SIZE);
+
+  const handleOpenDetailModal = useCallback((item: MediaItem) => {
+    setSelectedItem(item);
+    if (typeof window !== 'undefined') {
+      const baseHash = window.location.hash.split('&media=')[0] || `#${initialTab}`;
+      const newHash = `${baseHash}&media=${item.mediaType}-${item.tmdbId}`;
+      if (window.location.hash !== newHash) {
+        window.history.pushState({ modalOpen: true }, '', newHash);
+      }
+    }
+  }, [initialTab]);
+
+  const handleCloseDetailModal = useCallback(() => {
+    setSelectedItem(null);
+    if (typeof window !== 'undefined' && window.location.hash.includes('&media=')) {
+      const cleanHash = window.location.hash.split('&media=')[0];
+      window.history.pushState(null, '', cleanHash || `#${initialTab}`);
+    }
+  }, [initialTab]);
+
+  // Sync modal state from URL Hash & listen to Browser Back/Forward buttons (popstate/hashchange)
+  useEffect(() => {
+    const handleHashChange = () => {
+      if (typeof window === 'undefined') return;
+      const hash = window.location.hash;
+      const mediaMatch = hash.match(/&media=(movie|tv)-(\d+)/);
+      if (mediaMatch) {
+        const [, type, id] = mediaMatch;
+        const foundRecord = records.find((r) => r.item.mediaType === type && r.item.tmdbId === parseInt(id, 10));
+        if (foundRecord) {
+          setSelectedItem(foundRecord.item);
+          return;
+        }
+      }
+      if (selectedItem) {
+        setSelectedItem(null);
+      }
+    };
+
+    handleHashChange();
+
+    window.addEventListener('hashchange', handleHashChange);
+    window.addEventListener('popstate', handleHashChange);
+
+    return () => {
+      window.removeEventListener('hashchange', handleHashChange);
+      window.removeEventListener('popstate', handleHashChange);
+    };
+  }, [records, selectedItem]);
 
   const refreshRecords = () => {
     setRecords(StorageService.getUserRecords());
@@ -293,7 +342,7 @@ export const WatchedWatchlistView: React.FC<Props> = ({
                 item={record.item}
                 record={record}
                 rankIndex={activeTab === 'watched' ? record.rankIndex : undefined}
-                onSelect={(itm) => setSelectedItem(itm)}
+                onSelect={handleOpenDetailModal}
                 onMarkWatched={handleMarkWatched}
                 onAddToWatchlist={handleAddToWatchlist}
                 onRemoveRecord={handleRemoveRecord}
@@ -357,7 +406,7 @@ export const WatchedWatchlistView: React.FC<Props> = ({
       <MediaDetailModal
         item={selectedItem}
         isOpen={Boolean(selectedItem)}
-        onClose={() => setSelectedItem(null)}
+        onClose={handleCloseDetailModal}
         onPersonClick={(personName) => {
           if (onPersonSelect) onPersonSelect(personName);
           onNavigateToTab('search');

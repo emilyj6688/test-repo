@@ -31,6 +31,52 @@ export default function Home() {
     setWatchlistCount(records.filter((r) => r.status === 'want_to_watch').length);
   };
 
+  // Sync state from URL Hash on mount & browser Back/Forward (popstate/hashchange)
+  useEffect(() => {
+    const syncFromHash = () => {
+      if (typeof window === 'undefined') return;
+      const rawHash = window.location.hash.replace(/^#/, '');
+
+      if (!rawHash) return;
+
+      if (rawHash.startsWith('watched')) {
+        setActiveTab('watched');
+      } else if (rawHash.startsWith('watchlist')) {
+        setActiveTab('watchlist');
+      } else if (rawHash.startsWith('ranking')) {
+        setActiveTab('ranking');
+      } else if (rawHash.startsWith('search')) {
+        setActiveTab('search');
+        const qMatch = rawHash.match(/q=([^&]+)/);
+        if (qMatch) {
+          setSearchQuery(decodeURIComponent(qMatch[1]));
+        }
+      }
+    };
+
+    syncFromHash();
+
+    window.addEventListener('hashchange', syncFromHash);
+    window.addEventListener('popstate', syncFromHash);
+
+    return () => {
+      window.removeEventListener('hashchange', syncFromHash);
+      window.removeEventListener('popstate', syncFromHash);
+    };
+  }, []);
+
+  const handleTabChange = (tab: ActiveTab) => {
+    setActiveTab(tab);
+    if (tab !== 'search') setSearchQuery('');
+    
+    if (typeof window !== 'undefined') {
+      const newHash = `#${tab}`;
+      if (window.location.hash !== newHash) {
+        window.history.pushState(null, '', newHash);
+      }
+    }
+  };
+
   useEffect(() => {
     const handleRecordsUpdate = () => refreshCounts();
     const handleUserChanged = () => refreshCounts();
@@ -47,6 +93,9 @@ export default function Home() {
   const handlePersonSelect = (personName: string) => {
     setSearchQuery(personName);
     setActiveTab('search');
+    if (typeof window !== 'undefined') {
+      window.history.pushState(null, '', `#search?q=${encodeURIComponent(personName)}`);
+    }
   };
 
   const handleLoadSampleRecords = () => {
@@ -67,10 +116,7 @@ export default function Home() {
     <div className="min-h-screen flex flex-col bg-slate-950 text-slate-100">
       <Navbar
         activeTab={activeTab}
-        onTabChange={(tab) => {
-          setActiveTab(tab);
-          if (tab !== 'search') setSearchQuery('');
-        }}
+        onTabChange={handleTabChange}
         watchedCount={watchedCount}
         watchlistCount={watchlistCount}
         onOpenTelemetry={() => setIsTelemetryOpen(true)}
@@ -82,7 +128,7 @@ export default function Home() {
             key={searchQuery}
             initialSearchQuery={searchQuery}
             onRecordsChanged={refreshCounts}
-            onNavigateToTab={(tab) => setActiveTab(tab)}
+            onNavigateToTab={handleTabChange}
           />
         )}
 
@@ -90,7 +136,7 @@ export default function Home() {
           <WatchedWatchlistView
             initialTab="watched"
             onRecordsChanged={refreshCounts}
-            onNavigateToTab={(tab) => setActiveTab(tab)}
+            onNavigateToTab={handleTabChange}
             onPersonSelect={handlePersonSelect}
           />
         )}
@@ -99,7 +145,7 @@ export default function Home() {
           <WatchedWatchlistView
             initialTab="watchlist"
             onRecordsChanged={refreshCounts}
-            onNavigateToTab={(tab) => setActiveTab(tab)}
+            onNavigateToTab={handleTabChange}
             onPersonSelect={handlePersonSelect}
           />
         )}
@@ -107,7 +153,7 @@ export default function Home() {
         {activeTab === 'ranking' && (
           <RankingGame
             onRecordsChanged={refreshCounts}
-            onNavigateToTab={(tab) => setActiveTab(tab)}
+            onNavigateToTab={handleTabChange}
             onPersonSelect={handlePersonSelect}
           />
         )}
@@ -143,13 +189,13 @@ export default function Home() {
           </div>
 
           <div className="flex items-center gap-4 text-slate-400 font-medium">
-            <button onClick={() => setActiveTab('search')} className="hover:text-cyan-400 transition">
+            <button onClick={() => handleTabChange('search')} className="hover:text-cyan-400 transition">
               Search
             </button>
-            <button onClick={() => setActiveTab('watched')} className="hover:text-cyan-400 transition">
+            <button onClick={() => handleTabChange('watched')} className="hover:text-cyan-400 transition">
               Watched Log ({watchedCount})
             </button>
-            <button onClick={() => setActiveTab('ranking')} className="hover:text-amber-400 transition">
+            <button onClick={() => handleTabChange('ranking')} className="hover:text-amber-400 transition">
               Pairwise Game
             </button>
             <button

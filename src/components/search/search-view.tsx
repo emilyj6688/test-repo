@@ -38,6 +38,55 @@ export const SearchView: React.FC<Props> = ({ initialSearchQuery = '', onRecords
   });
   const [selectedItem, setSelectedItem] = useState<MediaItem | null>(null);
 
+  const handleOpenDetailModal = useCallback((item: MediaItem) => {
+    setSelectedItem(item);
+    if (typeof window !== 'undefined') {
+      const baseHash = window.location.hash.split('&media=')[0] || '#search';
+      const newHash = `${baseHash}&media=${item.mediaType}-${item.tmdbId}`;
+      if (window.location.hash !== newHash) {
+        window.history.pushState({ modalOpen: true }, '', newHash);
+      }
+    }
+  }, []);
+
+  const handleCloseDetailModal = useCallback(() => {
+    setSelectedItem(null);
+    if (typeof window !== 'undefined' && window.location.hash.includes('&media=')) {
+      const cleanHash = window.location.hash.split('&media=')[0];
+      window.history.pushState(null, '', cleanHash || '#search');
+    }
+  }, []);
+
+  // Sync modal state from URL Hash & listen to Browser Back/Forward buttons (popstate/hashchange)
+  useEffect(() => {
+    const handleHashChange = () => {
+      if (typeof window === 'undefined') return;
+      const hash = window.location.hash;
+      const mediaMatch = hash.match(/&media=(movie|tv)-(\d+)/);
+      if (mediaMatch) {
+        const [, type, id] = mediaMatch;
+        const found = MOCK_MEDIA_ITEMS.find((m) => m.mediaType === type && m.tmdbId === parseInt(id, 10));
+        if (found) {
+          setSelectedItem(found);
+          return;
+        }
+      }
+      if (selectedItem) {
+        setSelectedItem(null);
+      }
+    };
+
+    handleHashChange();
+
+    window.addEventListener('hashchange', handleHashChange);
+    window.addEventListener('popstate', handleHashChange);
+
+    return () => {
+      window.removeEventListener('hashchange', handleHashChange);
+      window.removeEventListener('popstate', handleHashChange);
+    };
+  }, [selectedItem]);
+
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const refreshUserRecords = () => {
@@ -497,7 +546,7 @@ export const SearchView: React.FC<Props> = ({ initialSearchQuery = '', onRecords
                   key={recordKey}
                   item={item}
                   record={userRecord}
-                  onSelect={(itm) => setSelectedItem(itm)}
+                  onSelect={handleOpenDetailModal}
                   onMarkWatched={handleMarkWatched}
                   onAddToWatchlist={handleAddToWatchlist}
                   onRemoveRecord={handleRemoveRecord}
@@ -539,7 +588,7 @@ export const SearchView: React.FC<Props> = ({ initialSearchQuery = '', onRecords
         <MediaDetailModal
           item={selectedItem}
           isOpen={Boolean(selectedItem)}
-          onClose={() => setSelectedItem(null)}
+          onClose={handleCloseDetailModal}
           onRecordChange={() => {
             refreshUserRecords();
             onRecordsChanged();
