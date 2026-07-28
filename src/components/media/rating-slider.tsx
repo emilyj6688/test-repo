@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { RatingTier, getTierCategory } from '@/types/media';
-import { ThumbsDown, Minus, ThumbsUp } from 'lucide-react';
+import { ThumbsDown, Minus, ThumbsUp, SlidersHorizontal, ChevronUp } from 'lucide-react';
 
 interface Props {
   value: RatingTier;
@@ -20,6 +20,7 @@ const toScale = (val: number): number => {
 export const RatingSlider: React.FC<Props> = ({ value, onChange, compact = false }) => {
   const [prevValue, setPrevValue] = useState<number>(value);
   const [localValue, setLocalValue] = useState<number>(() => toScale(value));
+  const [isExpanded, setIsExpanded] = useState<boolean>(!compact);
 
   if (prevValue !== value) {
     setPrevValue(value);
@@ -63,21 +64,79 @@ export const RatingSlider: React.FC<Props> = ({ value, onChange, compact = false
     onChange(newVal);
   };
 
+  // Collapsed View: Just Thumbs Down 👎, Rating Pill, and Thumbs Up 👍
+  if (compact && !isExpanded) {
+    return (
+      <div className="flex items-center gap-1.5 w-full select-none" onClick={(e) => e.stopPropagation()}>
+        <button
+          type="button"
+          onClick={() => {
+            handleSliderChange(2);
+            setIsExpanded(true);
+          }}
+          className={`flex-1 py-1.5 rounded-xl border font-bold text-xs flex items-center justify-center gap-1 transition ${
+            tierCategory === 1
+              ? 'bg-rose-500/20 border-rose-500/50 text-rose-300 shadow-md shadow-rose-500/10'
+              : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-rose-400 hover:bg-slate-900'
+          }`}
+          title="Didn't Like (Rating 2)"
+        >
+          <ThumbsDown className="w-4 h-4" />
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setIsExpanded(true)}
+          className="px-2.5 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-300 hover:text-cyan-300 hover:border-cyan-500/40 font-mono text-[11px] font-bold flex items-center gap-1 transition"
+          title="Click to expand 1-10 slider & detailed rating labels"
+        >
+          <span>{localValue}/10</span>
+          <SlidersHorizontal className="w-3 h-3 text-cyan-400" />
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            handleSliderChange(8);
+            setIsExpanded(true);
+          }}
+          className={`flex-1 py-1.5 rounded-xl border font-bold text-xs flex items-center justify-center gap-1 transition ${
+            tierCategory === 3
+              ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300 shadow-md shadow-emerald-500/10'
+              : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-emerald-400 hover:bg-slate-900'
+          }`}
+          title="Liked (Rating 8)"
+        >
+          <ThumbsUp className="w-4 h-4" />
+        </button>
+      </div>
+    );
+  }
+
+  // Expanded View: Full 1-10 Slider + Didn't Like, Neutral, Liked Labels
   return (
-    <div className="w-full space-y-2 select-none" onClick={(e) => e.stopPropagation()}>
-      {!compact && (
-        <div className="flex justify-between items-center text-xs font-semibold">
-          <span className="text-slate-400 uppercase tracking-wider text-[10px]">User Rating</span>
-          <div className="flex items-center gap-2">
-            <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold border flex items-center gap-1.5 ${info.bgClass} ${info.colorClass}`}>
-              {info.icon} {info.label}
-            </span>
-            <span className="font-mono text-xs text-cyan-300 font-extrabold bg-slate-900 px-2.5 py-0.5 rounded-md border border-cyan-500/30">
-              {localValue} / 10
-            </span>
-          </div>
+    <div className="w-full space-y-2 select-none animate-fade-in" onClick={(e) => e.stopPropagation()}>
+      <div className="flex justify-between items-center text-xs font-semibold">
+        <span className="text-slate-400 uppercase tracking-wider text-[10px]">User Rating</span>
+        <div className="flex items-center gap-2">
+          <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold border flex items-center gap-1.5 ${info.bgClass} ${info.colorClass}`}>
+            {info.icon} {info.label}
+          </span>
+          <span className="font-mono text-xs text-cyan-300 font-extrabold bg-slate-900 px-2.5 py-0.5 rounded-md border border-cyan-500/30">
+            {localValue} / 10
+          </span>
+          {compact && (
+            <button
+              type="button"
+              onClick={() => setIsExpanded(false)}
+              className="p-1 rounded-md text-slate-400 hover:text-white hover:bg-slate-800 transition"
+              title="Collapse Slider"
+            >
+              <ChevronUp className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
-      )}
+      </div>
 
       <div className="relative bg-slate-950 p-3 rounded-2xl border border-slate-800 space-y-2">
         {/* Integer Range Track 1 through 10 */}
@@ -93,7 +152,7 @@ export const RatingSlider: React.FC<Props> = ({ value, onChange, compact = false
           />
         </div>
 
-        {/* Scale Label Ticks */}
+        {/* Text Scale Label Ticks */}
         <div className="flex justify-between items-center text-[10px] font-bold text-slate-400 pt-1">
           <button
             type="button"
