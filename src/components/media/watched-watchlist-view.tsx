@@ -5,7 +5,7 @@ import { UserMediaRecord, MediaItem, RatingTier, MediaType, getTierCategory } fr
 import { StorageService } from '@/lib/storage';
 import { MediaCard } from '@/components/media/media-card';
 import { MediaDetailModal } from '@/components/media/media-detail-modal';
-import { Film, BookmarkCheck, ArrowUpDown, ThumbsUp, ThumbsDown, Minus, ChevronDown } from 'lucide-react';
+import { Film, BookmarkCheck, ArrowUpDown, ThumbsUp, ThumbsDown, Minus, ChevronDown, Search, X } from 'lucide-react';
 
 interface Props {
   initialTab?: 'watched' | 'watchlist';
@@ -29,6 +29,7 @@ export const WatchedWatchlistView: React.FC<Props> = ({
   });
   const [tierFilter, setTierFilter] = useState<'all' | 1 | 2 | 3>('all');
   const [typeFilter, setTypeFilter] = useState<'all' | MediaType>('all');
+  const [searchFilter, setSearchFilter] = useState<string>('');
   const [sortBy, setSortBy] = useState<'rank' | 'title' | 'date'>('rank');
   const [selectedItem, setSelectedItem] = useState<MediaItem | null>(null);
   const [visibleCount, setVisibleCount] = useState<number>(PAGE_SIZE);
@@ -67,14 +68,21 @@ export const WatchedWatchlistView: React.FC<Props> = ({
     );
   }, [records, activeTab]);
 
-  // Apply Tier & Type Filters
+  // Apply Search, Tier & Type Filters
   const filteredRecords = useMemo(() => {
     return currentTabRecords.filter((r) => {
       if (typeFilter !== 'all' && r.item.mediaType !== typeFilter) return false;
       if (activeTab === 'watched' && tierFilter !== 'all' && getTierCategory(r.ratingTier) !== tierFilter) return false;
+      if (searchFilter.trim()) {
+        const q = searchFilter.toLowerCase().trim();
+        const matchTitle = r.item.title.toLowerCase().includes(q);
+        const matchGenre = r.item.genres?.some((g) => g.toLowerCase().includes(q));
+        const matchCast = r.item.cast?.some((c) => c.name.toLowerCase().includes(q));
+        if (!matchTitle && !matchGenre && !matchCast) return false;
+      }
       return true;
     });
-  }, [currentTabRecords, typeFilter, activeTab, tierFilter]);
+  }, [currentTabRecords, typeFilter, activeTab, tierFilter, searchFilter]);
 
   // Sort Watched items automatically in descending order based on rank / Elo score
   const sortedRecords = useMemo(() => {
@@ -90,6 +98,11 @@ export const WatchedWatchlistView: React.FC<Props> = ({
   const displayedRecords = useMemo(() => {
     return sortedRecords.slice(0, visibleCount);
   }, [sortedRecords, visibleCount]);
+
+  const handleGlobalSearch = (query: string) => {
+    if (onPersonSelect) onPersonSelect(query);
+    onNavigateToTab('search');
+  };
 
   return (
     <div className="space-y-6">
@@ -142,70 +155,90 @@ export const WatchedWatchlistView: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* Filter & Sort Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-4 bg-slate-900/30 border border-slate-800/80 p-3 rounded-2xl">
-        {/* Tier Filter Chips (Only for Watched) */}
-        {activeTab === 'watched' ? (
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs text-slate-400 font-medium hidden sm:inline">Tier:</span>
+      {/* Search & Filter Bar */}
+      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 bg-slate-900/30 border border-slate-800/80 p-3.5 rounded-2xl">
+        
+        {/* Search Input filter within List */}
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
+          <input
+            type="text"
+            value={searchFilter}
+            onChange={(e) => {
+              setSearchFilter(e.target.value);
+              setVisibleCount(PAGE_SIZE);
+            }}
+            placeholder={`Filter your ${activeTab === 'watched' ? 'watched' : 'watchlist'} titles...`}
+            className="w-full pl-9 pr-8 py-1.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition"
+          />
+          {searchFilter && (
             <button
-              onClick={() => {
-                setTierFilter('all');
-                setVisibleCount(PAGE_SIZE);
-              }}
-              className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition ${
-                tierFilter === 'all' ? 'bg-slate-700 text-white' : 'bg-slate-950 text-slate-400 hover:text-slate-200'
-              }`}
+              onClick={() => setSearchFilter('')}
+              className="absolute right-2.5 top-2.5 text-slate-500 hover:text-slate-200"
             >
-              All Tiers
+              <X className="w-3.5 h-3.5" />
             </button>
-            <button
-              onClick={() => {
-                setTierFilter(3);
-                setVisibleCount(PAGE_SIZE);
-              }}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition ${
-                tierFilter === 3
-                  ? 'bg-emerald-500/30 border border-emerald-500/50 text-emerald-300'
-                  : 'bg-slate-950 border border-slate-800 text-emerald-400 hover:bg-slate-800'
-              }`}
-            >
-              <ThumbsUp className="w-3 h-3" /> Liked
-            </button>
-            <button
-              onClick={() => {
-                setTierFilter(2);
-                setVisibleCount(PAGE_SIZE);
-              }}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition ${
-                tierFilter === 2
-                  ? 'bg-amber-500/30 border border-amber-500/50 text-amber-300'
-                  : 'bg-slate-950 border border-slate-800 text-amber-400 hover:bg-slate-800'
-              }`}
-            >
-              <Minus className="w-3 h-3" /> Neutral
-            </button>
-            <button
-              onClick={() => {
-                setTierFilter(1);
-                setVisibleCount(PAGE_SIZE);
-              }}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition ${
-                tierFilter === 1
-                  ? 'bg-rose-500/30 border border-rose-500/50 text-rose-300'
-                  : 'bg-slate-950 border border-slate-800 text-rose-400 hover:bg-slate-800'
-              }`}
-            >
-              <ThumbsDown className="w-3 h-3" /> Didn&apos;t Like
-            </button>
-          </div>
-        ) : (
-          <div />
-        )}
+          )}
+        </div>
 
-        {/* Media Type & Sort Dropdowns */}
-        <div className="flex items-center gap-3 ml-auto">
-          {/* Type Filter */}
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Tier Filter Chips (Only for Watched) */}
+          {activeTab === 'watched' && (
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => {
+                  setTierFilter('all');
+                  setVisibleCount(PAGE_SIZE);
+                }}
+                className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition ${
+                  tierFilter === 'all' ? 'bg-slate-700 text-white' : 'bg-slate-950 text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                All Tiers
+              </button>
+              <button
+                onClick={() => {
+                  setTierFilter(3);
+                  setVisibleCount(PAGE_SIZE);
+                }}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition ${
+                  tierFilter === 3
+                    ? 'bg-emerald-500/30 border border-emerald-500/50 text-emerald-300'
+                    : 'bg-slate-950 border border-slate-800 text-emerald-400 hover:bg-slate-800'
+                }`}
+              >
+                <ThumbsUp className="w-3 h-3" /> Liked
+              </button>
+              <button
+                onClick={() => {
+                  setTierFilter(2);
+                  setVisibleCount(PAGE_SIZE);
+                }}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition ${
+                  tierFilter === 2
+                    ? 'bg-amber-500/30 border border-amber-500/50 text-amber-300'
+                    : 'bg-slate-950 border border-slate-800 text-amber-400 hover:bg-slate-800'
+                }`}
+              >
+                <Minus className="w-3 h-3" /> Neutral
+              </button>
+              <button
+                onClick={() => {
+                  setTierFilter(1);
+                  setVisibleCount(PAGE_SIZE);
+                }}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition ${
+                  tierFilter === 1
+                    ? 'bg-rose-500/30 border border-rose-500/50 text-rose-300'
+                    : 'bg-slate-950 border border-slate-800 text-rose-400 hover:bg-slate-800'
+                }`}
+              >
+                <ThumbsDown className="w-3 h-3" /> Didn&apos;t Like
+              </button>
+            </div>
+          )}
+
+          {/* Media Type Filter */}
           <div className="flex items-center gap-1 text-xs">
             <span className="text-slate-400">Type:</span>
             <select
@@ -238,10 +271,10 @@ export const WatchedWatchlistView: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* Media Items Grid */}
+      {/* Grid or Empty State */}
       {displayedRecords.length > 0 ? (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 sm:gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 sm:gap-6">
             {displayedRecords.map((record) => (
               <MediaCard
                 key={record.id}
@@ -267,6 +300,24 @@ export const WatchedWatchlistView: React.FC<Props> = ({
               </button>
             </div>
           )}
+        </div>
+      ) : searchFilter.trim() ? (
+        <div className="text-center py-16 bg-slate-900/40 border border-slate-800/80 rounded-3xl space-y-4 p-6">
+          <Search className="w-12 h-12 text-cyan-400/80 mx-auto animate-pulse" />
+          <div>
+            <h3 className="text-lg font-bold text-white">
+              No titles matching &quot;{searchFilter}&quot; in your {activeTab === 'watched' ? 'watched log' : 'watchlist'}
+            </h3>
+            <p className="text-xs text-slate-400 max-w-md mx-auto mt-1">
+              Looking for <span className="text-white font-bold">&quot;{searchFilter}&quot;</span> in the global movie & TV database?
+            </p>
+          </div>
+          <button
+            onClick={() => handleGlobalSearch(searchFilter)}
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-extrabold text-xs shadow-xl shadow-cyan-500/20 transition transform hover:scale-105"
+          >
+            <Search className="w-4 h-4" /> Search Global TMDB Catalog for &quot;{searchFilter}&quot;
+          </button>
         </div>
       ) : (
         <div className="text-center py-20 bg-slate-900/40 border border-slate-800 rounded-3xl space-y-4">

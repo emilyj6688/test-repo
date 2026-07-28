@@ -161,7 +161,112 @@ export async function searchTMDB(query: string, page = 1): Promise<MediaItem[]> 
       (item.originalLanguage && item.originalLanguage.toLowerCase().includes(lower))
   );
 
-  // 2. Check if the search query is an Actor or Director name via TMDB Person API
+  // 2. Perform TMDB Multi-search for titles (Movies & TV Shows) FIRST
+  try {
+    const res = await fetch(
+      `${TMDB_BASE_URL}/search/multi?api_key=${apiKey}&query=${encodeURIComponent(query)}&page=${page}&include_adult=false`,
+      { cache: 'no-store' }
+    );
+
+    if (res.ok) {
+      const data = await res.json();
+      const results: TMDBRawSearchResult[] = data.results || [];
+      const remoteItems: MediaItem[] = [];
+
+      for (const r of results) {
+        if (r.media_type !== 'movie' && r.media_type !== 'tv') continue;
+        if (!r.poster_path || r.poster_path.trim() === '') continue;
+
+        const mediaType: 'movie' | 'tv' = r.media_type;
+        const title = r.title || r.name || r.original_title || r.original_name || 'Untitled';
+        const releaseDate = r.release_date || r.first_air_date || '';
+
+        remoteItems.push({
+          id: r.id,
+          tmdbId: r.id,
+          title,
+          mediaType,
+          posterPath: `${TMDB_IMAGE_BASE}w500${r.poster_path}`,
+          backdropPath: r.backdrop_path ? `${TMDB_IMAGE_BASE}w780${r.backdrop_path}` : null,
+          releaseDate,
+          overview: r.overview || 'No description available.',
+          genres: [],
+          directors: [],
+          cast: [],
+          voteAverage: r.vote_average ? Math.round(r.vote_average * 10) / 10 : undefined,
+          voteCount: r.vote_count || 10,
+          originalLanguage: formatLanguageName(r.original_language),
+        });
+      }
+
+      // If direct titles match (e.g. Jaws, Jaws 2, Jaws 3-D), return them!
+      const directTitleMatches = remoteItems.filter((i) =>
+        i.title.toLowerCase().includes(lower) || lower.includes(i.title.toLowerCase())
+      );
+
+      if (directTitleMatches.length > 0 || (remoteItems.length > 0 && !results.some((r) => r.media_type === 'person'))) {
+        const combinedMap = new Map<string, MediaItem>();
+        localMatches.forEach((itm) => combinedMap.set(`${itm.mediaType}_${itm.tmdbId}`, itm));
+        remoteItems.forEach((itm) => {
+          const key = `${itm.mediaType}_${itm.tmdbId}`;
+          if (!combinedMap.has(key)) {
+            combinedMap.set(key, itm);
+          }
+        });
+
+        const MASTER_NON_NARRATIVE_REGEX = /watch what happens live|wwhl|searching for mexico|searching for italy|chef's table|street food|national geographic|discovery channel|through the wormhole|cosmos|story of god|explained|dynasties|planet earth|blue planet|icons unearthed|the movies that made us|real housewives|jeopardy|wheel of fortune|family feud|game night|match game|masked singer|dancing with the stars|lip sync battle|masterchef|hell's kitchen|top chef|survivor|big brother|bachelorette|bachelor|rupaul's drag race|american idol|the voice|america's got talent|shark tank|chopped|wipeout|celebrity game face|password|pyramid|millionaire|game show|reality tv|reality series|reality competition|daily show|entertainment tonight|e! news|access hollywood|extra!|good morning america|today show|live with kelly|late show|tonight show|jimmy fallon|jimmy kimmel|james corden|conan|seth meyers|graham norton|kelly clarkson|ellen|the view|tamron hall|jerry springer|maury|dr\. phil|dr\. oz|the talk|the chew|the real|red table talk|cbs mornings|talk show|talkshow|variety show|academy awards|oscars|emmy awards|emmys|grammy awards|grammys|golden globe|sag awards|bafta|critics choice|mtv movie|tony awards|american music awards|billboard music|country music awards|cma awards|kennedy center honors|afi life achievement|stand up to cancer|live aid|global citizen|red carpet|ceremony|tribute concert|awards show|behind the scenes|making of|unearthing|repackaged|fireplace|fan edit|tribute to|promo|interview|retrospective|assembled|disney gallery|b-roll|bloopers|deleted scenes|vfx of|director's commentary|60 minutes|dateline|20\/20|48 hours|inside edition|tmz|frontline|american greed|unsolved mysteries|docuseries/i;
+
+        const combinedList = Array.from(combinedMap.values()).filter((item) => {
+          if (MASTER_NON_NARRATIVE_REGEX.test(query)) return true;
+          return !MASTER_NON_NARRATIVE_REGEX.test(item.title);
+        });
+
+        const isFranchiseSeries = combinedList.filter((i) =>
+          i.title.toLowerCase().includes(lower)
+        ).length >= 2;
+
+        combinedList.sort((a, b) => {
+          const aTitle = a.title.toLowerCase();
+          const bTitle = b.title.toLowerCase();
+          const aStarts = aTitle.startsWith(lower);
+          const bStarts = bTitle.startsWith(lower);
+          const aExact = aTitle === lower;
+          const bExact = bTitle === lower;
+
+          if (aExact && !bExact) return -1;
+          if (!aExact && bExact) return 1;
+
+          const isObscureA = MASTER_NON_NARRATIVE_REGEX.test(a.title) || (a.voteCount || 0) < 50;
+          const isObscureB = MASTER_NON_NARRATIVE_REGEX.test(b.title) || (b.voteCount || 0) < 50;
+
+          // Main feature films and popular entries come BEFORE obscure shorts/fan edits
+          if (!isObscureA && isObscureB) return -1;
+          if (isObscureA && !isObscureB) return 1;
+
+          if (isFranchiseSeries) {
+            const dateA = a.releaseDate || '9999';
+            const dateB = b.releaseDate || '9999';
+            if (aStarts && bStarts) return dateA.localeCompare(dateB);
+            if (aStarts && !bStarts) return -1;
+            if (!aStarts && bStarts) return 1;
+            return dateA.localeCompare(dateB);
+          }
+
+          if (aStarts && !bStarts) return -1;
+          if (!aStarts && bStarts) return 1;
+          return (b.voteCount || 0) - (a.voteCount || 0);
+        });
+
+        if (combinedList.length > 0) {
+          return combinedList;
+        }
+      }
+    }
+  } catch {
+    // continue to person search
+  }
+
+  // 3. Check if search query is an Actor or Director name via TMDB Person API
   try {
     const personRes = await fetch(
       `${TMDB_BASE_URL}/search/person?api_key=${apiKey}&query=${encodeURIComponent(query)}&page=${page}&include_adult=false`,
@@ -174,7 +279,7 @@ export async function searchTMDB(query: string, page = 1): Promise<MediaItem[]> 
       const matchedPerson = personResults.find(
         (p: { name: string; popularity?: number }) =>
           p.name.toLowerCase().includes(lower) || lower.includes(p.name.toLowerCase())
-      ) || (personResults[0] && (personResults[0].popularity || 0) > 5 ? personResults[0] : null);
+      ) || (personResults[0] && (personResults[0].popularity || 0) > 10 ? personResults[0] : null);
 
       if (matchedPerson && (matchedPerson.name.toLowerCase().includes(lower) || lower.includes(matchedPerson.name.toLowerCase()))) {
         const creditsRes = await fetch(
