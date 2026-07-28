@@ -261,18 +261,22 @@ export class StorageService {
         cloudRecords.push(d.data() as UserMediaRecord);
       });
 
-      // Retrieve any existing local records for this user
+      // Retrieve existing local records for this cloud user AND any guest records created prior to sign-in
       const existingLocal = this.getUserRecords(userId);
+      const guestRecords = this.getUserRecords('user_default');
+      const allLocal = [...existingLocal, ...guestRecords];
+
       const mergedMap = new Map<string, UserMediaRecord>();
 
-      // Add cloud records
-      cloudRecords.forEach((r) => mergedMap.set(r.id, r));
+      // Add cloud records first
+      cloudRecords.forEach((r) => mergedMap.set(r.id, { ...r, userId }));
 
-      // Merge any local records missing in cloud and sync back
-      existingLocal.forEach((r) => {
+      // Merge any local/guest records missing in cloud and sync them immediately to Cloud Firestore
+      allLocal.forEach((r) => {
+        const updatedRecord = { ...r, userId };
         if (!mergedMap.has(r.id)) {
-          mergedMap.set(r.id, r);
-          this.syncRecordToCloud(r, userId);
+          mergedMap.set(r.id, updatedRecord);
+          this.syncRecordToCloud(updatedRecord, userId);
         }
       });
 
