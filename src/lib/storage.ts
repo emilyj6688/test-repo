@@ -261,10 +261,26 @@ export class StorageService {
         cloudRecords.push(d.data() as UserMediaRecord);
       });
 
-      // Retrieve existing local records for this cloud user AND any guest records created prior to sign-in
-      const existingLocal = this.getUserRecords(userId);
-      const guestRecords = this.getUserRecords('user_default');
-      const allLocal = [...existingLocal, ...guestRecords];
+      // Gather ALL local records stored across any local keys
+      const allLocalRecords: UserMediaRecord[] = [];
+      if (typeof window !== 'undefined') {
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && k.startsWith(MEDIA_RECORDS_PREFIX)) {
+            try {
+              const raw = localStorage.getItem(k);
+              if (raw) {
+                const parsed: UserMediaRecord[] = JSON.parse(raw);
+                if (Array.isArray(parsed)) {
+                  allLocalRecords.push(...parsed);
+                }
+              }
+            } catch {
+              // ignore parse errors
+            }
+          }
+        }
+      }
 
       const mergedMap = new Map<string, UserMediaRecord>();
 
@@ -272,7 +288,7 @@ export class StorageService {
       cloudRecords.forEach((r) => mergedMap.set(r.id, { ...r, userId }));
 
       // Merge any local/guest records missing in cloud and sync them immediately to Cloud Firestore
-      allLocal.forEach((r) => {
+      allLocalRecords.forEach((r) => {
         const updatedRecord = { ...r, userId };
         if (!mergedMap.has(r.id)) {
           mergedMap.set(r.id, updatedRecord);
@@ -283,7 +299,10 @@ export class StorageService {
       const mergedList = Array.from(mergedMap.values());
       if (mergedList.length > 0) {
         this.persistRecords(mergedList, userId);
+      } else {
+        window.dispatchEvent(new CustomEvent('cinetrack_records_updated'));
       }
+      return mergedList;
       return mergedList;
     } catch (err) {
       console.warn('Firestore Fetch Records Error:', err);
