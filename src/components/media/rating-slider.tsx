@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { RatingTier, getTierCategory } from '@/types/media';
 import { ThumbsDown, Minus, ThumbsUp } from 'lucide-react';
 
@@ -10,11 +10,24 @@ interface Props {
   compact?: boolean;
 }
 
-export const RatingSlider: React.FC<Props> = ({ value, onChange, compact = false }) => {
-  // Normalize legacy values 0.0 - 2.0 to 0.0 - 10.0 scale
-  const normalizedValue = value <= 2.0 ? Math.round(value * 5.0 * 10) / 10 : Math.min(10.0, Math.max(0.0, Math.round(value * 10) / 10));
+const toScale = (val: number): number => {
+  if (val === 1) return 2.0;
+  if (val === 2) return 5.0;
+  if (val === 3) return 8.5;
+  if (val <= 0) return 0.0;
+  return Math.min(10.0, Math.max(0.0, Math.round(val * 10) / 10));
+};
 
-  const tierCategory = getTierCategory(normalizedValue);
+export const RatingSlider: React.FC<Props> = ({ value, onChange, compact = false }) => {
+  const [prevValue, setPrevValue] = useState<number>(value);
+  const [localValue, setLocalValue] = useState<number>(() => toScale(value));
+
+  if (prevValue !== value) {
+    setPrevValue(value);
+    setLocalValue(toScale(value));
+  }
+
+  const tierCategory = getTierCategory(localValue);
 
   const getTierInfo = (cat: 1 | 2 | 3) => {
     if (cat === 1) {
@@ -46,6 +59,11 @@ export const RatingSlider: React.FC<Props> = ({ value, onChange, compact = false
 
   const info = getTierInfo(tierCategory);
 
+  const handleSliderChange = (newVal: number) => {
+    setLocalValue(newVal);
+    onChange(newVal);
+  };
+
   return (
     <div className="w-full space-y-2 select-none" onClick={(e) => e.stopPropagation()}>
       {!compact && (
@@ -56,7 +74,7 @@ export const RatingSlider: React.FC<Props> = ({ value, onChange, compact = false
               {info.icon} {info.label}
             </span>
             <span className="font-mono text-xs text-cyan-300 font-extrabold bg-slate-900 px-2 py-0.5 rounded-md border border-cyan-500/30">
-              {normalizedValue.toFixed(1)} / 10
+              {localValue.toFixed(1)} / 10
             </span>
           </div>
         </div>
@@ -70,8 +88,8 @@ export const RatingSlider: React.FC<Props> = ({ value, onChange, compact = false
             min="0"
             max="10"
             step="0.1"
-            value={normalizedValue}
-            onChange={(e) => onChange(parseFloat(e.target.value))}
+            value={localValue}
+            onChange={(e) => handleSliderChange(parseFloat(e.target.value))}
             className={`w-full h-2.5 rounded-lg appearance-none cursor-pointer bg-slate-800 ${info.trackClass} transition-all`}
           />
         </div>
@@ -80,32 +98,32 @@ export const RatingSlider: React.FC<Props> = ({ value, onChange, compact = false
         <div className="flex justify-between items-center text-[10px] font-bold text-slate-400 pt-1">
           <button
             type="button"
-            onClick={() => onChange(0.0)}
+            onClick={() => handleSliderChange(2.0)}
             className={`flex items-center gap-1 transition ${
               tierCategory === 1 ? 'text-rose-400 font-black scale-105' : 'hover:text-slate-200'
             }`}
           >
-            <ThumbsDown className="w-3 h-3" /> 0.0 Didn&apos;t Like
+            <ThumbsDown className="w-3 h-3" /> Didn&apos;t Like (2.0)
           </button>
 
           <button
             type="button"
-            onClick={() => onChange(5.0)}
+            onClick={() => handleSliderChange(5.0)}
             className={`flex items-center gap-1 transition ${
               tierCategory === 2 ? 'text-amber-400 font-black scale-105' : 'hover:text-slate-200'
             }`}
           >
-            <Minus className="w-3 h-3" /> 5.0 Neutral
+            <Minus className="w-3 h-3" /> Neutral (5.0)
           </button>
 
           <button
             type="button"
-            onClick={() => onChange(10.0)}
+            onClick={() => handleSliderChange(8.5)}
             className={`flex items-center gap-1 transition ${
               tierCategory === 3 ? 'text-emerald-400 font-black scale-105' : 'hover:text-slate-200'
             }`}
           >
-            <ThumbsUp className="w-3 h-3" /> 10.0 Liked
+            <ThumbsUp className="w-3 h-3" /> Liked (8.5)
           </button>
         </div>
       </div>

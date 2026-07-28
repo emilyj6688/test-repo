@@ -125,7 +125,7 @@ export const MediaCard: React.FC<Props> = ({
           {isWatched ? (
             <div className="space-y-1.5">
               <RatingSlider
-                value={record?.ratingTier || 1.0}
+                value={record?.ratingTier !== undefined ? record.ratingTier : 5.0}
                 onChange={(tier) => onRatingChange && onRatingChange(item, tier)}
                 compact
               />

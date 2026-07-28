@@ -5,10 +5,15 @@ export type RatingTier = number; // Continuous 0.0 to 10.0 rating scale (0-3.3: 
 export type ShalomRatingTier = RatingTier;
 
 export function getTierCategory(score: number): 1 | 2 | 3 {
-  const normalized = score <= 2.0 ? score * 5 : score;
-  if (normalized < 3.33) return 1; // Didn't Like
-  if (normalized <= 6.66) return 2; // Neutral
-  return 3; // Liked
+  // Legacy integer tier mapping
+  if (score === 1) return 1; // Didn't Like
+  if (score === 2) return 2; // Neutral
+  if (score === 3) return 3; // Liked
+
+  // Continuous 0.0 - 10.0 scale mapping
+  if (score < 3.33) return 1; // Didn't Like (0.0 - 3.32)
+  if (score <= 6.66) return 2; // Neutral (3.33 - 6.66)
+  return 3; // Liked (6.67 - 10.0)
 }
 
 export interface CastMember {
@@ -50,7 +55,7 @@ export interface UserMediaRecord {
   userId: string;
   item: MediaItem;
   status: MediaStatus;
-  ratingTier: RatingTier; // Continuous 0.0 - 2.0 score
+  ratingTier: RatingTier; // Continuous 0.0 - 10.0 score or legacy 1,2,3
   eloRating: number; // Elo score used for pairwise sorting (default 1000)
   rankIndex: number; // Manual fine-tuned ordering index
   seasonsProgress?: Record<number, SeasonStatus>; // Season number -> 'watched' | 'in_progress' | 'unwatched'
