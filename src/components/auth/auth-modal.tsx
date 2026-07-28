@@ -60,8 +60,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
         setError('Invalid email or password. Please check your credentials.');
       } else if (msg.includes('auth/email-already-in-use')) {
         setError('An account with this email already exists. Try signing in.');
-      } else if (msg.includes('auth/weak-password')) {
-        setError('Password should be at least 6 characters long.');
+      } else if (msg.includes('auth/weak-password') || msg.includes('PASSWORD_DOES_NOT_MEET_REQUIREMENTS')) {
+        setError('Password must be at least 6 characters long and contain at least 1 uppercase letter (e.g. Movie123!).');
       } else {
         setError(msg);
       }
@@ -247,6 +247,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                 className="w-full pl-9 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500 transition"
               />
             </div>
+            {mode === 'signup' && (
+              <p className="text-[10px] text-slate-500 mt-1">
+                Must be at least 6 characters with 1 uppercase letter (e.g. Password123)
+              </p>
+            )}
           </div>
 
           <button
