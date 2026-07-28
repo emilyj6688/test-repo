@@ -3,13 +3,12 @@
 import React, { useState } from 'react';
 import { StorageService } from '@/lib/storage';
 import { UserProfile } from '@/types/media';
-import { isTMDBConfigured } from '@/lib/tmdb';
 import { UserProfileModal } from '@/components/auth/user-profile-modal';
 import { AuthModal } from '@/components/auth/auth-modal';
 import { useAuth } from '@/context/auth-context';
 import { useLanguage } from '@/context/language-context';
 import { LanguageSelector } from '@/components/language-selector';
-import { Search, Film, BookmarkCheck, Trophy, Sparkles, User, Database, LogIn, LogOut, Cloud, ShieldCheck } from 'lucide-react';
+import { Search, Film, BookmarkCheck, Trophy, Sparkles, User, LogIn, LogOut, Cloud, ShieldCheck } from 'lucide-react';
 
 export type ActiveTab = 'search' | 'watched' | 'watchlist' | 'ranking';
 
@@ -28,7 +27,6 @@ export const Navbar: React.FC<Props> = ({ activeTab, onTabChange, watchedCount, 
 
   const { user, logout, isFirebaseConfigured } = useAuth();
   const { t } = useLanguage();
-  const hasTMDB = isTMDBConfigured();
 
   return (
     <>
@@ -104,23 +102,10 @@ export const Navbar: React.FC<Props> = ({ activeTab, onTabChange, watchedCount, 
             </button>
           </nav>
 
-          {/* Right Actions: TMDB Badge & Cloud Auth Profile */}
+          {/* Right Actions: Language Selector & Cloud Auth Profile */}
           <div className="flex items-center gap-3">
             {/* Global Language Selector */}
             <LanguageSelector />
-
-            {/* TMDB API Status */}
-            <div
-              className={`hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-mono ${
-                hasTMDB
-                  ? 'bg-emerald-950/40 border-emerald-500/30 text-emerald-400'
-                  : 'bg-slate-900 border-slate-800 text-slate-400'
-              }`}
-              title={hasTMDB ? 'TMDB API Key active' : 'Running in Offline Mock Demo Mode'}
-            >
-              <Database className="w-3 h-3" />
-              <span>{hasTMDB ? t('tmdb_live') : t('demo_mode')}</span>
-            </div>
 
             {/* Cloud Sync Status */}
             {isFirebaseConfigured && user && (
