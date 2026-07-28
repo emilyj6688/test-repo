@@ -1,13 +1,13 @@
 'use client';
 
 import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
-import { MediaItem, UserMediaRecord, MediaType, CastMember } from '@/types/media';
+import { MediaItem, UserMediaRecord, MediaType } from '@/types/media';
 import { searchTMDB, MOCK_MEDIA_ITEMS, getTMDBImageUrl } from '@/lib/tmdb';
 import { StorageService } from '@/lib/storage';
 import { useLanguage } from '@/context/language-context';
 import { MediaCard } from '@/components/media/media-card';
 import { MediaDetailModal } from '@/components/media/media-detail-modal';
-import { Search, Loader2, Film, Tv, Sparkles, Tag, X, User, Globe, ChevronRight } from 'lucide-react';
+import { Search, Loader2, Film, Tv, Sparkles, Tag, X, User, ChevronRight } from 'lucide-react';
 
 interface Props {
   initialSearchQuery?: string;
@@ -27,7 +27,11 @@ export const SearchView: React.FC<Props> = ({ initialSearchQuery = '', onRecords
 
   // Autosuggest State
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [showStickySuggestions, setShowStickySuggestions] = useState(false);
   const searchContainerRef = useRef<HTMLDivElement>(null);
+  const stickySearchContainerRef = useRef<HTMLDivElement>(null);
+  const heroRef = useRef<HTMLDivElement>(null);
+  const [isScrolledPastHero, setIsScrolledPastHero] = useState(false);
 
   const [userRecordsMap, setUserRecordsMap] = useState<Map<string, UserMediaRecord>>(() => {
     if (typeof window === 'undefined') return new Map();
@@ -37,6 +41,35 @@ export const SearchView: React.FC<Props> = ({ initialSearchQuery = '', onRecords
     return map;
   });
   const [selectedItem, setSelectedItem] = useState<MediaItem | null>(null);
+
+  // Monitor scroll position to dock search bar into sticky header when scrolled past centerpiece
+  useEffect(() => {
+    const handleScroll = () => {
+      if (heroRef.current) {
+        const rect = heroRef.current.getBoundingClientRect();
+        setIsScrolledPastHero(rect.bottom <= 80);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Click outside listener for autosuggest dropdowns
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+      if (stickySearchContainerRef.current && !stickySearchContainerRef.current.contains(e.target as Node)) {
+        setShowStickySuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleOpenDetailModal = useCallback((item: MediaItem) => {
     setSelectedItem(item);
@@ -107,10 +140,12 @@ export const SearchView: React.FC<Props> = ({ initialSearchQuery = '', onRecords
         setResults(MOCK_MEDIA_ITEMS);
         setLoading(false);
         setShowSuggestions(false);
+        setShowStickySuggestions(false);
         return;
       }
 
       setShowSuggestions(true);
+      setShowStickySuggestions(true);
 
       // Instant local filter across title, genres, directors, cast, language
       const instantLocalMatches = MOCK_MEDIA_ITEMS.filter(
@@ -118,39 +153,29 @@ export const SearchView: React.FC<Props> = ({ initialSearchQuery = '', onRecords
           item.title.toLowerCase().includes(lower) ||
           (item.genres && item.genres.some((g: string) => g.toLowerCase().includes(lower))) ||
           (item.directors && item.directors.some((d: string) => d.toLowerCase().includes(lower))) ||
-          (item.cast && item.cast.some((c: CastMember) => c.name.toLowerCase().includes(lower))) ||
+          (item.cast && item.cast.some((c) => c.name.toLowerCase().includes(lower))) ||
           (item.originalLanguage && item.originalLanguage.toLowerCase().includes(lower))
       );
 
-      // Sort tag matches by: 1. Language match, 2. Popularity, 3. Recentness
-      instantLocalMatches.sort((a, b) => {
-        const langA = (a.originalLanguage || '').toLowerCase().includes(currentLanguage.name.toLowerCase()) ? 1 : 0;
-        const langB = (b.originalLanguage || '').toLowerCase().includes(currentLanguage.name.toLowerCase()) ? 1 : 0;
-        if (langA !== langB) return langB - langA;
-
-        const popA = (a.voteCount || 0) * (a.voteAverage || 5);
-        const popB = (b.voteCount || 0) * (b.voteAverage || 5);
-        if (Math.abs(popA - popB) > 500) return popB - popA;
-
-        const yrA = parseInt(a.releaseDate?.substring(0, 4) || '0', 10);
-        const yrB = parseInt(b.releaseDate?.substring(0, 4) || '0', 10);
-        return yrB - yrA;
-      });
-
       setResults(instantLocalMatches);
 
-      // Asynchronous TMDB lookup for items outside local list
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
 
-      setLoading(true);
       debounceTimerRef.current = setTimeout(async () => {
+        setLoading(true);
         try {
-          const fetched = await searchTMDB(searchTerm, 1, currentLanguage.code);
-          setResults(fetched);
-        } catch {
-          // keep local results on error
+          const apiResults = await searchTMDB(searchTerm, 1, String(currentLanguage));
+          if (apiResults.length > 0) {
+            const combinedMap = new Map<string, MediaItem>();
+            instantLocalMatches.forEach((m) => combinedMap.set(`${m.mediaType}_${m.tmdbId}`, m));
+            apiResults.forEach((m) => {
+              const key = `${m.mediaType}_${m.tmdbId}`;
+              if (!combinedMap.has(key)) combinedMap.set(key, m);
+            });
+            setResults(Array.from(combinedMap.values()));
+          }
+        } catch (err) {
+          console.error('TMDB Search Error:', err);
         } finally {
           setLoading(false);
         }
@@ -159,58 +184,44 @@ export const SearchView: React.FC<Props> = ({ initialSearchQuery = '', onRecords
     [currentLanguage]
   );
 
-  const isFirstRenderRef = useRef(true);
-
-  // Re-run search when currentLanguage changes
   useEffect(() => {
-    if (isFirstRenderRef.current) {
-      isFirstRenderRef.current = false;
-      return;
-    }
-    if (query.trim()) {
+    if (initialSearchQuery) {
       const timer = setTimeout(() => {
-        handleSearch(query);
+        handleSearch(initialSearchQuery);
       }, 0);
       return () => clearTimeout(timer);
     }
-  }, [currentLanguage]);
+  }, [initialSearchQuery, handleSearch]);
 
-  // Close autosuggest when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
-        setShowSuggestions(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  const handleSelectSuggestionItem = (item: MediaItem) => {
+    setSelectedItem(item);
+    setShowSuggestions(false);
+    setShowStickySuggestions(false);
+  };
 
-  // Sync records live across user changes and cloud sync events
-  useEffect(() => {
-    const handleUpdate = () => {
-      refreshUserRecords();
-    };
-    window.addEventListener('cinetrack_records_updated', handleUpdate);
-    window.addEventListener('cinetrack_user_changed', handleUpdate as EventListener);
-    return () => {
-      window.removeEventListener('cinetrack_records_updated', handleUpdate);
-      window.removeEventListener('cinetrack_user_changed', handleUpdate as EventListener);
-    };
-  }, []);
+  const handleSelectPerson = (personName: string) => {
+    handleSearch(personName);
+    setShowSuggestions(false);
+    setShowStickySuggestions(false);
+  };
 
-  // Compute live autosuggest recommendations with deterministic prefix sorting (starts-with first)
+  const handleSelectGenreTag = (genreTag: string) => {
+    handleSearch(genreTag);
+    setShowSuggestions(false);
+    setShowStickySuggestions(false);
+  };
+
+  // Compute autosuggest recommendations for title, actors, directors, and genres
   const suggestions = useMemo(() => {
     const lower = query.toLowerCase().trim();
     if (!lower) return { titles: [], people: [], tags: [] };
 
-    // 1. Title Matches: Filter all catalog items and sort franchise series chronologically by release date
+    // 1. Title Matches
     const matchingTitles = MOCK_MEDIA_ITEMS.filter((item) =>
       item.title.toLowerCase().includes(lower)
     );
 
     const isFranchiseSeries = matchingTitles.length >= 2;
-
     const obscureRegex = /repackaged|fireplace|unearthing|making of|behind the scenes|fan edit|tribute|short|promo/i;
 
     matchingTitles.sort((a, b) => {
@@ -222,7 +233,6 @@ export const SearchView: React.FC<Props> = ({ initialSearchQuery = '', onRecords
       const isObscureA = obscureRegex.test(a.title) || (a.voteCount || 0) < 50;
       const isObscureB = obscureRegex.test(b.title) || (b.voteCount || 0) < 50;
 
-      // Main feature films and popular entries come BEFORE obscure shorts/fan edits
       if (!isObscureA && isObscureB) return -1;
       if (isObscureA && !isObscureB) return 1;
 
@@ -242,7 +252,7 @@ export const SearchView: React.FC<Props> = ({ initialSearchQuery = '', onRecords
 
     const titleMatches = matchingTitles.slice(0, 10);
 
-    // 2. Person Matches (Actors / Directors up to 3)
+    // 2. Person Matches
     const personSet = new Set<string>();
     MOCK_MEDIA_ITEMS.forEach((item) => {
       (item.cast || []).forEach((c) => {
@@ -262,15 +272,12 @@ export const SearchView: React.FC<Props> = ({ initialSearchQuery = '', onRecords
     });
     const peopleMatches = sortedPeople.slice(0, 3);
 
-    // 3. Category / Language / Genre Matches (up to 3)
+    // 3. Genre / Tag Matches
     const tagSet = new Set<string>();
     MOCK_MEDIA_ITEMS.forEach((item) => {
       (item.genres || []).forEach((g) => {
         if (g.toLowerCase().includes(lower)) tagSet.add(g);
       });
-      if (item.originalLanguage && item.originalLanguage.toLowerCase().includes(lower)) {
-        tagSet.add(item.originalLanguage);
-      }
     });
 
     const sortedTags = Array.from(tagSet).sort((a, b) => {
@@ -321,10 +328,197 @@ export const SearchView: React.FC<Props> = ({ initialSearchQuery = '', onRecords
     onRecordsChanged();
   };
 
+  const renderAutosuggestContent = () => (
+    <div className="p-2 space-y-1 divide-y divide-slate-800/80">
+      {/* 1. Title Suggestions */}
+      {suggestions.titles.length > 0 && (
+        <div className="p-2 space-y-1">
+          <span className="px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">
+            Matching Titles ({suggestions.titles.length})
+          </span>
+          {suggestions.titles.map((item) => (
+            <div
+              key={`${item.mediaType}_${item.tmdbId}`}
+              onClick={() => handleSelectSuggestionItem(item)}
+              className="flex items-center justify-between p-2 rounded-xl hover:bg-slate-800/80 cursor-pointer transition group"
+            >
+              <div className="flex items-center gap-3 truncate">
+                <div className="w-8 h-11 rounded-lg bg-slate-800 overflow-hidden shrink-0 border border-slate-700/50">
+                  {item.posterPath ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={getTMDBImageUrl(item.posterPath, 'poster')}
+                      alt={item.title}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-[10px] text-slate-500">
+                      N/A
+                    </div>
+                  )}
+                </div>
+                <div className="truncate">
+                  <div className="text-xs font-bold text-slate-100 group-hover:text-cyan-400 transition truncate">
+                    {item.title}
+                  </div>
+                  <div className="text-[10px] text-slate-400 flex items-center gap-1.5 mt-0.5">
+                    <span className="capitalize font-semibold text-slate-300">{item.mediaType}</span>
+                    {item.releaseDate && (
+                      <span>• {new Date(item.releaseDate).getFullYear()}</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-cyan-400 transition shrink-0" />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* 2. People Suggestions */}
+      {suggestions.people.length > 0 && (
+        <div className="p-2 space-y-1">
+          <span className="px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider text-amber-400 block flex items-center gap-1">
+            <User className="w-3 h-3" /> People ({suggestions.people.length})
+          </span>
+          {suggestions.people.map((person) => (
+            <div
+              key={person}
+              onClick={() => handleSelectPerson(person)}
+              className="flex items-center justify-between p-2 rounded-xl hover:bg-slate-800/80 cursor-pointer transition group text-xs text-slate-200 font-medium"
+            >
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-[10px]">
+                  👤
+                </div>
+                <span>{person}</span>
+              </div>
+              <span className="text-[10px] text-cyan-400 group-hover:underline">Search titles</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* 3. Genre Tag Suggestions */}
+      {suggestions.tags.length > 0 && (
+        <div className="p-2 space-y-1">
+          <span className="px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider text-cyan-400 block flex items-center gap-1">
+            <Tag className="w-3 h-3" /> Genres &amp; Tags ({suggestions.tags.length})
+          </span>
+          {suggestions.tags.map((tag) => (
+            <div
+              key={tag}
+              onClick={() => handleSelectGenreTag(tag)}
+              className="flex items-center justify-between p-2 rounded-xl hover:bg-slate-800/80 cursor-pointer transition group text-xs text-slate-200 font-medium"
+            >
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 rounded-full bg-cyan-950/60 border border-cyan-500/30 text-cyan-300 text-[10px]">
+                  #{tag}
+                </span>
+              </div>
+              <span className="text-[10px] text-cyan-400 group-hover:underline">Filter tag</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
   return (
-    <div className="space-y-8">
-      {/* Hero Search Section */}
-      <div className="bg-gradient-to-r from-slate-900 via-cyan-950/40 to-slate-900 border border-slate-800 p-6 sm:p-10 rounded-3xl shadow-2xl relative z-20">
+    <div className="space-y-8 relative">
+      {/* STICKY DOCKED TOP SEARCH BAR: Appears when scrolled down past center hero */}
+      {isScrolledPastHero && (
+        <div className="fixed top-0 left-0 right-0 z-40 bg-slate-950/95 backdrop-blur-xl border-b border-slate-800/90 shadow-2xl py-2.5 px-4 sm:px-8 animate-in fade-in slide-in-from-top-3 duration-200">
+          <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+            {/* Brand Logo Dock */}
+            <div
+              className="hidden sm:flex items-center gap-2 cursor-pointer group"
+              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+              title="Click to scroll back to top"
+            >
+              <div className="w-7 h-7 rounded-xl bg-cyan-500/20 border border-cyan-500/40 text-cyan-400 flex items-center justify-center font-extrabold text-xs shadow-sm group-hover:scale-105 transition">
+                <Sparkles className="w-3.5 h-3.5" />
+              </div>
+              <span className="font-black text-xs text-white tracking-tight group-hover:text-cyan-400 transition">CineRank</span>
+            </div>
+
+            {/* Docked Search Input */}
+            <div className="flex-1 max-w-xl relative" ref={stickySearchContainerRef}>
+              <div className="relative flex items-center">
+                <Search className="absolute left-3.5 w-4 h-4 text-slate-400 pointer-events-none" />
+                <input
+                  type="text"
+                  value={query}
+                  onFocus={() => {
+                    if (query.trim().length >= 1) setShowStickySuggestions(true);
+                  }}
+                  onChange={(e) => handleSearch(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === 'Escape') {
+                      setShowStickySuggestions(false);
+                      (e.target as HTMLInputElement).blur();
+                    }
+                  }}
+                  placeholder={t('search_placeholder')}
+                  className="w-full pl-10 pr-10 py-2 bg-slate-900 border border-slate-700/80 focus:border-cyan-500 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none text-xs shadow-inner transition"
+                />
+                {loading ? (
+                  <Loader2 className="absolute right-3 w-4 h-4 text-cyan-400 animate-spin pointer-events-none" />
+                ) : (
+                  query.trim().length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => handleSearch('')}
+                      className="absolute right-3 p-1 rounded-full text-slate-400 hover:text-white hover:bg-slate-800 transition"
+                      title="Clear search"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )
+                )}
+              </div>
+
+              {/* Sticky Autosuggest Dropdown */}
+              {showStickySuggestions && query.trim().length >= 1 && hasSuggestions && (
+                <div className="absolute left-0 right-0 mt-2 z-[9999] bg-slate-900/95 backdrop-blur-xl border border-slate-700/80 rounded-2xl shadow-2xl overflow-hidden max-h-[380px] overflow-y-auto divide-y divide-slate-800/80 animate-in fade-in slide-in-from-top-2 duration-150">
+                  {renderAutosuggestContent()}
+                </div>
+              )}
+            </div>
+
+            {/* Quick Type Filter Pills in Sticky Dock */}
+            <div className="flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800 shrink-0">
+              <button
+                onClick={() => setFilterType('all')}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
+                  filterType === 'all' ? 'bg-cyan-500 text-slate-950 shadow-sm' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                All
+              </button>
+              <button
+                onClick={() => setFilterType('movie')}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
+                  filterType === 'movie' ? 'bg-cyan-500 text-slate-950 shadow-sm' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Movies
+              </button>
+              <button
+                onClick={() => setFilterType('tv')}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition ${
+                  filterType === 'tv' ? 'bg-cyan-500 text-slate-950 shadow-sm' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                TV
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Hero Centerpiece Search Section */}
+      <div ref={heroRef} className="bg-gradient-to-r from-slate-900 via-cyan-950/40 to-slate-900 border border-slate-800 p-6 sm:p-10 rounded-3xl shadow-2xl relative z-20">
         <div className="max-w-3xl space-y-4 relative z-10">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">
             <Sparkles className="w-3.5 h-3.5" /> {t('hero_tag')}
@@ -336,7 +530,7 @@ export const SearchView: React.FC<Props> = ({ initialSearchQuery = '', onRecords
             {t('hero_desc')}
           </p>
 
-          {/* Search Input Box with Interactive Autosuggest */}
+          {/* Centerpiece Search Input Box with Interactive Autosuggest */}
           <div className="pt-2 relative z-30" ref={searchContainerRef}>
             <div className="relative flex items-center">
               <Search className="absolute left-4 w-5 h-5 text-slate-400 pointer-events-none" />
@@ -372,213 +566,96 @@ export const SearchView: React.FC<Props> = ({ initialSearchQuery = '', onRecords
               )}
             </div>
 
-            {/* Floating Autosuggest / Autocomplete Dropdown */}
+            {/* Centerpiece Floating Autosuggest Dropdown */}
             {showSuggestions && query.trim().length >= 1 && hasSuggestions && (
               <div className="absolute left-0 right-0 mt-2 z-[9999] bg-slate-900/95 backdrop-blur-xl border border-slate-700/80 rounded-2xl shadow-2xl overflow-hidden max-h-[420px] overflow-y-auto divide-y divide-slate-800/80 animate-in fade-in slide-in-from-top-2 duration-200">
-                {/* 1. Title Suggestions */}
-                {suggestions.titles.length > 0 && (
-                  <div className="p-2 space-y-1">
-                    <span className="px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">
-                      Matching Titles ({suggestions.titles.length})
-                    </span>
-                    {suggestions.titles.map((item) => (
-                      <div
-                        key={`${item.mediaType}_${item.tmdbId}`}
-                        onClick={() => {
-                          setSelectedItem(item);
-                          setShowSuggestions(false);
-                        }}
-                        className="flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-800/90 cursor-pointer transition group"
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={getTMDBImageUrl(item.posterPath, 'poster', item.title, item.mediaType)}
-                            alt={item.title}
-                            className="w-8 h-11 object-cover rounded-lg bg-slate-950 border border-slate-800 flex-shrink-0"
-                          />
-                          <div className="min-w-0">
-                            <h4 className="text-xs font-bold text-white group-hover:text-cyan-400 transition truncate">
-                              {item.title}
-                            </h4>
-                            <span className="text-[10px] text-slate-400 font-semibold">
-                              {item.mediaType.toUpperCase()} • {item.releaseDate ? item.releaseDate.substring(0, 4) : 'N/A'}
-                            </span>
-                          </div>
-                        </div>
-                        <ChevronRight className="w-4 h-4 text-slate-500 group-hover:text-cyan-400 transition flex-shrink-0" />
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* 2. People Suggestions (Actors / Directors) */}
-                {suggestions.people.length > 0 && (
-                  <div className="p-2 space-y-1">
-                    <span className="px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider text-cyan-400 block">
-                      Actors &amp; Directors
-                    </span>
-                    {suggestions.people.map((person) => (
-                      <div
-                        key={person}
-                        onClick={() => {
-                          handleSearch(person);
-                          setShowSuggestions(false);
-                        }}
-                        className="flex items-center justify-between p-2.5 rounded-xl hover:bg-cyan-500/10 cursor-pointer transition text-xs font-bold text-cyan-300 group"
-                      >
-                        <div className="flex items-center gap-2 truncate">
-                          <User className="w-4 h-4 text-cyan-400 flex-shrink-0" />
-                          <span className="truncate">{person}</span>
-                        </div>
-                        <span className="text-[10px] text-cyan-400/70 font-normal">Filter by Person &rarr;</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* 3. Category / Language Suggestions */}
-                {suggestions.tags.length > 0 && (
-                  <div className="p-2 space-y-1">
-                    <span className="px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider text-emerald-400 block">
-                      Genres &amp; Languages
-                    </span>
-                    {suggestions.tags.map((tag) => (
-                      <div
-                        key={tag}
-                        onClick={() => {
-                          handleSearch(tag);
-                          setShowSuggestions(false);
-                        }}
-                        className="flex items-center justify-between p-2.5 rounded-xl hover:bg-emerald-500/10 cursor-pointer transition text-xs font-bold text-emerald-300 group"
-                      >
-                        <div className="flex items-center gap-2 truncate">
-                          <Globe className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                          <span className="truncate">{tag}</span>
-                        </div>
-                        <span className="text-[10px] text-emerald-400/70 font-normal">Filter Tag &rarr;</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                {renderAutosuggestContent()}
               </div>
             )}
           </div>
         </div>
       </div>
 
-      {/* Filter Tabs & Section Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <h2 className="text-lg font-bold text-slate-200">
-              {query.trim() ? `Filtered by Tag / Search "${query}"` : 'Top Featured Media'}
-            </h2>
-            {query.trim() && (
-              <button
-                onClick={() => handleSearch('')}
-                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 hover:bg-rose-500/20 hover:border-rose-500/40 hover:text-rose-300 transition"
-                title="Click to clear tag filter"
-              >
-                <Tag className="w-3 h-3" /> {query} <X className="w-3 h-3 ml-0.5" />
-              </button>
-            )}
-          </div>
-          <p className="text-xs text-slate-400">
-            Showing {displayedResults.length} of {filteredResults.length} title{filteredResults.length === 1 ? '' : 's'}
-          </p>
+      {/* Filter Tabs & Results Count */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2 border-b border-slate-800/80 pb-4">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setFilterType('all')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
+              filterType === 'all'
+                ? 'bg-cyan-500 text-slate-950 shadow-md'
+                : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            All Titles ({results.length})
+          </button>
+          <button
+            onClick={() => setFilterType('movie')}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition ${
+              filterType === 'movie'
+                ? 'bg-cyan-500 text-slate-950 shadow-md'
+                : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Film className="w-3.5 h-3.5" /> Movies ({results.filter((i) => i.mediaType === 'movie').length})
+          </button>
+          <button
+            onClick={() => setFilterType('tv')}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition ${
+              filterType === 'tv'
+                ? 'bg-cyan-500 text-slate-950 shadow-md'
+                : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Tv className="w-3.5 h-3.5" /> TV Shows ({results.filter((i) => i.mediaType === 'tv').length})
+          </button>
         </div>
 
-        {/* Media Type Filter Chips */}
-        <div className="flex items-center gap-1.5 bg-slate-900 border border-slate-800 p-1 rounded-xl text-xs font-semibold">
-          <button
-            onClick={() => {
-              setFilterType('all');
-              setVisibleCount(PAGE_SIZE);
-            }}
-            className={`px-3 py-1.5 rounded-lg transition ${
-              filterType === 'all'
-                ? 'bg-cyan-500 text-slate-950 font-bold'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            All Media
-          </button>
-          <button
-            onClick={() => {
-              setFilterType('movie');
-              setVisibleCount(PAGE_SIZE);
-            }}
-            className={`flex items-center gap-1 px-3 py-1.5 rounded-lg transition ${
-              filterType === 'movie'
-                ? 'bg-cyan-500 text-slate-950 font-bold'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Film className="w-3.5 h-3.5" /> Movies
-          </button>
-          <button
-            onClick={() => {
-              setFilterType('tv');
-              setVisibleCount(PAGE_SIZE);
-            }}
-            className={`flex items-center gap-1 px-3 py-1.5 rounded-lg transition ${
-              filterType === 'tv'
-                ? 'bg-cyan-500 text-slate-950 font-bold'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Tv className="w-3.5 h-3.5" /> TV Shows
-          </button>
+        <div className="text-xs text-slate-400 font-medium">
+          Showing <span className="text-cyan-400 font-extrabold">{displayedResults.length}</span> of{' '}
+          <span className="text-slate-200 font-bold">{filteredResults.length}</span> titles
         </div>
       </div>
 
-      {/* Media Items Grid */}
+      {/* Grid of Results */}
       {displayedResults.length > 0 ? (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 sm:gap-6">
-            {displayedResults.map((item) => {
-              const recordKey = `${item.mediaType}_${item.tmdbId}`;
-              const userRecord = userRecordsMap.get(recordKey);
-
-              return (
-                <MediaCard
-                  key={recordKey}
-                  item={item}
-                  record={userRecord}
-                  onSelect={handleOpenDetailModal}
-                  onMarkWatched={handleMarkWatched}
-                  onAddToWatchlist={handleAddToWatchlist}
-                  onRemoveRecord={handleRemoveRecord}
-                  onRatingChange={handleRatingChange}
-                />
-              );
-            })}
-          </div>
-
-          {visibleCount < filteredResults.length && (
-            <div className="text-center pt-6">
-              <button
-                onClick={() => setVisibleCount((prev) => prev + PAGE_SIZE)}
-                className="px-6 py-3 rounded-2xl bg-slate-900 border border-slate-700 hover:border-cyan-500 text-cyan-400 font-bold text-xs shadow-lg transition"
-              >
-                Load More Titles ({filteredResults.length - visibleCount} remaining)
-              </button>
-            </div>
-          )}
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 sm:gap-6">
+          {displayedResults.map((item) => {
+            const userRecord = userRecordsMap.get(`movie_${item.tmdbId}`) || userRecordsMap.get(`tv_${item.tmdbId}`);
+            return (
+              <MediaCard
+                key={`${item.mediaType}_${item.tmdbId}`}
+                item={item}
+                record={userRecord}
+                onSelect={() => handleOpenDetailModal(item)}
+                onMarkWatched={(m) => handleMarkWatched(m || item)}
+                onAddToWatchlist={() => handleAddToWatchlist(item)}
+                onRemoveRecord={() => handleRemoveRecord(item)}
+                onRatingChange={(m, tier) => handleRatingChange(m || item, tier)}
+              />
+            );
+          })}
         </div>
       ) : (
         <div className="text-center py-16 bg-slate-900/40 border border-slate-800 rounded-3xl space-y-3">
-          <Film className="w-12 h-12 text-slate-600 mx-auto" />
-          <h3 className="text-base font-bold text-slate-300">No media titles found</h3>
-          <p className="text-xs text-slate-400">
-            Try adjusting your search query or clear existing tag filters.
+          <div className="w-12 h-12 rounded-2xl bg-slate-800 text-slate-400 flex items-center justify-center mx-auto">
+            <Search className="w-6 h-6" />
+          </div>
+          <h3 className="text-base font-bold text-slate-200">No titles found for &quot;{query}&quot;</h3>
+          <p className="text-xs text-slate-400 max-w-sm mx-auto">
+            Try searching for another movie, TV show, actor, or genre tag!
           </p>
+        </div>
+      )}
+
+      {/* Load More Button */}
+      {visibleCount < filteredResults.length && (
+        <div className="text-center pt-6">
           <button
-            onClick={() => handleSearch('')}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs shadow-lg transition mt-2"
+            onClick={() => setVisibleCount((prev) => prev + PAGE_SIZE)}
+            className="px-6 py-3 rounded-2xl bg-slate-900 border border-slate-800 hover:border-cyan-500/50 text-cyan-300 font-bold text-xs shadow-lg transition"
           >
-            Reset Search Filter
+            Load More Titles ({filteredResults.length - visibleCount} remaining)
           </button>
         </div>
       )}
@@ -587,19 +664,11 @@ export const SearchView: React.FC<Props> = ({ initialSearchQuery = '', onRecords
       {selectedItem && (
         <MediaDetailModal
           item={selectedItem}
-          isOpen={Boolean(selectedItem)}
+          isOpen={!!selectedItem}
           onClose={handleCloseDetailModal}
           onRecordChange={() => {
             refreshUserRecords();
             onRecordsChanged();
-          }}
-          onPersonClick={(personName) => {
-            setSelectedItem(null);
-            handleSearch(personName);
-          }}
-          onTagClick={(tag) => {
-            setSelectedItem(null);
-            handleSearch(tag);
           }}
         />
       )}
