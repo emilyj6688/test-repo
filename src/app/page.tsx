@@ -195,13 +195,13 @@ export default function Home() {
             {/* Version Counter Badge */}
             <div
               className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-cyan-950/60 border border-cyan-500/30 text-[10px] font-mono font-bold text-cyan-400 shadow-sm ml-1"
-              title="Current Build: Version 0.1.8 Alpha"
+              title="Current Build: Version 0.1.9 Alpha"
             >
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500"></span>
               </span>
-              <span>v0.1.8-alpha</span>
+              <span>v0.1.9-alpha</span>
             </div>
           </div>
 

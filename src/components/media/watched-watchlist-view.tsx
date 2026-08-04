@@ -424,6 +424,10 @@ export const WatchedWatchlistView: React.FC<Props> = ({
           if (onPersonSelect) onPersonSelect(personName);
           onNavigateToTab('search');
         }}
+        onTagClick={(tagName) => {
+          if (onPersonSelect) onPersonSelect(tagName);
+          onNavigateToTab('search');
+        }}
         onRecordChange={() => {
           refreshRecords();
           onRecordsChanged();

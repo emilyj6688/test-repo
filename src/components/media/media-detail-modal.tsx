@@ -72,7 +72,8 @@ export const MediaDetailModal: React.FC<Props> = ({ item, isOpen, onClose, onRec
   const handleTagTrigger = (tagValue: string) => {
     if (onTagClick) {
       onTagClick(tagValue);
-    } else if (onPersonClick) {
+    }
+    if (onPersonClick) {
       onPersonClick(tagValue);
     }
     onClose();

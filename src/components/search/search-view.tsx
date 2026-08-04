@@ -574,6 +574,8 @@ export const SearchView: React.FC<Props> = ({ initialSearchQuery = '', onRecords
           item={selectedItem}
           isOpen={!!selectedItem}
           onClose={handleCloseDetailModal}
+          onPersonClick={(personName) => handleSearch(personName)}
+          onTagClick={(tagName) => handleSearch(tagName)}
           onRecordChange={() => {
             refreshUserRecords();
             onRecordsChanged();
