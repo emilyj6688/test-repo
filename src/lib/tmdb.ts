@@ -190,16 +190,19 @@ export async function fetchLiveTrendingTMDB(langCode = 'en-US'): Promise<MediaIt
     }
 
     if (liveItems.length > 0) {
-      // Sort live items by release date (newest first), falling back to popularity
+      // Sort live items by popularity & vote score so major blockbusters stay on top!
       liveItems.sort((a, b) => {
-        const dateA = a.releaseDate || '0000';
-        const dateB = b.releaseDate || '0000';
-        if (dateA !== dateB) return dateB.localeCompare(dateA);
-        return (b.voteCount || 0) - (a.voteCount || 0);
+        const scoreA = (a.voteCount || 0) * (a.voteAverage || 5);
+        const scoreB = (b.voteCount || 0) * (b.voteAverage || 5);
+        return scoreB - scoreA;
       });
 
       const combinedMap = new Map<string, MediaItem>();
       liveItems.forEach((m) => combinedMap.set(`${m.mediaType}_${m.tmdbId}`, m));
+      POPULAR_AMERICAN_CATALOG.forEach((m) => {
+        const key = `${m.mediaType}_${m.tmdbId}`;
+        if (!combinedMap.has(key)) combinedMap.set(key, m);
+      });
       return Array.from(combinedMap.values());
     }
   } catch (err) {
