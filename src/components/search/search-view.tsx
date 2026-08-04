@@ -20,7 +20,13 @@ const PAGE_SIZE = 24;
 export const SearchView: React.FC<Props> = ({ initialSearchQuery = '', onRecordsChanged }) => {
   const { currentLanguage, t } = useLanguage();
   const [query, setQuery] = useState(initialSearchQuery);
-  const [results, setResults] = useState<MediaItem[]>(MOCK_MEDIA_ITEMS);
+  const [results, setResults] = useState<MediaItem[]>(() => {
+    return [...MOCK_MEDIA_ITEMS].sort((a, b) => {
+      const dateA = a.releaseDate || '0000';
+      const dateB = b.releaseDate || '0000';
+      return dateB.localeCompare(dateA);
+    });
+  });
   const [loading, setLoading] = useState(false);
   const [filterType, setFilterType] = useState<'all' | MediaType>('all');
   const [visibleCount, setVisibleCount] = useState<number>(PAGE_SIZE);
