@@ -21,7 +21,7 @@ interface Props {
 export function getContentRatingStyle(rating?: string): { label: string; style: string } {
   if (!rating) return { label: '', style: '' };
   const upper = rating.toUpperCase().trim();
-  return { label: upper, style: 'bg-slate-800 text-slate-200 border-slate-700 font-extrabold' };
+  return { label: upper, style: 'bg-[#0a1c24] text-[#f3cb98] border-[#c88e58]/40 font-extrabold' };
 }
 
 export const MediaCard: React.FC<Props> = ({
@@ -47,13 +47,16 @@ export const MediaCard: React.FC<Props> = ({
     if (onRemoveRecord) onRemoveRecord(item);
   };
 
+  // Generate 5-star rating display (Matching Moodboard bottom-left)
+  const starCount = Math.round((item.voteAverage || 7) / 2); // 1-5 stars
+
   return (
     <div
       onClick={() => onSelect(item)}
-      className="group relative bg-slate-900/90 border border-slate-800 hover:border-cyan-500/60 rounded-2xl overflow-hidden shadow-xl hover:shadow-cyan-500/10 transition-all duration-300 flex flex-col cursor-pointer"
+      className="group relative bg-[#091b22] border-2 border-[#c88e58]/50 hover:border-[#e5a875] rounded-2xl overflow-hidden shadow-xl hover:shadow-[#c88e58]/20 transition-all duration-300 flex flex-col cursor-pointer hover:-translate-y-1"
     >
-      {/* Poster Image & Badges */}
-      <div className="relative aspect-[2/3] w-full overflow-hidden bg-slate-950">
+      {/* Poster Image & Moodboard Badges */}
+      <div className="relative aspect-[2/3] w-full overflow-hidden bg-[#050d11]">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={imgSrc}
@@ -62,39 +65,51 @@ export const MediaCard: React.FC<Props> = ({
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           loading="lazy"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent opacity-80" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#091b22] via-[#091b22]/30 to-transparent opacity-90" />
+
+        {/* Moodboard Top-Left Star Rating Display (★★★★☆) */}
+        <div className="absolute top-2 left-2 z-10 flex items-center gap-0.5 px-2 py-0.5 rounded-lg bg-[#071318]/90 backdrop-blur-md border border-[#c88e58]/50 shadow-md">
+          {[1, 2, 3, 4, 5].map((s) => (
+            <Star
+              key={s}
+              className={`w-3 h-3 ${
+                s <= starCount ? 'text-amber-400 fill-amber-400' : 'text-slate-600'
+              }`}
+            />
+          ))}
+        </div>
 
         {/* Rank Overlay Badge if provided */}
         {rankIndex !== undefined && (
-          <div className="absolute top-2 left-2 z-10 w-8 h-8 rounded-xl bg-cyan-500 text-slate-950 font-black text-sm flex items-center justify-center shadow-lg shadow-cyan-500/40">
+          <div className="absolute top-10 left-2 z-10 w-8 h-8 rounded-xl bg-gradient-to-br from-[#f3cb98] to-[#c88e58] text-[#071318] font-black text-xs flex items-center justify-center shadow-lg shadow-amber-950/60 font-cinzel">
             #{rankIndex}
           </div>
         )}
 
-        {/* Top-Right Badge: Media Type */}
-        <div className="absolute top-2 right-2 z-10 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-slate-950/80 backdrop-blur-md border border-slate-700 text-slate-300">
-          {item.mediaType === 'movie' ? 'Movie' : 'TV'}
+        {/* Moodboard Top-Right Badge: LOGGED / WATCHLIST / MEDIA TYPE */}
+        <div className="absolute top-2 right-2 z-10 px-2 py-0.5 rounded-lg text-[10px] font-extrabold uppercase tracking-wider bg-[#071318]/90 backdrop-blur-md border border-[#c88e58]/60 text-[#f3cb98]">
+          {isWatched ? '★ LOGGED' : isWatchlist ? '🔖 WATCHLIST' : item.mediaType === 'movie' ? 'MOVIE' : 'TV'}
         </div>
 
         {/* Bottom Quick Overlay Info */}
-        <div className="absolute bottom-2 left-2 right-2 z-10 flex items-center justify-between text-xs text-slate-300">
+        <div className="absolute bottom-2 left-2 right-2 z-10 flex items-center justify-between text-xs text-[#f3cb98]">
           {year && (
-            <span className="flex items-center gap-1 font-mono text-[11px] text-slate-400">
-              <Calendar className="w-3 h-3" /> {year}
+            <span className="flex items-center gap-1 font-mono text-[11px] text-slate-300">
+              <Calendar className="w-3 h-3 text-[#c88e58]" /> {year}
             </span>
           )}
           {item.voteAverage && (
-            <span className="flex items-center gap-1 font-bold text-amber-400 text-[11px] bg-slate-950/80 px-1.5 py-0.5 rounded border border-amber-500/30">
-              <Star className="w-3 h-3 fill-amber-400" /> {item.voteAverage}
+            <span className="flex items-center gap-1 font-bold text-amber-300 text-[11px] bg-[#071318]/90 px-1.5 py-0.5 rounded border border-amber-500/40">
+              <Star className="w-3 h-3 fill-amber-400 text-amber-400" /> {item.voteAverage}
             </span>
           )}
         </div>
       </div>
 
       {/* Card Content & Rating Controls */}
-      <div className="p-3.5 flex-1 flex flex-col justify-between space-y-3">
+      <div className="p-3.5 flex-1 flex flex-col justify-between space-y-3 bg-[#091b22]">
         <div>
-          <h3 className="font-bold text-sm text-slate-100 group-hover:text-cyan-400 transition line-clamp-1">
+          <h3 className="font-cinzel font-bold text-sm text-[#f6f3eb] group-hover:text-[#f3cb98] transition line-clamp-1">
             {item.title}
           </h3>
 
@@ -106,7 +121,7 @@ export const MediaCard: React.FC<Props> = ({
 
           {item.mediaType === 'tv' && record?.seasonsProgress && (
             <div className="mt-1">
-              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-300 border border-purple-500/40">
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-500/20 text-[#f3cb98] border border-amber-500/40">
                 📺 {(() => {
                   const progress = record.seasonsProgress || {};
                   const total = item.numberOfSeasons || 1;
@@ -121,7 +136,7 @@ export const MediaCard: React.FC<Props> = ({
         </div>
 
         {/* Tracking Actions / Rating Slider */}
-        <div className="space-y-2 pt-1 border-t border-slate-800/80" onClick={(e) => e.stopPropagation()}>
+        <div className="space-y-2 pt-2 border-t border-[#c88e58]/20" onClick={(e) => e.stopPropagation()}>
           {isWatched ? (
             <div className="space-y-1.5">
               <RatingSlider
@@ -131,7 +146,7 @@ export const MediaCard: React.FC<Props> = ({
               />
               <button
                 onClick={handleUnwatchToggle}
-                className="w-full py-1 rounded-lg text-[10px] font-bold text-rose-400 hover:text-rose-300 bg-rose-950/30 hover:bg-rose-900/50 border border-rose-900/50 flex items-center justify-center gap-1 transition"
+                className="w-full py-1 rounded-lg text-[10px] font-bold text-rose-300 hover:text-white bg-rose-950/40 hover:bg-rose-900/60 border border-rose-900/50 flex items-center justify-center gap-1 transition"
                 title="Undo Watched / Remove from Watched list"
               >
                 <XCircle className="w-3 h-3" /> Undo Watched
@@ -141,14 +156,14 @@ export const MediaCard: React.FC<Props> = ({
             <div className="flex gap-1.5">
               <button
                 onClick={() => onMarkWatched(item, 1.0)}
-                className={`flex-1 py-1.5 px-2 rounded-xl text-[11px] font-semibold flex items-center justify-center gap-1 border transition ${
+                className={`flex-1 py-1.5 px-2 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1 border transition ${
                   isWatched
-                    ? 'bg-emerald-500/20 border-emerald-500/60 text-emerald-300'
-                    : 'bg-slate-800/80 hover:bg-emerald-500/20 border-slate-700 hover:border-emerald-500/50 text-slate-300 hover:text-emerald-300'
+                    ? 'bg-[#c88e58]/30 border-[#c88e58] text-[#f3cb98]'
+                    : 'bg-[#0f262e] hover:bg-[#c88e58]/20 border-[#c88e58]/40 hover:border-[#c88e58] text-slate-200 hover:text-[#f3cb98]'
                 }`}
                 title="Mark as Watched"
               >
-                <CheckCircle className="w-3.5 h-3.5" /> Watched
+                <CheckCircle className="w-3.5 h-3.5 text-[#c88e58]" /> Watched
               </button>
 
               <button
@@ -160,14 +175,14 @@ export const MediaCard: React.FC<Props> = ({
                     onAddToWatchlist(item);
                   }
                 }}
-                className={`py-1.5 px-2.5 rounded-xl text-[11px] font-semibold flex items-center justify-center border transition ${
+                className={`py-1.5 px-2.5 rounded-xl text-[11px] font-bold flex items-center justify-center border transition ${
                   isWatchlist
-                    ? 'bg-cyan-500/20 border-cyan-500/60 text-cyan-300 hover:bg-rose-500/20 hover:border-rose-500/60 hover:text-rose-300'
-                    : 'bg-slate-800/80 hover:bg-cyan-500/20 border-slate-700 hover:border-cyan-500/50 text-slate-400 hover:text-cyan-300'
+                    ? 'bg-[#c88e58]/30 border-[#c88e58] text-[#f3cb98] hover:bg-rose-500/20 hover:border-rose-500/60 hover:text-rose-300'
+                    : 'bg-[#0f262e] hover:bg-[#c88e58]/20 border-[#c88e58]/40 hover:border-[#c88e58] text-slate-400 hover:text-[#f3cb98]'
                 }`}
                 title={isWatchlist ? 'Click to Remove from Watchlist' : 'Add to Watchlist'}
               >
-                <Bookmark className={`w-3.5 h-3.5 ${isWatchlist ? 'fill-cyan-400' : ''}`} />
+                <Bookmark className={`w-3.5 h-3.5 ${isWatchlist ? 'fill-[#f3cb98] text-[#c88e58]' : ''}`} />
               </button>
             </div>
           )}

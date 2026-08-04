@@ -8,7 +8,7 @@ import { RankingGame } from '@/components/ranking/ranking-game';
 import { TelemetryDrawer } from '@/components/telemetry-drawer';
 import { ShareRankingModal } from '@/components/media/share-ranking-modal';
 import { StorageService } from '@/lib/storage';
-import { Sparkles, Terminal, Download, Trash2, CheckCircle2, Activity, Cloud } from 'lucide-react';
+import { Terminal, Download, Trash2, CheckCircle2, Activity, Cloud } from 'lucide-react';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('search');
@@ -188,20 +188,19 @@ export default function Home() {
       <footer className="border-t border-slate-800/80 py-8 bg-slate-950/80 mt-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
           <div className="flex flex-wrap items-center gap-2">
-            <Sparkles className="w-4 h-4 text-cyan-400" />
-            <span className="font-bold text-slate-300">CineRank Premium</span>
-            <span className="hidden sm:inline">— Media Tracking &amp; Pairwise Ranking Engine</span>
+            <span className="font-cinzel font-bold text-slate-200">Aperture</span>
+            <span className="hidden sm:inline">— Vintage Cinematic Media Tracking &amp; Ranking Engine</span>
             
             {/* Version Counter Badge */}
             <div
-              className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-cyan-950/60 border border-cyan-500/30 text-[10px] font-mono font-bold text-cyan-400 shadow-sm ml-1"
-              title="Current Build: Version 0.1.9 Alpha"
+              className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#0a1c24] border border-[#c88e58]/40 text-[10px] font-mono font-bold text-[#f3cb98] shadow-sm ml-1"
+              title="Current Build: Version 0.2.0 Alpha"
             >
               <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500"></span>
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#c88e58] opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#c88e58]"></span>
               </span>
-              <span>v0.1.9-alpha</span>
+              <span>v0.2.0-alpha</span>
             </div>
           </div>
 

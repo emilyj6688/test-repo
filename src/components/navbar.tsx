@@ -9,7 +9,7 @@ import { AuthModal } from '@/components/auth/auth-modal';
 import { useAuth } from '@/context/auth-context';
 import { useLanguage } from '@/context/language-context';
 import { LanguageSelector } from '@/components/language-selector';
-import { Search, Film, BookmarkCheck, Trophy, Sparkles, User, LogIn, LogOut, ShieldCheck, X, ChevronRight, Tag } from 'lucide-react';
+import { Search, Film, BookmarkCheck, Trophy, User, LogIn, LogOut, ShieldCheck, X, ChevronRight, Tag } from 'lucide-react';
 
 export type ActiveTab = 'search' | 'watched' | 'watchlist' | 'ranking';
 
@@ -44,7 +44,7 @@ export const Navbar: React.FC<Props> = ({
   const { user, logout } = useAuth();
   const { t } = useLanguage();
 
-  // Monitor scroll position: only show top-right search when user scrolls down
+  // Monitor scroll position
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolledDown(window.scrollY > 80);
@@ -54,7 +54,7 @@ export const Navbar: React.FC<Props> = ({
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Click outside listener for top-right search autosuggest dropdown
+  // Click outside listener for top-right search dropdown
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (navbarSearchRef.current && !navbarSearchRef.current.contains(e.target as Node)) {
@@ -116,42 +116,71 @@ export const Navbar: React.FC<Props> = ({
 
   return (
     <>
-      <header className="sticky top-0 z-40 bg-slate-950/80 backdrop-blur-xl border-b border-slate-800/80">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          {/* Left Brand Logo & Title */}
+      <header className="sticky top-0 z-40 bg-[#071318]/90 backdrop-blur-xl border-b border-[#c88e58]/30 shadow-2xl">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between">
+          
+          {/* APERTURE FILM REEL & FILM STRIP HEADER LOGO (As sketched by user) */}
           <div
             onClick={() => onTabChange('search')}
-            className="flex items-center gap-3 cursor-pointer group shrink-0"
+            className="flex items-center cursor-pointer group shrink-0 relative py-1"
+            title="Aperture - Home & Search"
           >
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 p-0.5 shadow-lg shadow-cyan-500/20 group-hover:scale-105 transition-transform duration-300">
-              <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center">
-                <Sparkles className="w-5 h-5 text-cyan-400" />
+            {/* Circular Film Reel Emblem with Cursive "A" */}
+            <div className="relative z-10 w-11 h-11 sm:w-13 sm:h-13 rounded-full bg-gradient-to-tr from-[#8c5023] via-[#c88e58] to-[#f3cb98] p-0.5 shadow-xl shadow-amber-950/60 group-hover:scale-105 transition-transform duration-300 flex items-center justify-center">
+              {/* Inner dark reel container */}
+              <div className="w-full h-full bg-[#0a1c24] rounded-full relative flex items-center justify-center border border-[#e5a875]/40 overflow-hidden">
+                {/* Film Reel Sprocket Holes */}
+                <div className="absolute w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-[#050d11] top-1" />
+                <div className="absolute w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-[#050d11] bottom-1" />
+                <div className="absolute w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-[#050d11] left-1" />
+                <div className="absolute w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-[#050d11] right-1" />
+                
+                {/* Center Cream Emblem with Cursive Script "A" */}
+                <div className="w-6 h-6 sm:w-7.5 sm:h-7.5 rounded-full bg-gradient-to-br from-[#f6f3eb] via-[#ede6d5] to-[#d9ceb8] border border-[#c88e58] flex items-center justify-center shadow-md z-10">
+                  <span className="font-script font-bold text-base sm:text-xl text-[#6e3b13] select-none leading-none pt-0.5">
+                    A
+                  </span>
+                </div>
               </div>
             </div>
 
-            <div>
-              <div className="flex items-center gap-1.5">
-                <span className="font-black text-lg text-white tracking-tight group-hover:text-cyan-400 transition">
-                  CineRank
-                </span>
-                <span className="px-1.5 py-0.5 text-[10px] font-extrabold bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 rounded-md">
-                  PRO
+            {/* Overlapping Film Strip Box containing "PERTURE" (User Sketch format) */}
+            <div className="-ml-3 sm:-ml-4 pl-4 sm:pl-5 pr-3 sm:pr-4 py-1.5 sm:py-2 bg-[#050d11] border border-[#c88e58]/70 rounded-r-xl shadow-lg relative flex flex-col justify-center">
+              {/* Top Film Sprocket Holes */}
+              <div className="absolute top-0.5 left-4 right-1 flex justify-between gap-1 pointer-events-none">
+                <div className="w-1.5 h-0.5 bg-[#c88e58]/70 rounded-xs" />
+                <div className="w-1.5 h-0.5 bg-[#c88e58]/70 rounded-xs" />
+                <div className="w-1.5 h-0.5 bg-[#c88e58]/70 rounded-xs" />
+                <div className="w-1.5 h-0.5 bg-[#c88e58]/70 rounded-xs" />
+                <div className="w-1.5 h-0.5 bg-[#c88e58]/70 rounded-xs" />
+              </div>
+              
+              {/* Main Brand Text: PERTURE (forming A-PERTURE) */}
+              <div className="flex items-center gap-0.5">
+                <span className="font-cinzel font-black text-xs sm:text-base text-transparent bg-clip-text bg-gradient-to-r from-[#f3cb98] via-[#e5a875] to-[#c88e58] tracking-[0.25em] group-hover:text-amber-200 transition uppercase">
+                  PERTURE
                 </span>
               </div>
-              <p className="text-[10px] font-medium text-slate-400 hidden sm:block">
-                Pairwise Ranking &amp; Tracker
-              </p>
+
+              {/* Bottom Film Sprocket Holes */}
+              <div className="absolute bottom-0.5 left-4 right-1 flex justify-between gap-1 pointer-events-none">
+                <div className="w-1.5 h-0.5 bg-[#c88e58]/70 rounded-xs" />
+                <div className="w-1.5 h-0.5 bg-[#c88e58]/70 rounded-xs" />
+                <div className="w-1.5 h-0.5 bg-[#c88e58]/70 rounded-xs" />
+                <div className="w-1.5 h-0.5 bg-[#c88e58]/70 rounded-xs" />
+                <div className="w-1.5 h-0.5 bg-[#c88e58]/70 rounded-xs" />
+              </div>
             </div>
           </div>
 
-          {/* Center Navigation Tabs */}
-          <nav className="flex items-center gap-1 sm:gap-2 bg-slate-900/90 p-1.5 rounded-2xl border border-slate-800/80 shadow-inner">
+          {/* Center Navigation Tabs (Aperture Vintage Bronze Theme) */}
+          <nav className="flex items-center gap-1 sm:gap-2 bg-[#091b22]/90 p-1.5 rounded-2xl border border-[#c88e58]/30 shadow-inner">
             <button
               onClick={() => onTabChange('search')}
               className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs font-semibold transition ${
                 activeTab === 'search'
-                  ? 'bg-cyan-500 text-slate-950 font-bold shadow-md'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-gradient-to-r from-[#d99b66] to-[#c88e58] text-[#071318] font-bold shadow-md shadow-amber-900/30'
+                  : 'text-[#eef4f6]/70 hover:text-white'
               }`}
             >
               <Search className="w-4 h-4" />
@@ -162,8 +191,8 @@ export const Navbar: React.FC<Props> = ({
               onClick={() => onTabChange('watched')}
               className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs font-semibold transition ${
                 activeTab === 'watched'
-                  ? 'bg-cyan-500 text-slate-950 font-bold shadow-md'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-gradient-to-r from-[#d99b66] to-[#c88e58] text-[#071318] font-bold shadow-md shadow-amber-900/30'
+                  : 'text-[#eef4f6]/70 hover:text-white'
               }`}
             >
               <Film className="w-4 h-4" />
@@ -172,8 +201,8 @@ export const Navbar: React.FC<Props> = ({
                 <span
                   className={`px-1.5 py-0.5 text-[10px] font-extrabold rounded-full ${
                     activeTab === 'watched'
-                      ? 'bg-slate-950 text-cyan-400'
-                      : 'bg-slate-800 text-slate-300'
+                      ? 'bg-[#071318] text-[#f3cb98]'
+                      : 'bg-[#122c37] text-slate-300'
                   }`}
                 >
                   {watchedCount}
@@ -185,8 +214,8 @@ export const Navbar: React.FC<Props> = ({
               onClick={() => onTabChange('watchlist')}
               className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs font-semibold transition ${
                 activeTab === 'watchlist'
-                  ? 'bg-cyan-500 text-slate-950 font-bold shadow-md'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-gradient-to-r from-[#d99b66] to-[#c88e58] text-[#071318] font-bold shadow-md shadow-amber-900/30'
+                  : 'text-[#eef4f6]/70 hover:text-white'
               }`}
             >
               <BookmarkCheck className="w-4 h-4" />
@@ -195,8 +224,8 @@ export const Navbar: React.FC<Props> = ({
                 <span
                   className={`px-1.5 py-0.5 text-[10px] font-extrabold rounded-full ${
                     activeTab === 'watchlist'
-                      ? 'bg-slate-950 text-cyan-400'
-                      : 'bg-slate-800 text-slate-300'
+                      ? 'bg-[#071318] text-[#f3cb98]'
+                      : 'bg-[#122c37] text-slate-300'
                   }`}
                 >
                   {watchlistCount}
@@ -208,7 +237,7 @@ export const Navbar: React.FC<Props> = ({
               onClick={() => onTabChange('ranking')}
               className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs font-semibold transition ${
                 activeTab === 'ranking'
-                  ? 'bg-gradient-to-r from-amber-400 to-orange-500 text-slate-950 font-bold shadow-md shadow-amber-500/20 animate-pulse'
+                  ? 'bg-gradient-to-r from-amber-400 via-amber-500 to-orange-500 text-slate-950 font-bold shadow-md shadow-amber-500/20 animate-pulse'
                   : 'text-amber-400 hover:text-amber-300 hover:bg-amber-500/10'
               }`}
             >
@@ -218,7 +247,7 @@ export const Navbar: React.FC<Props> = ({
 
           {/* Right Actions: Language Selector, User Profile, & Far-Right Scrolled Search */}
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            {/* Global Language Selector: Hide when search is expanded so it doesn't squish */}
+            {/* Global Language Selector */}
             {!isSearchExpanded && <LanguageSelector />}
 
             {/* Authenticated User Menu vs Sign In Button */}
@@ -226,18 +255,18 @@ export const Navbar: React.FC<Props> = ({
               <div className="relative">
                 <button
                   onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-slate-900 border border-slate-700 hover:border-cyan-500 rounded-xl transition text-slate-100 shadow-md"
+                  className="flex items-center gap-2 px-3 py-1.5 bg-[#0a1c24] border border-[#c88e58]/40 hover:border-[#c88e58] rounded-xl transition text-slate-100 shadow-md"
                 >
                   {user.photoURL ? (
                     /* eslint-disable-next-line @next/next/no-img-element */
-                    <img src={user.photoURL} alt={user.displayName || 'User'} className="w-6 h-6 rounded-full object-cover" />
+                    <img src={user.photoURL} alt={user.displayName || 'User'} className="w-6 h-6 rounded-full object-cover border border-[#c88e58]" />
                   ) : (
-                    <div className="w-6 h-6 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold text-xs">
+                    <div className="w-6 h-6 rounded-full bg-[#c88e58]/20 text-[#f3cb98] flex items-center justify-center font-bold text-xs border border-[#c88e58]/40">
                       {(user.displayName || user.email || 'U')[0].toUpperCase()}
                     </div>
                   )}
                   {!isSearchExpanded && (
-                    <span className="text-xs font-bold max-w-[110px] truncate hidden md:inline">
+                    <span className="text-xs font-bold max-w-[110px] truncate hidden md:inline text-slate-200">
                       {user.displayName || user.email?.split('@')[0] || 'Cloud User'}
                     </span>
                   )}
@@ -245,11 +274,11 @@ export const Navbar: React.FC<Props> = ({
 
                 {/* Dropdown Menu */}
                 {isUserMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-56 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-2 z-50 animate-fade-in text-slate-200">
-                    <div className="px-3 py-2 border-b border-slate-800/80 mb-1">
+                  <div className="absolute right-0 mt-2 w-56 bg-[#0a1c24] border border-[#c88e58]/40 rounded-2xl shadow-2xl p-2 z-50 animate-fade-in text-slate-200">
+                    <div className="px-3 py-2 border-b border-[#c88e58]/20 mb-1">
                       <p className="text-xs font-bold text-white truncate">{user.displayName || 'Cloud User'}</p>
                       <p className="text-[11px] text-slate-400 truncate">{user.email}</p>
-                      <div className="flex items-center gap-1 text-[10px] text-cyan-400 mt-1">
+                      <div className="flex items-center gap-1 text-[10px] text-[#f3cb98] mt-1">
                         <ShieldCheck className="w-3 h-3" />
                         <span>Cloud Authenticated</span>
                       </div>
@@ -260,9 +289,9 @@ export const Navbar: React.FC<Props> = ({
                         setIsUserMenuOpen(false);
                         setIsProfileModalOpen(true);
                       }}
-                      className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800 rounded-xl flex items-center gap-2 transition"
+                      className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-300 hover:text-white hover:bg-[#122c37] rounded-xl flex items-center gap-2 transition"
                     >
-                      <User className="w-4 h-4 text-cyan-400" /> {t('switch_profile')}
+                      <User className="w-4 h-4 text-[#c88e58]" /> {t('switch_profile')}
                     </button>
 
                     <button
@@ -280,19 +309,19 @@ export const Navbar: React.FC<Props> = ({
             ) : (
               <button
                 onClick={() => setIsProfileModalOpen(true)}
-                className="flex items-center gap-2 px-3 py-1.5 bg-slate-900 border border-slate-800 hover:border-cyan-500/50 rounded-xl text-slate-200 hover:text-white text-xs font-bold transition shadow-sm"
+                className="flex items-center gap-2 px-3 py-1.5 bg-[#0a1c24] border border-[#c88e58]/40 hover:border-[#c88e58] rounded-xl text-slate-200 hover:text-white text-xs font-bold transition shadow-sm"
               >
-                <LogIn className="w-4 h-4 text-cyan-400" />
+                <LogIn className="w-4 h-4 text-[#c88e58]" />
                 {!isSearchExpanded && <span className="hidden sm:inline font-bold">{currentUser.name}</span>}
               </button>
             )}
 
-            {/* FAR-RIGHT EXPANDING SEARCH: Only appears when scrolling down or active query */}
+            {/* FAR-RIGHT EXPANDING SEARCH */}
             {onSearchChange && (isScrolledDown || (searchQuery && searchQuery.trim().length > 0)) && (
               <div className="relative flex items-center" ref={navbarSearchRef}>
                 {isSearchExpanded || (searchQuery && searchQuery.trim().length > 0) ? (
                   <div className="relative flex items-center animate-in fade-in zoom-in-95 duration-150">
-                    <Search className="absolute left-2.5 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+                    <Search className="absolute left-2.5 w-3.5 h-3.5 text-[#c88e58] pointer-events-none" />
                     <input
                       type="text"
                       autoFocus
@@ -315,7 +344,7 @@ export const Navbar: React.FC<Props> = ({
                         }
                       }}
                       placeholder="Search title, actor..."
-                      className="w-44 sm:w-60 pl-8 pr-7 py-1.5 bg-slate-900 border border-cyan-500/60 rounded-xl text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-cyan-500/60 transition-all shadow-xl"
+                      className="w-44 sm:w-60 pl-8 pr-7 py-1.5 bg-[#0a1c24] border border-[#c88e58]/70 rounded-xl text-xs text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-[#c88e58] transition-all shadow-xl"
                     />
                     <button
                       onClick={() => {
@@ -323,7 +352,7 @@ export const Navbar: React.FC<Props> = ({
                         setIsSearchExpanded(false);
                         setShowNavbarSuggestions(false);
                       }}
-                      className="absolute right-2 p-0.5 rounded-full text-slate-400 hover:text-white hover:bg-slate-800 transition"
+                      className="absolute right-2 p-0.5 rounded-full text-slate-400 hover:text-white hover:bg-[#122c37] transition"
                       title="Clear search"
                     >
                       <X className="w-3.5 h-3.5" />
@@ -331,11 +360,11 @@ export const Navbar: React.FC<Props> = ({
 
                     {/* Top-Right Autosuggest Recommendations Dropdown */}
                     {showNavbarSuggestions && searchQuery && searchQuery.trim().length >= 1 && hasNavbarSuggestions && (
-                      <div className="absolute right-0 top-full mt-2 w-72 sm:w-80 bg-slate-900/95 backdrop-blur-xl border border-slate-700/80 rounded-2xl shadow-2xl overflow-hidden max-h-[380px] overflow-y-auto divide-y divide-slate-800/80 animate-in fade-in slide-in-from-top-2 duration-150 z-50">
+                      <div className="absolute right-0 top-full mt-2 w-72 sm:w-80 bg-[#091b22]/95 backdrop-blur-xl border border-[#c88e58]/50 rounded-2xl shadow-2xl overflow-hidden max-h-[380px] overflow-y-auto divide-y divide-[#c88e58]/20 animate-in fade-in slide-in-from-top-2 duration-150 z-50">
                         {/* 1. Title Matches */}
                         {navbarSuggestions.titles.length > 0 && (
                           <div className="p-2 space-y-1">
-                            <span className="px-2 py-1 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">
+                            <span className="px-2 py-1 text-[10px] font-extrabold uppercase tracking-wider text-[#f3cb98] block">
                               Matching Titles ({navbarSuggestions.titles.length})
                             </span>
                             {navbarSuggestions.titles.map((item) => (
@@ -345,10 +374,10 @@ export const Navbar: React.FC<Props> = ({
                                   if (onSelectMediaItem) onSelectMediaItem(item);
                                   setShowNavbarSuggestions(false);
                                 }}
-                                className="flex items-center justify-between p-2 rounded-xl hover:bg-slate-800/80 cursor-pointer transition group"
+                                className="flex items-center justify-between p-2 rounded-xl hover:bg-[#122c37] cursor-pointer transition group"
                               >
                                 <div className="flex items-center gap-2.5 truncate">
-                                  <div className="w-7 h-10 rounded-lg bg-slate-800 overflow-hidden shrink-0 border border-slate-700/50">
+                                  <div className="w-7 h-10 rounded-lg bg-[#071318] overflow-hidden shrink-0 border border-[#c88e58]/30">
                                     {item.posterPath ? (
                                       /* eslint-disable-next-line @next/next/no-img-element */
                                       <img
@@ -363,7 +392,7 @@ export const Navbar: React.FC<Props> = ({
                                     )}
                                   </div>
                                   <div className="truncate">
-                                    <div className="text-xs font-bold text-slate-100 group-hover:text-cyan-400 transition truncate">
+                                    <div className="text-xs font-bold text-slate-100 group-hover:text-[#f3cb98] transition truncate">
                                       {item.title}
                                     </div>
                                     <div className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
@@ -374,7 +403,7 @@ export const Navbar: React.FC<Props> = ({
                                     </div>
                                   </div>
                                 </div>
-                                <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-cyan-400 transition shrink-0" />
+                                <ChevronRight className="w-4 h-4 text-[#c88e58]/60 group-hover:text-[#f3cb98] transition shrink-0" />
                               </div>
                             ))}
                           </div>
@@ -394,10 +423,10 @@ export const Navbar: React.FC<Props> = ({
                                   if (activeTab !== 'search') onTabChange('search');
                                   setShowNavbarSuggestions(false);
                                 }}
-                                className="flex items-center justify-between p-2 rounded-xl hover:bg-slate-800/80 cursor-pointer transition group text-xs text-slate-200 font-medium"
+                                className="flex items-center justify-between p-2 rounded-xl hover:bg-[#122c37] cursor-pointer transition group text-xs text-slate-200 font-medium"
                               >
                                 <span>👤 {person}</span>
-                                <span className="text-[10px] text-cyan-400 group-hover:underline">Search</span>
+                                <span className="text-[10px] text-[#f3cb98] group-hover:underline">Search</span>
                               </div>
                             ))}
                           </div>
@@ -406,7 +435,7 @@ export const Navbar: React.FC<Props> = ({
                         {/* 3. Genre Tag Matches */}
                         {navbarSuggestions.tags.length > 0 && (
                           <div className="p-2 space-y-1">
-                            <span className="px-2 py-1 text-[10px] font-extrabold uppercase tracking-wider text-cyan-400 block flex items-center gap-1">
+                            <span className="px-2 py-1 text-[10px] font-extrabold uppercase tracking-wider text-[#c88e58] block flex items-center gap-1">
                               <Tag className="w-3 h-3" /> Genres
                             </span>
                             {navbarSuggestions.tags.map((tag) => (
@@ -417,12 +446,12 @@ export const Navbar: React.FC<Props> = ({
                                   if (activeTab !== 'search') onTabChange('search');
                                   setShowNavbarSuggestions(false);
                                 }}
-                                className="flex items-center justify-between p-2 rounded-xl hover:bg-slate-800/80 cursor-pointer transition group text-xs text-slate-200 font-medium"
+                                className="flex items-center justify-between p-2 rounded-xl hover:bg-[#122c37] cursor-pointer transition group text-xs text-slate-200 font-medium"
                               >
-                                <span className="px-2 py-0.5 rounded-full bg-cyan-950/60 border border-cyan-500/30 text-cyan-300 text-[10px]">
+                                <span className="px-2 py-0.5 rounded-full bg-[#122c37] border border-[#c88e58]/40 text-[#f3cb98] text-[10px]">
                                   #{tag}
                                 </span>
-                                <span className="text-[10px] text-cyan-400 group-hover:underline">Filter</span>
+                                <span className="text-[10px] text-[#f3cb98] group-hover:underline">Filter</span>
                               </div>
                             ))}
                           </div>
@@ -436,7 +465,7 @@ export const Navbar: React.FC<Props> = ({
                       setIsSearchExpanded(true);
                       if (activeTab !== 'search') onTabChange('search');
                     }}
-                    className="p-2 rounded-xl bg-slate-900 border border-slate-800 hover:border-cyan-500/50 text-slate-400 hover:text-cyan-400 transition"
+                    className="p-2 rounded-xl bg-[#0a1c24] border border-[#c88e58]/40 hover:border-[#c88e58] text-[#c88e58] hover:text-[#f3cb98] transition"
                     title="Search Titles"
                   >
                     <Search className="w-4 h-4" />

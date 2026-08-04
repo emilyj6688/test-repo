@@ -1,32 +1,58 @@
 @import "tailwindcss";
 
 :root {
-  --background: #030712;
-  --foreground: #f9fafb;
+  --background: #071318;
+  --foreground: #eef4f6;
+  --copper: #c88e58;
+  --copper-light: #f3cb98;
+  --copper-dark: #8c5023;
+  --cream: #f6f3eb;
+  --teal-dark: #0a1c24;
+  --teal-card: #0f262e;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   min-height: 100vh;
 }
 
-/* Custom sleek dark scrollbar */
+.font-cinzel {
+  font-family: 'Cinzel', 'Playfair Display', serif;
+}
+
+.font-script {
+  font-family: 'Alex Brush', cursive, serif;
+}
+
+/* Aperture Film Strip Perforations Pattern */
+.film-strip-border {
+  border-image: repeating-linear-gradient(
+    90deg,
+    #c88e58 0px,
+    #c88e58 6px,
+    transparent 6px,
+    transparent 12px
+  ) 1;
+}
+
+/* Custom Aperture Copper Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #090d16;
+  background: #050d11;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #1e293b;
+  background: #254450;
   border-radius: 9999px;
+  border: 1px solid #c88e58/40;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #334155;
+  background: #c88e58;
 }
