@@ -189,22 +189,24 @@ export async function fetchLiveTrendingTMDB(langCode = 'en-US'): Promise<MediaIt
       processResults(data.results || [], 'movie');
     }
 
-    if (liveItems.length > 0) {
-      // Sort live items by popularity & vote score so major blockbusters stay on top!
-      liveItems.sort((a, b) => {
-        const scoreA = (a.voteCount || 0) * (a.voteAverage || 5);
-        const scoreB = (b.voteCount || 0) * (b.voteAverage || 5);
-        return scoreB - scoreA;
-      });
+    const combinedMap = new Map<string, MediaItem>();
+    
+    // 1. Put live trending TMDB items at top
+    liveItems.forEach((m) => combinedMap.set(`${m.mediaType}_${m.tmdbId}`, m));
 
-      const combinedMap = new Map<string, MediaItem>();
-      liveItems.forEach((m) => combinedMap.set(`${m.mediaType}_${m.tmdbId}`, m));
-      POPULAR_AMERICAN_CATALOG.forEach((m) => {
-        const key = `${m.mediaType}_${m.tmdbId}`;
-        if (!combinedMap.has(key)) combinedMap.set(key, m);
-      });
-      return Array.from(combinedMap.values());
+    // 2. Append all 31,338+ items from local catalog
+    if (Array.isArray(POPULAR_AMERICAN_CATALOG)) {
+      for (let i = 0; i < POPULAR_AMERICAN_CATALOG.length; i++) {
+        const item = POPULAR_AMERICAN_CATALOG[i];
+        if (!item) continue;
+        const key = `${item.mediaType}_${item.tmdbId}`;
+        if (!combinedMap.has(key)) {
+          combinedMap.set(key, item);
+        }
+      }
     }
+
+    return Array.from(combinedMap.values());
   } catch (err) {
     console.error('Fetch live trending TMDB error:', err);
   }
