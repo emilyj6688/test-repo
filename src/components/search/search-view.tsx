@@ -1,44 +1,90 @@
 'use client';
 
-import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
-import { MediaItem, UserMediaRecord, MediaType } from '@/types/media';
-import { searchTMDB, fetchLiveTrendingTMDB, MOCK_MEDIA_ITEMS, getTMDBImageUrl } from '@/lib/tmdb';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { MediaItem, UserMediaRecord, RatingTier } from '@/types/media';
 import { StorageService } from '@/lib/storage';
-import { useLanguage } from '@/context/language-context';
+import { searchTMDB, fetchLiveTrendingTMDB, getTMDBImageUrl } from '@/lib/tmdb';
 import { MediaCard } from '@/components/media/media-card';
 import { MediaDetailModal } from '@/components/media/media-detail-modal';
-import { Search, Loader2, Film, Tv, Sparkles, Tag, X, User, ChevronRight } from 'lucide-react';
+import { useLanguage } from '@/context/language-context';
+import { Search, Film, Tv, Sparkles, SlidersHorizontal, Loader2, Star, X, User, Tag, ChevronRight } from 'lucide-react';
 
 interface Props {
-  initialSearchQuery?: string;
-  onRecordsChanged: () => void;
-  onNavigateToTab?: (tab: 'watched' | 'watchlist' | 'ranking') => void;
+  onMarkWatched: (item: MediaItem, tier?: RatingTier) => void;
+  onAddToWatchlist: (item: MediaItem) => void;
+  initialQuery?: string;
+  onPersonClick?: (person: string) => void;
+  onTagClick?: (tag: string) => void;
 }
 
-const PAGE_SIZE = 24;
-
-export const SearchView: React.FC<Props> = ({ initialSearchQuery = '', onRecordsChanged }) => {
-  const { currentLanguage, t } = useLanguage();
-  const [query, setQuery] = useState(initialSearchQuery);
-  const [results, setResults] = useState<MediaItem[]>(MOCK_MEDIA_ITEMS);
-  const [loading, setLoading] = useState(false);
-  const [filterType, setFilterType] = useState<'all' | MediaType>('all');
-  const [visibleCount, setVisibleCount] = useState<number>(PAGE_SIZE);
-
-  // Autosuggest State
+export const SearchView: React.FC<Props> = ({
+  onMarkWatched,
+  onAddToWatchlist,
+  initialQuery = '',
+  onPersonClick,
+  onTagClick,
+}) => {
+  const [query, setQuery] = useState(initialQuery);
+  const [mediaType, setMediaType] = useState<'all' | 'movie' | 'tv'>('all');
+  const [selectedGenre, setSelectedGenre] = useState<string>('all');
+  const [results, setResults] = useState<MediaItem[]>([]);
+  const [allMasterItems, setAllMasterItems] = useState<MediaItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [selectedItem, setSelectedItem] = useState<MediaItem | null>(null);
+  const [userRecords, setUserRecords] = useState<Record<string, UserMediaRecord>>({});
   const [showSuggestions, setShowSuggestions] = useState(false);
   const searchContainerRef = useRef<HTMLDivElement>(null);
 
-  const [userRecordsMap, setUserRecordsMap] = useState<Map<string, UserMediaRecord>>(() => {
-    if (typeof window === 'undefined') return new Map();
-    const records = StorageService.getUserRecords();
-    const map = new Map<string, UserMediaRecord>();
-    records.forEach((r) => map.set(r.id, r));
-    return map;
-  });
-  const [selectedItem, setSelectedItem] = useState<MediaItem | null>(null);
+  const { t } = useLanguage();
 
-  // Click outside listener for autosuggest dropdown
+  // Load live trending & master catalog on mount
+  useEffect(() => {
+    let isMounted = true;
+    fetchLiveTrendingTMDB()
+      .then((items) => {
+        if (isMounted) {
+          setAllMasterItems(items);
+          setResults(items);
+        }
+      })
+      .finally(() => {
+        if (isMounted) setIsLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Update query when initialQuery changes via user navigation
+  const prevInitialQueryRef = useRef(initialQuery);
+  useEffect(() => {
+    if (prevInitialQueryRef.current !== initialQuery) {
+      prevInitialQueryRef.current = initialQuery;
+      setQuery(initialQuery);
+    }
+  }, [initialQuery]);
+
+  // Helper to load user records as a map
+  const loadUserRecordsMap = () => {
+    const map: Record<string, UserMediaRecord> = {};
+    StorageService.getUserRecords().forEach((r) => {
+      map[`${r.item.mediaType}_${r.item.tmdbId}`] = r;
+    });
+    return map;
+  };
+
+  // Load user watched/watchlist records
+  useEffect(() => {
+    const refreshRecords = () => {
+      setUserRecords(loadUserRecordsMap());
+    };
+    refreshRecords();
+    window.addEventListener('storage', refreshRecords);
+    return () => window.removeEventListener('storage', refreshRecords);
+  }, []);
+
+  // Close autosuggest dropdown on click outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
@@ -49,209 +95,95 @@ export const SearchView: React.FC<Props> = ({ initialSearchQuery = '', onRecords
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Fetch live trending & now playing movies on mount if no search query active
+  // Perform search (TMDB Live API + local catalog)
   useEffect(() => {
-    if (!initialSearchQuery) {
-      let isMounted = true;
+    const lowerQuery = query.toLowerCase().trim();
+
+    if (!lowerQuery) {
       const timer = setTimeout(() => {
-        setLoading(true);
-        fetchLiveTrendingTMDB(String(currentLanguage))
-          .then((liveResults) => {
-            if (isMounted && liveResults.length > 0) {
-              setResults(liveResults);
-              setLoading(false);
-            }
-          })
-          .catch(() => {
-            if (isMounted) setLoading(false);
-          });
-      }, 0);
-      return () => {
-        isMounted = false;
-        clearTimeout(timer);
-      };
-    }
-  }, [initialSearchQuery, currentLanguage]);
-
-  const handleOpenDetailModal = useCallback((item: MediaItem) => {
-    setSelectedItem(item);
-    if (typeof window !== 'undefined') {
-      const baseHash = window.location.hash.split('&media=')[0] || '#search';
-      const newHash = `${baseHash}&media=${item.mediaType}-${item.tmdbId}`;
-      if (window.location.hash !== newHash) {
-        window.history.pushState({ modalOpen: true }, '', newHash);
-      }
-    }
-  }, []);
-
-  const handleCloseDetailModal = useCallback(() => {
-    setSelectedItem(null);
-    if (typeof window !== 'undefined' && window.location.hash.includes('&media=')) {
-      const cleanHash = window.location.hash.split('&media=')[0];
-      window.history.pushState(null, '', cleanHash || '#search');
-    }
-  }, []);
-
-  // Sync modal state from URL Hash & listen to Browser Back/Forward buttons (popstate/hashchange)
-  useEffect(() => {
-    const handleHashChange = () => {
-      if (typeof window === 'undefined') return;
-      const hash = window.location.hash;
-      const mediaMatch = hash.match(/&media=(movie|tv)-(\d+)/);
-      if (mediaMatch) {
-        const [, type, id] = mediaMatch;
-        const found = MOCK_MEDIA_ITEMS.find((m) => m.mediaType === type && m.tmdbId === parseInt(id, 10));
-        if (found) {
-          setSelectedItem(found);
-          return;
+        let filtered = [...allMasterItems];
+        if (mediaType !== 'all') {
+          filtered = filtered.filter((item) => item.mediaType === mediaType);
         }
-      }
-      if (selectedItem) {
-        setSelectedItem(null);
-      }
-    };
-
-    handleHashChange();
-
-    window.addEventListener('hashchange', handleHashChange);
-    window.addEventListener('popstate', handleHashChange);
-
-    return () => {
-      window.removeEventListener('hashchange', handleHashChange);
-      window.removeEventListener('popstate', handleHashChange);
-    };
-  }, [selectedItem]);
-
-  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
-
-  const refreshUserRecords = () => {
-    const records = StorageService.getUserRecords();
-    const map = new Map<string, UserMediaRecord>();
-    records.forEach((r) => map.set(r.id, r));
-    setUserRecordsMap(map);
-  };
-
-  const handleSearch = useCallback(
-    (searchTerm: string) => {
-      setQuery(searchTerm);
-      setVisibleCount(PAGE_SIZE);
-
-      const lower = searchTerm.toLowerCase().trim();
-
-      if (!lower) {
-        setResults(MOCK_MEDIA_ITEMS);
-        setLoading(false);
-        setShowSuggestions(false);
-        return;
-      }
-
-      setShowSuggestions(true);
-
-      // Instant local filter across title, genres, directors, cast, language
-      const instantLocalMatches = MOCK_MEDIA_ITEMS.filter(
-        (item) =>
-          item.title.toLowerCase().includes(lower) ||
-          (item.genres && item.genres.some((g: string) => g.toLowerCase().includes(lower))) ||
-          (item.directors && item.directors.some((d: string) => d.toLowerCase().includes(lower))) ||
-          (item.cast && item.cast.some((c) => c.name.toLowerCase().includes(lower))) ||
-          (item.originalLanguage && item.originalLanguage.toLowerCase().includes(lower))
-      );
-
-      setResults(instantLocalMatches);
-
-      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
-
-      debounceTimerRef.current = setTimeout(async () => {
-        setLoading(true);
-        try {
-          const apiResults = await searchTMDB(searchTerm, 1, String(currentLanguage));
-          if (apiResults.length > 0) {
-            const combinedMap = new Map<string, MediaItem>();
-            instantLocalMatches.forEach((m) => combinedMap.set(`${m.mediaType}_${m.tmdbId}`, m));
-            apiResults.forEach((m) => {
-              const key = `${m.mediaType}_${m.tmdbId}`;
-              if (!combinedMap.has(key)) combinedMap.set(key, m);
-            });
-            setResults(Array.from(combinedMap.values()));
-          }
-        } catch (err) {
-          console.error('TMDB Search Error:', err);
-        } finally {
-          setLoading(false);
+        if (selectedGenre !== 'all') {
+          filtered = filtered.filter((item) =>
+            (item.genres || []).some((g) => g.toLowerCase() === selectedGenre.toLowerCase())
+          );
         }
-      }, 350);
-    },
-    [currentLanguage]
-  );
-
-  useEffect(() => {
-    if (initialSearchQuery) {
-      const timer = setTimeout(() => {
-        handleSearch(initialSearchQuery);
+        setResults(filtered);
+        setIsLoading(false);
       }, 0);
       return () => clearTimeout(timer);
     }
-  }, [initialSearchQuery, handleSearch]);
 
-  const handleSelectSuggestionItem = (item: MediaItem) => {
-    setSelectedItem(item);
-    setShowSuggestions(false);
-  };
+    const timer = setTimeout(async () => {
+      setIsLoading(true);
 
-  const handleSelectPerson = (personName: string) => {
-    handleSearch(personName);
-    setShowSuggestions(false);
-  };
+      const liveResults = await searchTMDB(lowerQuery);
 
-  const handleSelectGenreTag = (genreTag: string) => {
-    handleSearch(genreTag);
-    setShowSuggestions(false);
-  };
+      const localMatches = allMasterItems.filter((item) => {
+        if (mediaType !== 'all' && item.mediaType !== mediaType) return false;
 
-  // Compute autosuggest recommendations for title, actors, directors, and genres
+        const titleMatch = item.title.toLowerCase().includes(lowerQuery);
+        const castMatch = (item.cast || []).some((c) => c.name.toLowerCase().includes(lowerQuery));
+        const directorMatch = (item.directors || []).some((d) => d.toLowerCase().includes(lowerQuery));
+        const genreMatch = (item.genres || []).some((g) => g.toLowerCase().includes(lowerQuery));
+
+        return titleMatch || castMatch || directorMatch || genreMatch;
+      });
+
+      const seenIds = new Set<string>();
+      const merged: MediaItem[] = [];
+
+      for (const item of liveResults) {
+        const key = `${item.mediaType}_${item.tmdbId}`;
+        if (!seenIds.has(key)) {
+          seenIds.add(key);
+          merged.push(item);
+        }
+      }
+
+      for (const item of localMatches) {
+        const key = `${item.mediaType}_${item.tmdbId}`;
+        if (!seenIds.has(key)) {
+          seenIds.add(key);
+          merged.push(item);
+        }
+      }
+
+      let finalFiltered = merged;
+      if (selectedGenre !== 'all') {
+        finalFiltered = finalFiltered.filter((item) =>
+          (item.genres || []).some((g) => g.toLowerCase() === selectedGenre.toLowerCase())
+        );
+      }
+
+      setResults(finalFiltered);
+      setIsLoading(false);
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [query, mediaType, selectedGenre, allMasterItems]);
+
+  // Compute Autosuggest Recommendations
   const suggestions = useMemo(() => {
     const lower = query.toLowerCase().trim();
     if (!lower) return { titles: [], people: [], tags: [] };
 
-    // 1. Title Matches
-    const matchingTitles = MOCK_MEDIA_ITEMS.filter((item) =>
+    const matchingTitles = allMasterItems.filter((item) =>
       item.title.toLowerCase().includes(lower)
     );
-
-    const isFranchiseSeries = matchingTitles.length >= 2;
-    const obscureRegex = /repackaged|fireplace|unearthing|making of|behind the scenes|fan edit|tribute|short|promo/i;
-
     matchingTitles.sort((a, b) => {
-      const aTitle = a.title.toLowerCase();
-      const bTitle = b.title.toLowerCase();
-      const aStarts = aTitle.startsWith(lower);
-      const bStarts = bTitle.startsWith(lower);
-
-      const isObscureA = obscureRegex.test(a.title) || (a.voteCount || 0) < 50;
-      const isObscureB = obscureRegex.test(b.title) || (b.voteCount || 0) < 50;
-
-      if (!isObscureA && isObscureB) return -1;
-      if (isObscureA && !isObscureB) return 1;
-
-      if (isFranchiseSeries) {
-        const dateA = a.releaseDate || '9999';
-        const dateB = b.releaseDate || '9999';
-        if (aStarts && bStarts) return dateA.localeCompare(dateB);
-        if (aStarts && !bStarts) return -1;
-        if (!aStarts && bStarts) return 1;
-        return dateA.localeCompare(dateB);
-      }
-
+      const aStarts = a.title.toLowerCase().startsWith(lower);
+      const bStarts = b.title.toLowerCase().startsWith(lower);
       if (aStarts && !bStarts) return -1;
       if (!aStarts && bStarts) return 1;
-      return aTitle.localeCompare(bTitle);
+      return a.title.localeCompare(b.title);
     });
+    const titleMatches = matchingTitles.slice(0, 5);
 
-    const titleMatches = matchingTitles.slice(0, 10);
-
-    // 2. Person Matches
     const personSet = new Set<string>();
-    MOCK_MEDIA_ITEMS.forEach((item) => {
+    allMasterItems.forEach((item) => {
       (item.cast || []).forEach((c) => {
         if (c.name.toLowerCase().includes(lower)) personSet.add(c.name);
       });
@@ -259,311 +191,320 @@ export const SearchView: React.FC<Props> = ({ initialSearchQuery = '', onRecords
         if (d.toLowerCase().includes(lower)) personSet.add(d);
       });
     });
+    const peopleMatches = Array.from(personSet).slice(0, 3);
 
-    const sortedPeople = Array.from(personSet).sort((a, b) => {
-      const aStarts = a.toLowerCase().startsWith(lower);
-      const bStarts = b.toLowerCase().startsWith(lower);
-      if (aStarts && !bStarts) return -1;
-      if (!aStarts && bStarts) return 1;
-      return a.localeCompare(b);
-    });
-    const peopleMatches = sortedPeople.slice(0, 3);
-
-    // 3. Genre / Tag Matches
     const tagSet = new Set<string>();
-    MOCK_MEDIA_ITEMS.forEach((item) => {
+    allMasterItems.forEach((item) => {
       (item.genres || []).forEach((g) => {
         if (g.toLowerCase().includes(lower)) tagSet.add(g);
       });
     });
-
-    const sortedTags = Array.from(tagSet).sort((a, b) => {
-      const aStarts = a.toLowerCase().startsWith(lower);
-      const bStarts = b.toLowerCase().startsWith(lower);
-      if (aStarts && !bStarts) return -1;
-      if (!aStarts && bStarts) return 1;
-      return a.localeCompare(b);
-    });
-    const tagMatches = sortedTags.slice(0, 3);
+    const tagMatches = Array.from(tagSet).slice(0, 3);
 
     return { titles: titleMatches, people: peopleMatches, tags: tagMatches };
-  }, [query]);
+  }, [query, allMasterItems]);
 
   const hasSuggestions =
-    suggestions.titles.length > 0 || suggestions.people.length > 0 || suggestions.tags.length > 0;
+    suggestions.titles.length > 0 ||
+    suggestions.people.length > 0 ||
+    suggestions.tags.length > 0;
 
-  const filteredResults = useMemo(() => {
-    if (filterType === 'all') return results;
-    return results.filter((item) => item.mediaType === filterType);
-  }, [results, filterType]);
-
-  const displayedResults = useMemo(() => {
-    return filteredResults.slice(0, visibleCount);
-  }, [filteredResults, visibleCount]);
-
-  const handleMarkWatched = (item: MediaItem) => {
-    StorageService.saveRecord(item, 'watched', 1.0);
-    refreshUserRecords();
-    onRecordsChanged();
+  const handleSelectTitleItem = (item: MediaItem) => {
+    setSelectedItem(item);
+    setShowSuggestions(false);
   };
 
-  const handleAddToWatchlist = (item: MediaItem) => {
-    StorageService.saveRecord(item, 'want_to_watch', 1.0);
-    refreshUserRecords();
-    onRecordsChanged();
+  const handleSelectPerson = (person: string) => {
+    setQuery(person);
+    setShowSuggestions(false);
+    if (onPersonClick) onPersonClick(person);
   };
 
-  const handleRemoveRecord = (item: MediaItem) => {
-    StorageService.removeRecord(item.tmdbId, item.mediaType);
-    refreshUserRecords();
-    onRecordsChanged();
+  const handleSelectGenreTag = (tag: string) => {
+    setQuery(tag);
+    setShowSuggestions(false);
+    if (onTagClick) onTagClick(tag);
   };
 
-  const handleRatingChange = (item: MediaItem, tier: number) => {
-    StorageService.saveRecord(item, 'watched', tier);
-    refreshUserRecords();
-    onRecordsChanged();
-  };
-
-  const renderAutosuggestContent = () => (
-    <div className="p-2 space-y-1 divide-y divide-slate-800/80">
-      {/* 1. Title Suggestions */}
-      {suggestions.titles.length > 0 && (
-        <div className="p-2 space-y-1">
-          <span className="px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">
-            Matching Titles ({suggestions.titles.length})
-          </span>
-          {suggestions.titles.map((item) => (
-            <div
-              key={`${item.mediaType}_${item.tmdbId}`}
-              onClick={() => handleSelectSuggestionItem(item)}
-              className="flex items-center justify-between p-2 rounded-xl hover:bg-slate-800/80 cursor-pointer transition group"
-            >
-              <div className="flex items-center gap-3 truncate">
-                <div className="w-8 h-11 rounded-lg bg-slate-800 overflow-hidden shrink-0 border border-slate-700/50">
-                  {item.posterPath ? (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img
-                      src={getTMDBImageUrl(item.posterPath, 'poster')}
-                      alt={item.title}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-[10px] text-slate-500">
-                      N/A
-                    </div>
-                  )}
-                </div>
-                <div className="truncate">
-                  <div className="text-xs font-bold text-slate-100 group-hover:text-cyan-400 transition truncate">
-                    {item.title}
-                  </div>
-                  <div className="text-[10px] text-slate-400 flex items-center gap-1.5 mt-0.5">
-                    <span className="capitalize font-semibold text-slate-300">{item.mediaType}</span>
-                    {item.releaseDate && (
-                      <span>• {new Date(item.releaseDate).getFullYear()}</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-              <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-cyan-400 transition shrink-0" />
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* 2. People Suggestions */}
-      {suggestions.people.length > 0 && (
-        <div className="p-2 space-y-1">
-          <span className="px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider text-amber-400 block flex items-center gap-1">
-            <User className="w-3 h-3" /> People ({suggestions.people.length})
-          </span>
-          {suggestions.people.map((person) => (
-            <div
-              key={person}
-              onClick={() => handleSelectPerson(person)}
-              className="flex items-center justify-between p-2 rounded-xl hover:bg-slate-800/80 cursor-pointer transition group text-xs text-slate-200 font-medium"
-            >
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-[10px]">
-                  👤
-                </div>
-                <span>{person}</span>
-              </div>
-              <span className="text-[10px] text-cyan-400 group-hover:underline">Search titles</span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* 3. Genre Tag Suggestions */}
-      {suggestions.tags.length > 0 && (
-        <div className="p-2 space-y-1">
-          <span className="px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider text-cyan-400 block flex items-center gap-1">
-            <Tag className="w-3 h-3" /> Genres &amp; Tags ({suggestions.tags.length})
-          </span>
-          {suggestions.tags.map((tag) => (
-            <div
-              key={tag}
-              onClick={() => handleSelectGenreTag(tag)}
-              className="flex items-center justify-between p-2 rounded-xl hover:bg-slate-800/80 cursor-pointer transition group text-xs text-slate-200 font-medium"
-            >
-              <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 rounded-full bg-cyan-950/60 border border-cyan-500/30 text-cyan-300 text-[10px]">
-                  #{tag}
-                </span>
-              </div>
-              <span className="text-[10px] text-cyan-400 group-hover:underline">Filter tag</span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+  const availableGenres = [
+    'all',
+    'Action',
+    'Drama',
+    'Sci-Fi',
+    'Comedy',
+    'Crime',
+    'Thriller',
+    'Animation',
+    'Adventure',
+    'Fantasy',
+    'Horror',
+    'Romance',
+  ];
 
   return (
     <div className="space-y-8 relative">
+      {/* Hero Stage Banner */}
+      <div className="bg-gradient-to-br from-[#0a1c24] via-[#091b22] to-[#071318] border-2 border-[#c88e58]/40 p-6 sm:p-10 rounded-3xl shadow-2xl relative z-20 overflow-hidden">
+        <div className="absolute -top-24 -right-24 w-96 h-96 bg-[#c88e58]/10 rounded-full blur-3xl pointer-events-none" />
 
-
-      {/* Hero Centerpiece Search Section */}
-      <div className="bg-gradient-to-r from-slate-900 via-cyan-950/40 to-slate-900 border border-slate-800 p-6 sm:p-10 rounded-3xl shadow-2xl relative z-20">
         <div className="max-w-3xl space-y-4 relative z-10">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">
-            <Sparkles className="w-3.5 h-3.5" /> {t('hero_tag')}
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-cinzel font-bold uppercase tracking-widest bg-[#c88e58]/20 border border-[#c88e58]/50 text-[#f3cb98]">
+            <Sparkles className="w-3.5 h-3.5 text-[#c88e58]" /> Aperture Film Archive
           </div>
-          <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
-            {t('hero_title')}
+
+          <h1 className="text-3xl sm:text-5xl font-cinzel font-black text-[#f6f3eb] tracking-tight leading-tight">
+            Discover &amp; Rank <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#f3cb98] via-[#e5a875] to-[#c88e58]">Cinema Excellence</span>
           </h1>
-          <p className="text-sm text-slate-300">
-            {t('hero_desc')}
+
+          <p className="text-sm text-slate-300 max-w-2xl leading-relaxed">
+            Search over 31,330+ iconic titles, directors, and actors. Log your watched media and rank them through head-to-head pairwise comparisons.
           </p>
 
-          {/* Centerpiece Search Input Box with Interactive Autosuggest */}
-          <div className="pt-2 relative z-30" ref={searchContainerRef}>
+          <div className="pt-3 relative z-30" ref={searchContainerRef}>
             <div className="relative flex items-center">
-              <Search className="absolute left-4 w-5 h-5 text-slate-400 pointer-events-none" />
+              <Search className="absolute left-4 w-5 h-5 text-[#c88e58] pointer-events-none" />
               <input
                 type="text"
                 value={query}
                 onFocus={() => {
                   if (query.trim().length >= 1) setShowSuggestions(true);
                 }}
-                onChange={(e) => handleSearch(e.target.value)}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  if (e.target.value.trim().length >= 1) setShowSuggestions(true);
+                }}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === 'Escape') {
                     setShowSuggestions(false);
-                    (e.target as HTMLInputElement).blur();
                   }
                 }}
                 placeholder={t('search_placeholder')}
-                className="w-full pl-12 pr-12 py-3.5 bg-slate-950/90 border border-slate-700/80 focus:border-cyan-500 rounded-2xl text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/30 text-sm shadow-xl transition"
+                className="w-full pl-12 pr-10 py-3.5 bg-[#050d11] border-2 border-[#c88e58]/60 focus:border-[#e5a875] rounded-2xl text-sm text-[#f6f3eb] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#c88e58]/40 transition shadow-2xl"
               />
-              {loading ? (
-                <Loader2 className="absolute right-4 w-5 h-5 text-cyan-400 animate-spin pointer-events-none" />
-              ) : (
-                query.trim().length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => handleSearch('')}
-                    className="absolute right-4 p-1.5 rounded-full text-slate-400 hover:text-white hover:bg-slate-800 transition"
-                    title="Clear search and stop searching"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )
+              {query && (
+                <button
+                  onClick={() => {
+                    setQuery('');
+                    setShowSuggestions(false);
+                  }}
+                  className="absolute right-4 p-1 rounded-full text-slate-400 hover:text-white hover:bg-[#122c37] transition"
+                  title="Clear search query"
+                >
+                  <X className="w-4 h-4" />
+                </button>
               )}
             </div>
 
-            {/* Centerpiece Floating Autosuggest Dropdown */}
             {showSuggestions && query.trim().length >= 1 && hasSuggestions && (
-              <div className="absolute left-0 right-0 mt-2 z-[9999] bg-slate-900/95 backdrop-blur-xl border border-slate-700/80 rounded-2xl shadow-2xl overflow-hidden max-h-[420px] overflow-y-auto divide-y divide-slate-800/80 animate-in fade-in slide-in-from-top-2 duration-200">
-                {renderAutosuggestContent()}
+              <div className="absolute left-0 right-0 top-full mt-2 bg-[#091b22]/95 backdrop-blur-2xl border-2 border-[#c88e58]/60 rounded-2xl shadow-2xl overflow-hidden max-h-[420px] overflow-y-auto divide-y divide-[#c88e58]/20 animate-in fade-in slide-in-from-top-2 duration-150 z-50">
+                {suggestions.titles.length > 0 && (
+                  <div className="p-2 space-y-1">
+                    <span className="px-3 py-1 text-[10px] font-cinzel font-extrabold uppercase tracking-wider text-[#f3cb98] block">
+                      Matching Titles ({suggestions.titles.length})
+                    </span>
+                    {suggestions.titles.map((item) => (
+                      <div
+                        key={`sug_${item.mediaType}_${item.tmdbId}`}
+                        onClick={() => handleSelectTitleItem(item)}
+                        className="flex items-center justify-between p-2 rounded-xl hover:bg-[#122c37] cursor-pointer transition group"
+                      >
+                        <div className="flex items-center gap-3 truncate">
+                          <div className="w-8 h-11 rounded-lg bg-[#071318] overflow-hidden shrink-0 border border-[#c88e58]/40">
+                            {item.posterPath ? (
+                              /* eslint-disable-next-line @next/next/no-img-element */
+                              <img
+                                src={getTMDBImageUrl(item.posterPath, 'poster')}
+                                alt={item.title}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-[9px] text-slate-500">
+                                N/A
+                              </div>
+                            )}
+                          </div>
+                          <div className="truncate">
+                            <div className="text-xs font-bold text-slate-100 group-hover:text-[#f3cb98] transition truncate font-cinzel">
+                              {item.title}
+                            </div>
+                            <div className="text-[10px] text-slate-400 flex items-center gap-1.5 mt-0.5">
+                              <span className="capitalize font-semibold text-[#c88e58]">{item.mediaType}</span>
+                              {item.releaseDate && (
+                                <span>• {new Date(item.releaseDate).getFullYear()}</span>
+                              )}
+                              {item.voteAverage && (
+                                <span className="flex items-center gap-0.5 text-amber-400">
+                                  <Star className="w-2.5 h-2.5 fill-amber-400" /> {item.voteAverage}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-[#c88e58]/60 group-hover:text-[#f3cb98] transition shrink-0" />
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {suggestions.people.length > 0 && (
+                  <div className="p-2 space-y-1">
+                    <span className="px-3 py-1 text-[10px] font-cinzel font-extrabold uppercase tracking-wider text-amber-400 block flex items-center gap-1">
+                      <User className="w-3 h-3" /> People ({suggestions.people.length})
+                    </span>
+                    {suggestions.people.map((person) => (
+                      <div
+                        key={person}
+                        onClick={() => handleSelectPerson(person)}
+                        className="flex items-center justify-between p-2.5 rounded-xl hover:bg-[#122c37] cursor-pointer transition group text-xs text-slate-200 font-medium"
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 rounded-full bg-[#c88e58]/20 text-[#f3cb98] flex items-center justify-center font-bold text-[10px] border border-[#c88e58]/40">
+                            👤
+                          </div>
+                          <span>{person}</span>
+                        </div>
+                        <span className="text-[10px] text-[#f3cb98] group-hover:underline">Search titles</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {suggestions.tags.length > 0 && (
+                  <div className="p-2 space-y-1">
+                    <span className="px-3 py-1 text-[10px] font-cinzel font-extrabold uppercase tracking-wider text-[#c88e58] block flex items-center gap-1">
+                      <Tag className="w-3 h-3" /> Genres &amp; Tags ({suggestions.tags.length})
+                    </span>
+                    {suggestions.tags.map((tag) => (
+                      <div
+                        key={tag}
+                        onClick={() => handleSelectGenreTag(tag)}
+                        className="flex items-center justify-between p-2 rounded-xl hover:bg-[#122c37] cursor-pointer transition group text-xs text-slate-200 font-medium"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="px-2.5 py-0.5 rounded-full bg-[#122c37] border border-[#c88e58]/40 text-[#f3cb98] text-[10px] font-bold">
+                            #{tag}
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-[#f3cb98] group-hover:underline">Filter tag</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
         </div>
       </div>
 
-      {/* Filter Tabs & Results Count */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2 border-b border-slate-800/80 pb-4">
-        <div className="flex items-center gap-2">
+      {/* Filter Toolbar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#c88e58]/20 pb-4">
+        <div className="flex items-center gap-2 bg-[#050d11] p-1.5 rounded-2xl border border-[#c88e58]/40 shadow-inner">
           <button
-            onClick={() => setFilterType('all')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
-              filterType === 'all'
-                ? 'bg-cyan-500 text-slate-950 shadow-md'
-                : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            All Titles ({results.length})
-          </button>
-          <button
-            onClick={() => setFilterType('movie')}
+            onClick={() => setMediaType('all')}
             className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition ${
-              filterType === 'movie'
-                ? 'bg-cyan-500 text-slate-950 shadow-md'
-                : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200'
+              mediaType === 'all'
+                ? 'bg-gradient-to-r from-[#d99b66] to-[#c88e58] text-[#071318] shadow-md'
+                : 'text-slate-300 hover:text-white'
             }`}
           >
-            <Film className="w-3.5 h-3.5" /> Movies ({results.filter((i) => i.mediaType === 'movie').length})
+            <Sparkles className="w-3.5 h-3.5" /> All Types
           </button>
+
           <button
-            onClick={() => setFilterType('tv')}
+            onClick={() => setMediaType('movie')}
             className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition ${
-              filterType === 'tv'
-                ? 'bg-cyan-500 text-slate-950 shadow-md'
-                : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200'
+              mediaType === 'movie'
+                ? 'bg-gradient-to-r from-[#d99b66] to-[#c88e58] text-[#071318] shadow-md'
+                : 'text-slate-300 hover:text-white'
             }`}
           >
-            <Tv className="w-3.5 h-3.5" /> TV Shows ({results.filter((i) => i.mediaType === 'tv').length})
+            <Film className="w-3.5 h-3.5" /> Movies
+          </button>
+
+          <button
+            onClick={() => setMediaType('tv')}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition ${
+              mediaType === 'tv'
+                ? 'bg-gradient-to-r from-[#d99b66] to-[#c88e58] text-[#071318] shadow-md'
+                : 'text-slate-300 hover:text-white'
+            }`}
+          >
+            <Tv className="w-3.5 h-3.5" /> TV Shows
           </button>
         </div>
 
-        <div className="text-xs text-slate-400 font-medium">
-          Showing <span className="text-cyan-400 font-extrabold">{displayedResults.length}</span> of{' '}
-          <span className="text-slate-200 font-bold">{filteredResults.length}</span> titles
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
+          <SlidersHorizontal className="w-4 h-4 text-[#c88e58] shrink-0 mr-1 hidden sm:block" />
+          {availableGenres.map((genre) => (
+            <button
+              key={genre}
+              onClick={() => setSelectedGenre(genre)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap border transition ${
+                selectedGenre === genre
+                  ? 'bg-[#c88e58] border-[#e5a875] text-[#071318] font-bold shadow-md'
+                  : 'bg-[#091b22] border-[#c88e58]/30 text-slate-300 hover:border-[#c88e58] hover:text-[#f3cb98]'
+              }`}
+            >
+              {genre === 'all' ? 'All Genres' : genre}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Grid of Results */}
-      {displayedResults.length > 0 ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 sm:gap-6">
-          {displayedResults.map((item) => {
-            const userRecord = userRecordsMap.get(`movie_${item.tmdbId}`) || userRecordsMap.get(`tv_${item.tmdbId}`);
-            return (
-              <MediaCard
-                key={`${item.mediaType}_${item.tmdbId}`}
-                item={item}
-                record={userRecord}
-                onSelect={() => handleOpenDetailModal(item)}
-                onMarkWatched={(m) => handleMarkWatched(m || item)}
-                onAddToWatchlist={() => handleAddToWatchlist(item)}
-                onRemoveRecord={() => handleRemoveRecord(item)}
-                onRatingChange={(m, tier) => handleRatingChange(m || item, tier)}
-              />
-            );
-          })}
+      {/* Catalog Search Results Grid */}
+      {isLoading ? (
+        <div className="py-20 flex flex-col items-center justify-center space-y-3 text-slate-400">
+          <Loader2 className="w-8 h-8 text-[#c88e58] animate-spin" />
+          <p className="text-xs font-cinzel font-bold text-[#f3cb98]">Searching Aperture Catalog...</p>
+        </div>
+      ) : results.length > 0 ? (
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <span className="text-xs font-cinzel font-bold text-slate-300">
+              Showing <span className="text-[#f3cb98] font-extrabold">{results.length}</span> titles
+              {query ? ` for "${query}"` : ' (Live & Popular)'}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-6">
+            {results.map((item) => {
+              const recordKey = `${item.mediaType}_${item.tmdbId}`;
+              const record = userRecords[recordKey] || null;
+
+              return (
+                <MediaCard
+                  key={recordKey}
+                  item={item}
+                  record={record}
+                  onSelect={(selected) => setSelectedItem(selected)}
+                  onMarkWatched={(m, tier) => onMarkWatched(m, tier)}
+                  onAddToWatchlist={(m) => onAddToWatchlist(m)}
+                  onRemoveRecord={() => setUserRecords(loadUserRecordsMap())}
+                  onRatingChange={(m, tier) => {
+                    StorageService.saveRecord(m, 'watched', tier);
+                    setUserRecords(loadUserRecordsMap());
+                  }}
+                />
+              );
+            })}
+          </div>
         </div>
       ) : (
-        <div className="text-center py-16 bg-slate-900/40 border border-slate-800 rounded-3xl space-y-3">
-          <div className="w-12 h-12 rounded-2xl bg-slate-800 text-slate-400 flex items-center justify-center mx-auto">
-            <Search className="w-6 h-6" />
-          </div>
-          <h3 className="text-base font-bold text-slate-200">No titles found for &quot;{query}&quot;</h3>
+        <div className="py-16 text-center space-y-3 bg-[#091b22] border border-[#c88e58]/30 rounded-3xl p-8">
+          <Film className="w-10 h-10 text-[#c88e58] mx-auto opacity-60" />
+          <h3 className="font-cinzel font-bold text-lg text-slate-100">No Titles Found</h3>
           <p className="text-xs text-slate-400 max-w-sm mx-auto">
-            Try searching for another movie, TV show, actor, or genre tag!
+            Try refining your search terms or genre filters.
           </p>
-        </div>
-      )}
-
-      {/* Load More Button */}
-      {visibleCount < filteredResults.length && (
-        <div className="text-center pt-6">
           <button
-            onClick={() => setVisibleCount((prev) => prev + PAGE_SIZE)}
-            className="px-6 py-3 rounded-2xl bg-slate-900 border border-slate-800 hover:border-cyan-500/50 text-cyan-300 font-bold text-xs shadow-lg transition"
+            onClick={() => {
+              setQuery('');
+              setMediaType('all');
+              setSelectedGenre('all');
+            }}
+            className="px-4 py-2 bg-[#c88e58] text-[#071318] font-bold rounded-xl text-xs hover:bg-[#e5a875] transition shadow-md"
           >
-            Load More Titles ({filteredResults.length - visibleCount} remaining)
+            Reset All Filters
           </button>
         </div>
       )}
@@ -572,13 +513,22 @@ export const SearchView: React.FC<Props> = ({ initialSearchQuery = '', onRecords
       {selectedItem && (
         <MediaDetailModal
           item={selectedItem}
-          isOpen={!!selectedItem}
-          onClose={handleCloseDetailModal}
-          onPersonClick={(personName) => handleSearch(personName)}
-          onTagClick={(tagName) => handleSearch(tagName)}
-          onRecordChange={() => {
-            refreshUserRecords();
-            onRecordsChanged();
+          onClose={() => setSelectedItem(null)}
+          onMarkWatched={(item, tier) => {
+            onMarkWatched(item, tier);
+            setUserRecords(loadUserRecordsMap());
+          }}
+          onAddToWatchlist={(item) => {
+            onAddToWatchlist(item);
+            setUserRecords(loadUserRecordsMap());
+          }}
+          onPersonClick={(person) => {
+            setSelectedItem(null);
+            handleSelectPerson(person);
+          }}
+          onTagClick={(tag) => {
+            setSelectedItem(null);
+            handleSelectGenreTag(tag);
           }}
         />
       )}

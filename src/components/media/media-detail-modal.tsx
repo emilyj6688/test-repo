@@ -6,18 +6,27 @@ import { getTMDBDetails, getTMDBImageUrl } from '@/lib/tmdb';
 import { StorageService } from '@/lib/storage';
 import { RatingSlider } from '@/components/media/rating-slider';
 import { getContentRatingStyle } from '@/components/media/media-card';
-import { X, Calendar, Star, CheckCircle, Bookmark, Trash2, User, Clock, Tag, Search, Clapperboard, CheckSquare } from 'lucide-react';
+import { X, Calendar, Star, CheckCircle, Bookmark, Trash2, User, Clock, Tag, Clapperboard } from 'lucide-react';
 
 interface Props {
   item: MediaItem | null;
-  isOpen: boolean;
+  isOpen?: boolean;
   onClose: () => void;
   onRecordChange?: () => void;
+  onMarkWatched?: (item: MediaItem, tier?: RatingTier) => void;
+  onAddToWatchlist?: (item: MediaItem) => void;
   onPersonClick?: (personName: string) => void;
   onTagClick?: (tag: string) => void;
 }
 
-export const MediaDetailModal: React.FC<Props> = ({ item, isOpen, onClose, onRecordChange, onPersonClick, onTagClick }) => {
+export const MediaDetailModal: React.FC<Props> = ({
+  item,
+  isOpen = true,
+  onClose,
+  onRecordChange,
+  onPersonClick,
+  onTagClick,
+}) => {
   const [fetchedDetails, setFetchedDetails] = useState<MediaItem | null>(null);
   const [, setRecordRevision] = useState(0);
 
@@ -94,7 +103,7 @@ export const MediaDetailModal: React.FC<Props> = ({ item, isOpen, onClose, onRec
     StorageService.saveRecord(
       currentDetails,
       newOverallStatus,
-      userRecord?.ratingTier || 1.0,
+      userRecord?.ratingTier || 5.0,
       undefined,
       currentProgress
     );
@@ -103,47 +112,32 @@ export const MediaDetailModal: React.FC<Props> = ({ item, isOpen, onClose, onRec
     if (onRecordChange) onRecordChange();
   };
 
-  const handleSelectAllSeasons = () => {
+  const handleMarkAllSeasonsWatched = () => {
     const totalSeasons = currentDetails.numberOfSeasons || 1;
-    const currentProgress = { ...(userRecord?.seasonsProgress || {}) };
-
-    let allWatched = true;
+    const updatedProgress: Record<number, SeasonStatus> = {};
     for (let s = 1; s <= totalSeasons; s++) {
-      if (currentProgress[s] !== 'watched') {
-        allWatched = false;
-        break;
-      }
+      updatedProgress[s] = 'watched';
     }
 
-    if (allWatched) {
-      // Deselect all seasons -> remove record completely instead of putting in watchlist
-      StorageService.removeRecord(currentDetails.tmdbId, currentDetails.mediaType);
-    } else {
-      const updatedProgress: Record<number, SeasonStatus> = {};
-      for (let s = 1; s <= totalSeasons; s++) {
-        updatedProgress[s] = 'watched';
-      }
-
-      StorageService.saveRecord(
-        currentDetails,
-        'watched',
-        userRecord?.ratingTier || 5.0,
-        undefined,
-        updatedProgress
-      );
-    }
+    StorageService.saveRecord(
+      currentDetails,
+      'watched',
+      userRecord?.ratingTier || 5.0,
+      undefined,
+      updatedProgress
+    );
 
     setRecordRevision((prev) => prev + 1);
     if (onRecordChange) onRecordChange();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto bg-slate-950/80 backdrop-blur-md animate-fade-in">
-      <div className="relative w-full max-w-3xl bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden my-8 max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto bg-[#050d11]/85 backdrop-blur-xl animate-fade-in">
+      <div className="relative w-full max-w-3xl bg-[#091b22] border-2 border-[#c88e58]/50 rounded-3xl shadow-2xl overflow-hidden my-8 max-h-[90vh] flex flex-col text-[#eef4f6]">
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 z-20 w-10 h-10 rounded-full bg-slate-950/70 border border-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition shadow-lg"
+          className="absolute top-4 right-4 z-20 w-10 h-10 rounded-full bg-[#071318]/80 border border-[#c88e58]/50 text-slate-300 hover:text-white flex items-center justify-center transition shadow-lg"
           aria-label="Close modal"
         >
           <X className="w-5 h-5" />
@@ -153,24 +147,24 @@ export const MediaDetailModal: React.FC<Props> = ({ item, isOpen, onClose, onRec
         <div className="overflow-y-auto flex-1">
           {/* Backdrop Banner if available */}
           {currentDetails.backdropPath && (
-            <div className="h-48 sm:h-64 w-full relative overflow-hidden bg-slate-950">
+            <div className="h-48 sm:h-64 w-full relative overflow-hidden bg-[#050d11]">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={getTMDBImageUrl(currentDetails.backdropPath, 'backdrop')}
                 alt={currentDetails.title}
-                className="w-full h-full object-cover opacity-50"
+                className="w-full h-full object-cover opacity-60"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/40 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#091b22] via-[#091b22]/40 to-transparent" />
             </div>
           )}
 
           {/* Details Container */}
           <div className={`p-6 sm:p-8 space-y-6 ${currentDetails.backdropPath ? '-mt-24 relative z-10' : ''}`}>
-            {/* Top Side-by-Side Section: Poster on Left, Title & Rating Controls on Right */}
+            {/* Top Side-by-Side Section */}
             <div className="flex flex-col sm:flex-row gap-6 items-start">
               {/* Poster Card */}
-              <div className="w-36 sm:w-48 flex-shrink-0 mx-auto sm:mx-0 shadow-2xl rounded-2xl border border-slate-700/80 bg-slate-950/90 p-1 self-start">
-                <div className="w-full relative aspect-[2/3] rounded-xl overflow-hidden bg-slate-900/90 flex items-center justify-center">
+              <div className="w-36 sm:w-48 flex-shrink-0 mx-auto sm:mx-0 shadow-2xl rounded-2xl border-2 border-[#c88e58]/60 bg-[#050d11] p-1 self-start">
+                <div className="w-full relative aspect-[2/3] rounded-xl overflow-hidden bg-[#071318] flex items-center justify-center">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={getTMDBImageUrl(currentDetails.posterPath, 'poster', currentDetails.title, currentDetails.mediaType)}
@@ -180,11 +174,11 @@ export const MediaDetailModal: React.FC<Props> = ({ item, isOpen, onClose, onRec
                 </div>
               </div>
 
-              {/* Content Meta & User Rating Controls (Right of Poster) */}
+              {/* Content Meta & User Rating Controls */}
               <div className="flex-1 space-y-4 w-full">
                 <div>
                   <div className="flex flex-wrap items-center gap-2 mb-2">
-                    <span className="px-2.5 py-0.5 rounded-md text-[11px] font-bold uppercase tracking-wider bg-cyan-500/20 border border-cyan-500/40 text-cyan-300">
+                    <span className="px-2.5 py-0.5 rounded-md text-[11px] font-cinzel font-bold uppercase tracking-wider bg-[#c88e58]/20 border border-[#c88e58]/50 text-[#f3cb98]">
                       {currentDetails.mediaType === 'movie' ? 'Movie' : 'TV Series'}
                     </span>
                     {(() => {
@@ -197,59 +191,43 @@ export const MediaDetailModal: React.FC<Props> = ({ item, isOpen, onClose, onRec
                       );
                     })()}
                     {year !== 'N/A' && (
-                      <span className="flex items-center gap-1 text-xs text-slate-400 font-mono">
-                        <Calendar className="w-3.5 h-3.5" /> {year}
+                      <span className="flex items-center gap-1 text-xs text-slate-300 font-mono">
+                        <Calendar className="w-3.5 h-3.5 text-[#c88e58]" /> {year}
                       </span>
                     )}
                     {currentDetails.runtime && (
-                      <span className="flex items-center gap-1 text-xs text-slate-400 font-mono">
-                        <Clock className="w-3.5 h-3.5" /> {currentDetails.runtime} min
-                      </span>
-                    )}
-                    {currentDetails.mediaType === 'tv' && (
-                      <span className="flex items-center gap-1 text-xs text-purple-300 font-semibold bg-purple-500/20 px-2.5 py-0.5 rounded-md border border-purple-500/40">
-                        📺 {currentDetails.numberOfSeasons || 1} {currentDetails.numberOfSeasons === 1 ? 'Season' : 'Seasons'}
-                        {currentDetails.numberOfEpisodes ? ` (${currentDetails.numberOfEpisodes} Ep)` : ''}
+                      <span className="flex items-center gap-1 text-xs text-slate-300 font-mono">
+                        <Clock className="w-3.5 h-3.5 text-[#c88e58]" /> {currentDetails.runtime} min
                       </span>
                     )}
                     {currentDetails.voteAverage && (
-                      <span className="flex items-center gap-1 text-xs text-amber-400 font-semibold bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/30">
-                        <Star className="w-3.5 h-3.5 fill-amber-400" /> {currentDetails.voteAverage}/10
+                      <span className="flex items-center gap-1 text-xs text-amber-300 font-semibold bg-[#071318] px-2 py-0.5 rounded-md border border-amber-500/40">
+                        <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" /> {currentDetails.voteAverage}/10
                       </span>
                     )}
-                    <span
-                      onClick={() => {
-                        onClose();
-                        if (onTagClick) onTagClick(currentDetails.originalLanguage || 'English');
-                      }}
-                      className="flex items-center gap-1 text-xs text-emerald-300 font-semibold bg-emerald-500/20 px-2.5 py-0.5 rounded-md border border-emerald-500/40 cursor-pointer hover:bg-emerald-500/30 transition"
-                      title="Click to filter search by language"
-                    >
-                      🌐 {currentDetails.originalLanguage || 'English'}
-                    </span>
                   </div>
 
-                  <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+                  <h1 className="text-2xl sm:text-4xl font-cinzel font-extrabold text-[#f6f3eb] tracking-tight">
                     {currentDetails.title}
                   </h1>
                   {currentDetails.tagline && (
-                    <p className="text-xs text-cyan-300/80 italic mt-1 font-medium">
+                    <p className="text-xs text-[#f3cb98] italic mt-1 font-serif">
                       &ldquo;{currentDetails.tagline}&rdquo;
                     </p>
                   )}
                 </div>
 
                 {/* User Tracking & Rating Controls */}
-                <div className="bg-slate-950/80 border border-slate-800 p-4 rounded-2xl space-y-3">
+                <div className="bg-[#050d11] border border-[#c88e58]/40 p-4 rounded-2xl space-y-3">
                   <div className="flex flex-wrap gap-2 items-center justify-between">
-                    <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                    <span className="text-xs font-cinzel font-bold text-slate-300 uppercase tracking-wider">
                       My Tracking Status
                     </span>
 
                     {userRecord && (
                       <button
                         onClick={handleRemove}
-                        className="text-xs text-rose-400 hover:text-rose-300 flex items-center gap-1 transition"
+                        className="text-xs text-rose-300 hover:text-white flex items-center gap-1 transition"
                       >
                         <Trash2 className="w-3.5 h-3.5" /> Remove
                       </button>
@@ -258,37 +236,35 @@ export const MediaDetailModal: React.FC<Props> = ({ item, isOpen, onClose, onRec
 
                   <div className="flex flex-wrap gap-2">
                     <button
-                      onClick={() => (userRecord?.status === 'watched' ? handleRemove() : handleMarkWatched(userRecord?.ratingTier || 1.0))}
-                      className={`flex-1 min-w-[140px] py-2.5 px-4 rounded-xl font-semibold text-xs flex items-center justify-center gap-2 border transition ${
+                      onClick={() => (userRecord?.status === 'watched' ? handleRemove() : handleMarkWatched(userRecord?.ratingTier || 5.0))}
+                      className={`flex-1 min-w-[140px] py-2.5 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 border transition ${
                         userRecord?.status === 'watched'
-                          ? 'bg-emerald-500/20 border-emerald-500/60 text-emerald-300 hover:bg-rose-500/20 hover:border-rose-500/60 hover:text-rose-300'
-                          : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-200'
+                          ? 'bg-[#c88e58]/30 border-[#c88e58] text-[#f3cb98]'
+                          : 'bg-[#0f262e] hover:bg-[#c88e58]/20 border-[#c88e58]/40 text-slate-200'
                       }`}
-                      title={userRecord?.status === 'watched' ? 'Click to Undo / Remove from Watched' : 'Mark as Watched'}
                     >
-                      <CheckCircle className="w-4 h-4" />
-                      {userRecord?.status === 'watched' ? '✓ Watched (Click to Undo)' : 'Mark as Watched'}
+                      <CheckCircle className="w-4 h-4 text-[#c88e58]" />
+                      {userRecord?.status === 'watched' ? '✓ Watched (Undo)' : 'Mark as Watched'}
                     </button>
 
                     <button
                       onClick={() => (userRecord?.status === 'want_to_watch' ? handleRemove() : handleAddToWatchlist())}
-                      className={`flex-1 min-w-[140px] py-2.5 px-4 rounded-xl font-semibold text-xs flex items-center justify-center gap-2 border transition ${
+                      className={`flex-1 min-w-[140px] py-2.5 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 border transition ${
                         userRecord?.status === 'want_to_watch'
-                          ? 'bg-cyan-500/20 border-cyan-500/60 text-cyan-300 hover:bg-rose-500/20 hover:border-rose-500/60 hover:text-rose-300'
-                          : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-200'
+                          ? 'bg-[#c88e58]/30 border-[#c88e58] text-[#f3cb98]'
+                          : 'bg-[#0f262e] hover:bg-[#c88e58]/20 border-[#c88e58]/40 text-slate-200'
                       }`}
-                      title={userRecord?.status === 'want_to_watch' ? 'Click to Undo / Remove from Watchlist' : 'Add to Want to Watch'}
                     >
-                      <Bookmark className={`w-4 h-4 ${userRecord?.status === 'want_to_watch' ? 'fill-cyan-400' : ''}`} />
-                      {userRecord?.status === 'want_to_watch' ? '✓ In Watchlist (Click to Undo)' : 'Want to Watch'}
+                      <Bookmark className="w-4 h-4 text-[#c88e58]" />
+                      {userRecord?.status === 'want_to_watch' ? '🔖 In Watchlist' : 'Add to Watchlist'}
                     </button>
                   </div>
 
                   {userRecord?.status === 'watched' && (
-                    <div className="pt-2 border-t border-slate-800">
+                    <div className="pt-2 border-t border-[#c88e58]/20">
                       <RatingSlider
-                        value={userRecord.ratingTier}
-                        onChange={handleRatingChange}
+                        value={userRecord.ratingTier !== undefined ? userRecord.ratingTier : 5.0}
+                        onChange={(newTier) => handleRatingChange(newTier)}
                       />
                     </div>
                   )}
@@ -296,221 +272,94 @@ export const MediaDetailModal: React.FC<Props> = ({ item, isOpen, onClose, onRec
               </div>
             </div>
 
-            {/* Full-Width Bottom Section Below Poster (Plot Summary Downward Spans 100% Width) */}
-            <div className="space-y-6 pt-2 border-t border-slate-800/80">
-              {/* Plot Summary Overview */}
-              <div>
-                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Plot Summary</h3>
-                <p className="text-sm text-slate-300 leading-relaxed">
+            {/* Overview / Synopsis */}
+            {currentDetails.overview && (
+              <div className="space-y-2">
+                <h3 className="text-xs font-cinzel font-bold text-[#f3cb98] uppercase tracking-wider">Synopsis</h3>
+                <p className="text-xs sm:text-sm text-slate-300 leading-relaxed font-sans">
                   {currentDetails.overview}
                 </p>
               </div>
+            )}
 
-                {/* TV Series Season Progress & Select All Tracker */}
-                {currentDetails.mediaType === 'tv' && (
-                  <div className="bg-slate-950/80 border border-purple-500/40 p-5 rounded-2xl space-y-4 shadow-lg">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-purple-500/20 border border-purple-500/40 flex items-center justify-center text-lg text-purple-300 shadow-inner">
-                          📺
-                        </div>
-                        <div>
-                          <h4 className="text-sm font-extrabold text-white">
-                            Season Progress Tracker ({currentDetails.numberOfSeasons || 1} {(currentDetails.numberOfSeasons || 1) === 1 ? 'Season' : 'Seasons'})
-                          </h4>
-                          <p className="text-xs text-purple-300/80">
-                            Select individual seasons or mark seasons as In Progress
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Select All Toggle Button */}
-                      <button
-                        type="button"
-                        onClick={handleSelectAllSeasons}
-                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/50 text-purple-300 font-bold text-xs shadow-sm transition"
-                      >
-                        <CheckSquare className="w-4 h-4 text-purple-400" />
-                        {(() => {
-                          const total = currentDetails.numberOfSeasons || 1;
-                          const progress = userRecord?.seasonsProgress || {};
-                          let allW = true;
-                          for (let s = 1; s <= total; s++) {
-                            if (progress[s] !== 'watched') {
-                              allW = false;
-                              break;
-                            }
-                          }
-                          return allW ? 'Deselect All Seasons' : 'Select All Seasons';
-                        })()}
-                      </button>
-                    </div>
-
-                    {/* Season List with High-Contrast Season Badges */}
-                    <div className="space-y-2.5 pt-2">
-                      {Array.from({ length: Math.min(currentDetails.numberOfSeasons || 1, 30) }, (_, i) => i + 1).map((seasonNum) => {
-                        const currentSeasonStatus: SeasonStatus = userRecord?.seasonsProgress?.[seasonNum] || 'unwatched';
-
-                        return (
-                          <div
-                            key={seasonNum}
-                            className={`flex flex-wrap sm:flex-nowrap items-center justify-between p-3.5 rounded-2xl border transition gap-3 ${
-                              currentSeasonStatus === 'watched'
-                                ? 'bg-emerald-950/40 border-emerald-500/60'
-                                : currentSeasonStatus === 'in_progress'
-                                ? 'bg-amber-950/40 border-amber-500/60'
-                                : 'bg-slate-900/90 border-slate-800'
-                            }`}
-                          >
-                            {/* Prominent Season Label & Status Badge */}
-                            <div className="flex items-center gap-3">
-                              <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-xs shadow-inner flex-shrink-0 ${
-                                currentSeasonStatus === 'watched'
-                                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/50'
-                                  : currentSeasonStatus === 'in_progress'
-                                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/50'
-                                  : 'bg-slate-800 text-slate-400 border border-slate-700'
-                              }`}>
-                                S{seasonNum}
-                              </div>
-                              <div>
-                                <h5 className="text-sm font-black text-white tracking-wide">
-                                  Season {seasonNum}
-                                </h5>
-                                <span className={`text-[11px] font-extrabold ${
-                                  currentSeasonStatus === 'watched'
-                                    ? 'text-emerald-400'
-                                    : currentSeasonStatus === 'in_progress'
-                                    ? 'text-amber-400'
-                                    : 'text-slate-400'
-                                }`}>
-                                  {currentSeasonStatus === 'watched'
-                                    ? '✓ Watched'
-                                    : currentSeasonStatus === 'in_progress'
-                                    ? '⏳ In Progress'
-                                    : '○ Not Watched Yet'}
-                                </span>
-                              </div>
-                            </div>
-
-                            {/* Clear High-Contrast Action Buttons */}
-                            <div className="flex items-center gap-1.5 bg-slate-950 p-1.5 rounded-xl border border-slate-800 flex-shrink-0">
-                              <button
-                                type="button"
-                                onClick={() => handleSeasonStatusChange(seasonNum, currentSeasonStatus === 'watched' ? 'unwatched' : 'watched')}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-black transition ${
-                                  currentSeasonStatus === 'watched'
-                                    ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/30'
-                                    : 'text-slate-300 hover:text-white hover:bg-slate-800'
-                                }`}
-                                title="Mark Season as Watched"
-                              >
-                                {currentSeasonStatus === 'watched' ? '✓ Watched' : 'Mark Watched'}
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() => handleSeasonStatusChange(seasonNum, currentSeasonStatus === 'in_progress' ? 'unwatched' : 'in_progress')}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-black transition ${
-                                  currentSeasonStatus === 'in_progress'
-                                    ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/30'
-                                    : 'text-slate-300 hover:text-white hover:bg-slate-800'
-                                }`}
-                                title="Mark Season as In Progress"
-                              >
-                                {currentSeasonStatus === 'in_progress' ? '⏳ In Progress' : 'In Progress'}
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* Clickable Genre Tags */}
-                {currentDetails.genres && currentDetails.genres.length > 0 && (
-                  <div>
-                    <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1">
-                      <Tag className="w-3.5 h-3.5 text-cyan-400" /> Genre Tags (Click to see all matching titles)
-                    </h3>
-                    <div className="flex flex-wrap gap-2">
-                      {currentDetails.genres.map((genre) => (
-                        <button
-                          key={genre}
-                          onClick={() => handleTagTrigger(genre)}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/90 hover:bg-cyan-500/20 border border-slate-700/80 hover:border-cyan-500/50 text-xs font-bold text-slate-200 hover:text-cyan-300 transition shadow-sm hover:scale-105"
-                          title={`Click to view all ${genre} movies and TV shows`}
-                        >
-                          <Tag className="w-3 h-3 text-cyan-400" /> {genre}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Clickable Directors & Creators Tags */}
-                {currentDetails.directors && currentDetails.directors.length > 0 && (
-                  <div>
-                    <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1">
-                      <Clapperboard className="w-3.5 h-3.5 text-cyan-400" /> {currentDetails.mediaType === 'movie' ? 'Director Tag(s)' : 'Creator Tag(s)'}
-                    </h3>
-                    <div className="flex flex-wrap gap-2">
-                      {currentDetails.directors.map((director) => (
-                        <button
-                          key={director}
-                          onClick={() => handleTagTrigger(director)}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 font-bold text-xs shadow-sm hover:scale-105 transition"
-                          title={`Click to view all movies directed by ${director}`}
-                        >
-                          <Search className="w-3 h-3 text-cyan-400" /> {director}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-            {/* Clickable Top Cast Member Actor Cards (3-10 Actors) */}
-            {currentDetails.cast && currentDetails.cast.length > 0 && (
-              <div className="mt-8 pt-6 border-t border-slate-800">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                    <User className="w-4 h-4 text-cyan-400" /> Main Actor Tags (Click an actor to see all their movies)
-                  </h3>
-                  <span className="text-[11px] text-slate-500">
-                    Showing top {Math.min(10, currentDetails.cast.length)} actors
+            {/* Directors & Cast List (Interactive Tag & Actor Clicks) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {currentDetails.directors && currentDetails.directors.length > 0 && (
+                <div className="space-y-1.5 bg-[#050d11] p-3 rounded-xl border border-[#c88e58]/30">
+                  <span className="text-[10px] font-cinzel font-bold text-[#f3cb98] uppercase tracking-wider flex items-center gap-1">
+                    <Clapperboard className="w-3 h-3 text-[#c88e58]" /> Director(s)
                   </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {currentDetails.directors.map((director) => (
+                      <button
+                        key={director}
+                        onClick={() => handleTagTrigger(director)}
+                        className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-[#122c37] border border-[#c88e58]/40 text-[#f6f3eb] hover:bg-[#c88e58] hover:text-[#071318] transition flex items-center gap-1"
+                        title={`Filter movies directed by ${director}`}
+                      >
+                        <User className="w-3 h-3" /> {director}
+                      </button>
+                    ))}
+                  </div>
                 </div>
+              )}
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-                  {currentDetails.cast.slice(0, 10).map((c) => (
+              {currentDetails.genres && currentDetails.genres.length > 0 && (
+                <div className="space-y-1.5 bg-[#050d11] p-3 rounded-xl border border-[#c88e58]/30">
+                  <span className="text-[10px] font-cinzel font-bold text-[#f3cb98] uppercase tracking-wider flex items-center gap-1">
+                    <Tag className="w-3 h-3 text-[#c88e58]" /> Genres &amp; Categories
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {currentDetails.genres.map((genre) => (
+                      <button
+                        key={genre}
+                        onClick={() => handleTagTrigger(genre)}
+                        className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-[#122c37] border border-[#c88e58]/40 text-[#f3cb98] hover:bg-[#c88e58] hover:text-[#071318] transition"
+                        title={`Filter by #${genre}`}
+                      >
+                        #{genre}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Cast Cards */}
+            {currentDetails.cast && currentDetails.cast.length > 0 && (
+              <div className="space-y-2 pt-2 border-t border-[#c88e58]/20">
+                <h3 className="text-xs font-cinzel font-bold text-[#f3cb98] uppercase tracking-wider flex items-center gap-1">
+                  <User className="w-3.5 h-3.5 text-[#c88e58]" /> Key Cast Members (Click to Search)
+                </h3>
+                <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none">
+                  {currentDetails.cast.slice(0, 10).map((castMember) => (
                     <div
-                      key={c.id}
-                      onClick={() => handleTagTrigger(c.name)}
-                      className="group/actor cursor-pointer flex flex-col items-center p-3 rounded-2xl bg-slate-950/70 hover:bg-slate-800 border border-slate-800 hover:border-cyan-500/50 transition-all duration-300 text-center shadow-lg hover:-translate-y-1"
-                      title={`Click to search all movies featuring ${c.name}`}
+                      key={castMember.name}
+                      onClick={() => handleTagTrigger(castMember.name)}
+                      className="w-24 shrink-0 bg-[#050d11] border border-[#c88e58]/30 hover:border-[#c88e58] rounded-xl p-1.5 text-center cursor-pointer transition group"
                     >
-                      <div className="w-14 h-14 rounded-full overflow-hidden bg-slate-800 mb-2 border-2 border-slate-700 group-hover/actor:border-cyan-400 transition-colors shadow-md">
-                        {c.profilePath ? (
+                      <div className="w-full aspect-square rounded-lg bg-[#071318] overflow-hidden mb-1 border border-[#c88e58]/20">
+                        {castMember.profilePath ? (
                           /* eslint-disable-next-line @next/next/no-img-element */
                           <img
-                            src={getTMDBImageUrl(c.profilePath, 'profile')}
-                            alt={c.name}
-                            className="w-full h-full object-cover group-hover/actor:scale-110 transition-transform duration-300"
+                            src={getTMDBImageUrl(castMember.profilePath, 'profile')}
+                            alt={castMember.name}
+                            className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
                           />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center text-slate-500">
-                            <User className="w-6 h-6" />
+                          <div className="w-full h-full flex items-center justify-center text-xs text-slate-500">
+                            👤
                           </div>
                         )}
                       </div>
-                      <p className="text-xs font-bold text-slate-200 group-hover/actor:text-cyan-300 transition line-clamp-1">
-                        {c.name}
+                      <p className="text-[11px] font-bold text-slate-200 group-hover:text-[#f3cb98] truncate font-cinzel">
+                        {castMember.name}
                       </p>
-                      <p className="text-[11px] text-slate-400 line-clamp-1 mt-0.5">
-                        {c.character}
-                      </p>
+                      {castMember.character && (
+                        <p className="text-[9px] text-slate-400 truncate mt-0.5">
+                          {castMember.character}
+                        </p>
+                      )}
                     </div>
                   ))}
                 </div>

@@ -171,33 +171,33 @@ export const WatchedWatchlistView: React.FC<Props> = ({
 
   return (
     <div className="space-y-6">
-      {/* Header & Mode Selector */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900/60 border border-slate-800 p-4 sm:p-6 rounded-3xl backdrop-blur-xl">
+      {/* Header & Mode Selector (Aperture Moodboard Theme) */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#091b22] border-2 border-[#c88e58]/40 p-4 sm:p-6 rounded-3xl backdrop-blur-xl shadow-2xl">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+          <div className="w-12 h-12 rounded-2xl bg-[#c88e58]/20 border border-[#c88e58]/50 flex items-center justify-center text-[#f3cb98]">
             {activeTab === 'watched' ? <Film className="w-6 h-6" /> : <BookmarkCheck className="w-6 h-6" />}
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-white">
+            <h1 className="text-2xl font-cinzel font-black text-[#f6f3eb]">
               {activeTab === 'watched' ? t('watched_title') : t('watchlist_title')}
             </h1>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-slate-300">
               {activeTab === 'watched' ? t('watched_desc') : t('watchlist_desc')}
             </p>
           </div>
         </div>
 
         {/* Tab Toggle Buttons */}
-        <div className="flex items-center gap-1 bg-slate-950 p-1.5 rounded-2xl border border-slate-800 self-start sm:self-auto">
+        <div className="flex items-center gap-1.5 bg-[#050d11] p-1.5 rounded-2xl border border-[#c88e58]/40 self-start sm:self-auto shadow-inner">
           <button
             onClick={() => {
               setActiveTab('watched');
               setVisibleCount(PAGE_SIZE);
             }}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition ${
               activeTab === 'watched'
-                ? 'bg-cyan-500 text-slate-950 font-bold shadow-md'
-                : 'text-slate-400 hover:text-slate-200'
+                ? 'bg-gradient-to-r from-[#d99b66] to-[#c88e58] text-[#071318] shadow-md'
+                : 'text-slate-300 hover:text-white'
             }`}
           >
             <Film className="w-4 h-4" /> {t('watched_tab')} ({records.filter((r) => r.status === 'watched').length})
@@ -207,10 +207,10 @@ export const WatchedWatchlistView: React.FC<Props> = ({
               setActiveTab('watchlist');
               setVisibleCount(PAGE_SIZE);
             }}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition ${
               activeTab === 'watchlist'
-                ? 'bg-cyan-500 text-slate-950 font-bold shadow-md'
-                : 'text-slate-400 hover:text-slate-200'
+                ? 'bg-gradient-to-r from-[#d99b66] to-[#c88e58] text-[#071318] shadow-md'
+                : 'text-slate-300 hover:text-white'
             }`}
           >
             <BookmarkCheck className="w-4 h-4" /> {t('watchlist_tab')} ({records.filter((r) => r.status === 'want_to_watch').length})

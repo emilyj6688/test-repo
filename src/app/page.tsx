@@ -140,9 +140,17 @@ export default function Home() {
         {activeTab === 'search' && (
           <SearchView
             key={searchQuery}
-            initialSearchQuery={searchQuery}
-            onRecordsChanged={refreshCounts}
-            onNavigateToTab={handleTabChange}
+            initialQuery={searchQuery}
+            onMarkWatched={(item, tier) => {
+              StorageService.saveRecord(item, 'watched', tier || 5.0);
+              refreshCounts();
+            }}
+            onAddToWatchlist={(item) => {
+              StorageService.saveRecord(item, 'want_to_watch', 5.0);
+              refreshCounts();
+            }}
+            onPersonClick={(person) => handlePersonSelect(person)}
+            onTagClick={(tag) => handlePersonSelect(tag)}
           />
         )}
 
