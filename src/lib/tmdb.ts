@@ -141,12 +141,73 @@ export function setActiveTMDBApiKey(key: string): void {
   window.dispatchEvent(new CustomEvent('cinetrack_tmdb_key_changed'));
 }
 
-export function isTMDBConfigured(): boolean {
-  return Boolean(getActiveTMDBApiKey());
+export async function fetchLiveTrendingTMDB(langCode = 'en-US'): Promise<MediaItem[]> {
+  const apiKey = getActiveTMDBApiKey();
+  try {
+    const [trendingRes, nowPlayingRes] = await Promise.all([
+      fetch(`${TMDB_BASE_URL}/trending/all/day?api_key=${apiKey}&language=${langCode}`, { cache: 'no-store' }),
+      fetch(`${TMDB_BASE_URL}/movie/now_playing?api_key=${apiKey}&language=${langCode}`, { cache: 'no-store' }),
+    ]);
+
+    const liveItems: MediaItem[] = [];
+    const seenIds = new Set<string>();
+
+    const processResults = (results: TMDBRawSearchResult[], defaultType: 'movie' | 'tv' = 'movie') => {
+      for (const r of results) {
+        const mType = (r.media_type === 'tv' || r.media_type === 'movie') ? r.media_type : defaultType;
+        if (!r.poster_path) continue;
+        const key = `${mType}_${r.id}`;
+        if (seenIds.has(key)) continue;
+        seenIds.add(key);
+
+        liveItems.push({
+          id: r.id,
+          tmdbId: r.id,
+          title: r.title || r.name || r.original_title || r.original_name || 'Untitled',
+          mediaType: mType,
+          posterPath: `${TMDB_IMAGE_BASE}w500${r.poster_path}`,
+          backdropPath: r.backdrop_path ? `${TMDB_IMAGE_BASE}w780${r.backdrop_path}` : null,
+          releaseDate: r.release_date || r.first_air_date || '',
+          overview: r.overview || 'No description available.',
+          genres: [],
+          directors: [],
+          cast: [],
+          voteAverage: r.vote_average ? Math.round(r.vote_average * 10) / 10 : undefined,
+          voteCount: r.vote_count || 10,
+          originalLanguage: formatLanguageName(r.original_language),
+        });
+      }
+    };
+
+    if (trendingRes.ok) {
+      const data = await trendingRes.json();
+      processResults(data.results || []);
+    }
+
+    if (nowPlayingRes.ok) {
+      const data = await nowPlayingRes.json();
+      processResults(data.results || [], 'movie');
+    }
+
+    if (liveItems.length > 0) {
+      const combinedMap = new Map<string, MediaItem>();
+      liveItems.forEach((m) => combinedMap.set(`${m.mediaType}_${m.tmdbId}`, m));
+      POPULAR_AMERICAN_CATALOG.forEach((m) => {
+        const key = `${m.mediaType}_${m.tmdbId}`;
+        if (!combinedMap.has(key)) combinedMap.set(key, m);
+      });
+      return Array.from(combinedMap.values());
+    }
+  } catch (err) {
+    console.error('Fetch live trending TMDB error:', err);
+  }
+  return POPULAR_AMERICAN_CATALOG;
 }
 
 export async function searchTMDB(query: string, page = 1, langCode = 'en-US'): Promise<MediaItem[]> {
-  if (!query.trim()) return POPULAR_AMERICAN_CATALOG;
+  if (!query.trim()) {
+    return await fetchLiveTrendingTMDB(langCode);
+  }
 
   const lower = query.toLowerCase().trim();
   const apiKey = getActiveTMDBApiKey();

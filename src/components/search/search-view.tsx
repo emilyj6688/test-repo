@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import { MediaItem, UserMediaRecord, MediaType } from '@/types/media';
-import { searchTMDB, MOCK_MEDIA_ITEMS, getTMDBImageUrl } from '@/lib/tmdb';
+import { searchTMDB, fetchLiveTrendingTMDB, MOCK_MEDIA_ITEMS, getTMDBImageUrl } from '@/lib/tmdb';
 import { StorageService } from '@/lib/storage';
 import { useLanguage } from '@/context/language-context';
 import { MediaCard } from '@/components/media/media-card';
@@ -48,6 +48,30 @@ export const SearchView: React.FC<Props> = ({ initialSearchQuery = '', onRecords
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Fetch live trending & now playing movies on mount if no search query active
+  useEffect(() => {
+    if (!initialSearchQuery) {
+      let isMounted = true;
+      const timer = setTimeout(() => {
+        setLoading(true);
+        fetchLiveTrendingTMDB(String(currentLanguage))
+          .then((liveResults) => {
+            if (isMounted && liveResults.length > 0) {
+              setResults(liveResults);
+              setLoading(false);
+            }
+          })
+          .catch(() => {
+            if (isMounted) setLoading(false);
+          });
+      }, 0);
+      return () => {
+        isMounted = false;
+        clearTimeout(timer);
+      };
+    }
+  }, [initialSearchQuery, currentLanguage]);
 
   const handleOpenDetailModal = useCallback((item: MediaItem) => {
     setSelectedItem(item);
