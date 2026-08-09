@@ -7,7 +7,7 @@ import { searchTMDB, fetchLiveTrendingTMDB, getTMDBImageUrl } from '@/lib/tmdb';
 import { MediaCard } from '@/components/media/media-card';
 import { MediaDetailModal } from '@/components/media/media-detail-modal';
 import { useLanguage } from '@/context/language-context';
-import { Search, Film, Tv, Sparkles, SlidersHorizontal, Loader2, Star, X, User, Tag, ChevronRight } from 'lucide-react';
+import { Search, Film, Tv, SlidersHorizontal, Loader2, Star, X, User, Tag, ChevronRight, Sparkles } from 'lucide-react';
 
 interface Props {
   onMarkWatched: (item: MediaItem, tier?: RatingTier) => void;
@@ -56,7 +56,7 @@ export const SearchView: React.FC<Props> = ({
     };
   }, []);
 
-  // Update query when initialQuery changes via user navigation
+  // Sync initialQuery prop changes
   const prevInitialQueryRef = useRef(initialQuery);
   useEffect(() => {
     if (prevInitialQueryRef.current !== initialQuery) {
@@ -226,41 +226,43 @@ export const SearchView: React.FC<Props> = ({
     if (onTagClick) onTagClick(tag);
   };
 
+  // Muted Gray/Bronze Genre Buttons
   const availableGenres = [
     'all',
     'Action',
     'Drama',
     'Sci-Fi',
     'Comedy',
-    'Crime',
     'Thriller',
+    'Documentary',
     'Animation',
-    'Adventure',
-    'Fantasy',
-    'Horror',
+    'Crime',
     'Romance',
   ];
 
   return (
-    <div className="space-y-8 relative">
-      {/* Hero Stage Banner */}
-      <div className="bg-gradient-to-br from-[#0a1c24] via-[#091b22] to-[#071318] border-2 border-[#c88e58]/40 p-6 sm:p-10 rounded-3xl shadow-2xl relative z-20 overflow-hidden">
-        <div className="absolute -top-24 -right-24 w-96 h-96 bg-[#c88e58]/10 rounded-full blur-3xl pointer-events-none" />
+    <div className="space-y-6 relative">
+      {/* 🏛️ MASSIVE ART DECO MOSAIC HERO DISPLAY */}
+      <div className="relative rounded-3xl overflow-hidden border-4 border-[#c88e58]/50 shadow-2xl bg-[#091b22] group">
+        {/* Intricate Mosaic Graphic Image Background */}
+        <div className="relative aspect-[16/9] sm:aspect-[21/9] w-full overflow-hidden bg-[#071318]">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="images/art_deco_hero.jpg"
+            alt="Aperture Art Deco Geometric Stained Glass Mosaic Hero Display"
+            className="w-full h-full object-cover opacity-90 transition-transform duration-700 group-hover:scale-102"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#091b22] via-[#091b22]/20 to-transparent" />
+        </div>
 
-        <div className="max-w-3xl space-y-4 relative z-10">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-cinzel font-bold uppercase tracking-widest bg-[#c88e58]/20 border border-[#c88e58]/50 text-[#f3cb98]">
-            <Sparkles className="w-3.5 h-3.5 text-[#c88e58]" /> Aperture Film Archive
-          </div>
+        {/* FUNCTIONAL BRONZE-ACCENTED SEARCH BAR (INTEGRATED AT LOWER CENTER IN DECORATIVE FRAME) */}
+        <div className="absolute bottom-4 sm:bottom-8 left-1/2 -translate-x-1/2 w-full max-w-xl px-4 z-30" ref={searchContainerRef}>
+          <div className="relative p-1 bg-[#091b22]/90 backdrop-blur-md rounded-2xl border-2 border-[#c88e58] shadow-2xl">
+            {/* Geometric Diamond Frame Accents */}
+            <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-5 h-5 bg-[#c88e58] rotate-45 border border-[#f6f3eb] flex items-center justify-center shadow-md">
+              <div className="w-2 h-2 bg-[#091b22] rotate-45" />
+            </div>
 
-          <h1 className="text-3xl sm:text-5xl font-cinzel font-black text-[#f6f3eb] tracking-tight leading-tight">
-            Discover &amp; Rank <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#f3cb98] via-[#e5a875] to-[#c88e58]">Cinema Excellence</span>
-          </h1>
-
-          <p className="text-sm text-slate-300 max-w-2xl leading-relaxed">
-            Search over 31,330+ iconic titles, directors, and actors. Log your watched media and rank them through head-to-head pairwise comparisons.
-          </p>
-
-          <div className="pt-3 relative z-30" ref={searchContainerRef}>
             <div className="relative flex items-center">
               <Search className="absolute left-4 w-5 h-5 text-[#c88e58] pointer-events-none" />
               <input
@@ -278,8 +280,8 @@ export const SearchView: React.FC<Props> = ({
                     setShowSuggestions(false);
                   }
                 }}
-                placeholder={t('search_placeholder')}
-                className="w-full pl-12 pr-10 py-3.5 bg-[#050d11] border-2 border-[#c88e58]/60 focus:border-[#e5a875] rounded-2xl text-sm text-[#f6f3eb] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#c88e58]/40 transition shadow-2xl"
+                placeholder="Search movies, genres, or directors..."
+                className="w-full pl-12 pr-10 py-3 bg-[#050d11]/90 border border-[#c88e58]/50 rounded-xl text-sm font-cinzel text-[#f6f3eb] placeholder-slate-400 focus:outline-none focus:border-[#c88e58] transition shadow-inner"
               />
               {query && (
                 <button
@@ -287,7 +289,7 @@ export const SearchView: React.FC<Props> = ({
                     setQuery('');
                     setShowSuggestions(false);
                   }}
-                  className="absolute right-4 p-1 rounded-full text-slate-400 hover:text-white hover:bg-[#122c37] transition"
+                  className="absolute right-4 p-1 rounded-full text-slate-400 hover:text-white transition"
                   title="Clear search query"
                 >
                   <X className="w-4 h-4" />
@@ -295,8 +297,10 @@ export const SearchView: React.FC<Props> = ({
               )}
             </div>
 
+            {/* Interactive Autosuggest Dropdown */}
             {showSuggestions && query.trim().length >= 1 && hasSuggestions && (
-              <div className="absolute left-0 right-0 top-full mt-2 bg-[#091b22]/95 backdrop-blur-2xl border-2 border-[#c88e58]/60 rounded-2xl shadow-2xl overflow-hidden max-h-[420px] overflow-y-auto divide-y divide-[#c88e58]/20 animate-in fade-in slide-in-from-top-2 duration-150 z-50">
+              <div className="absolute left-0 right-0 bottom-full mb-3 bg-[#091b22]/98 backdrop-blur-2xl border-2 border-[#c88e58] rounded-2xl shadow-2xl overflow-hidden max-h-[380px] overflow-y-auto divide-y divide-[#c88e58]/20 z-50">
+                {/* Title Matches */}
                 {suggestions.titles.length > 0 && (
                   <div className="p-2 space-y-1">
                     <span className="px-3 py-1 text-[10px] font-cinzel font-extrabold uppercase tracking-wider text-[#f3cb98] block">
@@ -346,6 +350,7 @@ export const SearchView: React.FC<Props> = ({
                   </div>
                 )}
 
+                {/* People Matches */}
                 {suggestions.people.length > 0 && (
                   <div className="p-2 space-y-1">
                     <span className="px-3 py-1 text-[10px] font-cinzel font-extrabold uppercase tracking-wider text-amber-400 block flex items-center gap-1">
@@ -369,6 +374,7 @@ export const SearchView: React.FC<Props> = ({
                   </div>
                 )}
 
+                {/* Genre Tag Matches */}
                 {suggestions.tags.length > 0 && (
                   <div className="p-2 space-y-1">
                     <span className="px-3 py-1 text-[10px] font-cinzel font-extrabold uppercase tracking-wider text-[#c88e58] block flex items-center gap-1">
@@ -396,15 +402,32 @@ export const SearchView: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* Filter Toolbar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#c88e58]/20 pb-4">
-        <div className="flex items-center gap-2 bg-[#050d11] p-1.5 rounded-2xl border border-[#c88e58]/40 shadow-inner">
+      {/* MUTED SLATE GRAY & ANTIQUE BRONZE GENRE BUTTONS */}
+      <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 py-2">
+        {availableGenres.map((genre) => (
+          <button
+            key={genre}
+            onClick={() => setSelectedGenre(genre)}
+            className={`px-5 py-2 rounded-xl text-xs font-cinzel font-bold tracking-wider transition-all duration-200 border ${
+              selectedGenre === genre
+                ? 'bg-[#8c5023] border-[#c88e58] text-[#f6f3eb] shadow-lg scale-105'
+                : 'bg-slate-700/60 border-slate-600/60 text-slate-300 hover:bg-[#8c5023]/60 hover:text-[#f6f3eb] hover:border-[#c88e58]/50'
+            }`}
+          >
+            {genre === 'all' ? 'All Genres' : genre}
+          </button>
+        ))}
+      </div>
+
+      {/* Media Type Filter Tabs */}
+      <div className="flex items-center justify-between border-b border-[#c88e58]/20 pb-3">
+        <div className="flex items-center gap-2 bg-[#050d11] p-1 rounded-xl border border-[#c88e58]/30">
           <button
             onClick={() => setMediaType('all')}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-cinzel font-bold transition ${
               mediaType === 'all'
-                ? 'bg-gradient-to-r from-[#d99b66] to-[#c88e58] text-[#071318] shadow-md'
-                : 'text-slate-300 hover:text-white'
+                ? 'bg-[#c88e58] text-[#091b22] font-bold shadow-md'
+                : 'text-slate-400 hover:text-white'
             }`}
           >
             <Sparkles className="w-3.5 h-3.5" /> All Types
@@ -412,10 +435,10 @@ export const SearchView: React.FC<Props> = ({
 
           <button
             onClick={() => setMediaType('movie')}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-cinzel font-bold transition ${
               mediaType === 'movie'
-                ? 'bg-gradient-to-r from-[#d99b66] to-[#c88e58] text-[#071318] shadow-md'
-                : 'text-slate-300 hover:text-white'
+                ? 'bg-[#c88e58] text-[#091b22] font-bold shadow-md'
+                : 'text-slate-400 hover:text-white'
             }`}
           >
             <Film className="w-3.5 h-3.5" /> Movies
@@ -423,78 +446,56 @@ export const SearchView: React.FC<Props> = ({
 
           <button
             onClick={() => setMediaType('tv')}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-cinzel font-bold transition ${
               mediaType === 'tv'
-                ? 'bg-gradient-to-r from-[#d99b66] to-[#c88e58] text-[#071318] shadow-md'
-                : 'text-slate-300 hover:text-white'
+                ? 'bg-[#c88e58] text-[#091b22] font-bold shadow-md'
+                : 'text-slate-400 hover:text-white'
             }`}
           >
             <Tv className="w-3.5 h-3.5" /> TV Shows
           </button>
         </div>
 
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
-          <SlidersHorizontal className="w-4 h-4 text-[#c88e58] shrink-0 mr-1 hidden sm:block" />
-          {availableGenres.map((genre) => (
-            <button
-              key={genre}
-              onClick={() => setSelectedGenre(genre)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap border transition ${
-                selectedGenre === genre
-                  ? 'bg-[#c88e58] border-[#e5a875] text-[#071318] font-bold shadow-md'
-                  : 'bg-[#091b22] border-[#c88e58]/30 text-slate-300 hover:border-[#c88e58] hover:text-[#f3cb98]'
-              }`}
-            >
-              {genre === 'all' ? 'All Genres' : genre}
-            </button>
-          ))}
-        </div>
+        <span className="text-xs font-cinzel font-bold text-slate-400">
+          Catalog: <span className="text-[#f3cb98] font-extrabold">{results.length}</span> titles
+        </span>
       </div>
 
       {/* Catalog Search Results Grid */}
       {isLoading ? (
         <div className="py-20 flex flex-col items-center justify-center space-y-3 text-slate-400">
           <Loader2 className="w-8 h-8 text-[#c88e58] animate-spin" />
-          <p className="text-xs font-cinzel font-bold text-[#f3cb98]">Searching Aperture Catalog...</p>
+          <p className="text-xs font-cinzel font-bold text-[#f3cb98]">Searching Aperture Art Deco Catalog...</p>
         </div>
       ) : results.length > 0 ? (
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-xs font-cinzel font-bold text-slate-300">
-              Showing <span className="text-[#f3cb98] font-extrabold">{results.length}</span> titles
-              {query ? ` for "${query}"` : ' (Live & Popular)'}
-            </span>
-          </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-6">
+          {results.map((item) => {
+            const recordKey = `${item.mediaType}_${item.tmdbId}`;
+            const record = userRecords[recordKey] || null;
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-6">
-            {results.map((item) => {
-              const recordKey = `${item.mediaType}_${item.tmdbId}`;
-              const record = userRecords[recordKey] || null;
-
-              return (
-                <MediaCard
-                  key={recordKey}
-                  item={item}
-                  record={record}
-                  onSelect={(selected) => setSelectedItem(selected)}
-                  onMarkWatched={(m, tier) => onMarkWatched(m, tier)}
-                  onAddToWatchlist={(m) => onAddToWatchlist(m)}
-                  onRemoveRecord={() => setUserRecords(loadUserRecordsMap())}
-                  onRatingChange={(m, tier) => {
-                    StorageService.saveRecord(m, 'watched', tier);
-                    setUserRecords(loadUserRecordsMap());
-                  }}
-                />
-              );
-            })}
-          </div>
+            return (
+              <MediaCard
+                key={recordKey}
+                item={item}
+                record={record}
+                onSelect={(selected) => setSelectedItem(selected)}
+                onMarkWatched={(m, tier) => onMarkWatched(m, tier)}
+                onAddToWatchlist={(m) => onAddToWatchlist(m)}
+                onRemoveRecord={() => setUserRecords(loadUserRecordsMap())}
+                onRatingChange={(m, tier) => {
+                  StorageService.saveRecord(m, 'watched', tier);
+                  setUserRecords(loadUserRecordsMap());
+                }}
+              />
+            );
+          })}
         </div>
       ) : (
         <div className="py-16 text-center space-y-3 bg-[#091b22] border border-[#c88e58]/30 rounded-3xl p-8">
           <Film className="w-10 h-10 text-[#c88e58] mx-auto opacity-60" />
           <h3 className="font-cinzel font-bold text-lg text-slate-100">No Titles Found</h3>
           <p className="text-xs text-slate-400 max-w-sm mx-auto">
-            Try refining your search terms or genre filters.
+            Try refining your search query or genre filters.
           </p>
           <button
             onClick={() => {
@@ -502,9 +503,9 @@ export const SearchView: React.FC<Props> = ({
               setMediaType('all');
               setSelectedGenre('all');
             }}
-            className="px-4 py-2 bg-[#c88e58] text-[#071318] font-bold rounded-xl text-xs hover:bg-[#e5a875] transition shadow-md"
+            className="px-4 py-2 bg-[#c88e58] text-[#091b22] font-bold rounded-xl text-xs hover:bg-[#e5a875] transition shadow-md"
           >
-            Reset All Filters
+            Reset Filters
           </button>
         </div>
       )}
